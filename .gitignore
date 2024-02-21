@@ -1,4 +1,3 @@
-config/settings_dev.py
 
 # Django #
 *.log
