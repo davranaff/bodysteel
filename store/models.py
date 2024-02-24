@@ -141,3 +141,14 @@ class Product(BaseModel):
                                                                 'здесь 20000 сум скидочная цена)')
 
     slug = models.SlugField(max_length=255, unique=True)
+
+    composition = RichTextField(verbose_name='Состав продукта')
+    view_count = models.PositiveIntegerField(default=0, verbose_name='Кол-во. просмотров')
+
+    category = models.ForeignKey(Category, on_delete=models.PROTECT, verbose_name='Категория продукта',
+                                 related_name='products', related_query_name='products')
+
+    brand = models.ForeignKey(Brand, on_delete=models.PROTECT, verbose_name='Бренд продукта', related_name='products',
+                              related_query_name='products')
+
+
