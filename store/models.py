@@ -1,6 +1,7 @@
 from ckeditor.fields import RichTextField
 from django.db import models
 from users.models import User
+from django.core.validators import MaxValueValidator, MinValueValidator
 
 
 def category_directory_path(instance, filename):
@@ -13,6 +14,10 @@ def blog_directory_path(instance, filename):
 
 def brand_directory_path(instance, filename):
     return 'brand/{0}/{1}'.format(instance.name, filename)
+
+
+def product_image_directory_path(instance, filename):
+    return 'product_images/{0}/{1}'.format(instance.product.name, filename)
 
 
 class BaseModel(models.Model):
@@ -155,37 +160,109 @@ class Product(BaseModel):
                               related_name='products',
                               related_query_name='products', null=True, blank=True)
 
+    def __str__(self):
+        return self.name
+
+    class Meta:
+        verbose_name = 'Продукт'
+        verbose_name_plural = 'Продукты'
+
+
+class ProductImage(models.Model):
+    product = models.ForeignKey('Product', on_delete=models.CASCADE, related_name='product_images',
+                                related_query_name='product_images', verbose_name='картинка продуктов')
+    image = models.ImageField(upload_to=product_image_directory_path, verbose_name='Фото продукта')
+
+    def __str__(self):
+        return '{} - {}'.format(self.product.name, self.image[:10])
+
+    class Meta:
+        verbose_name = 'Картинка продукта'
+        verbose_name_plural = 'Картинки продуктов'
+
+
+class Review(BaseModel):
+    full_name = models.CharField(max_length=100, verbose_name='Полное имя')
+    rating = models.PositiveIntegerField(verbose_name='Рейтинг',
+                                         validators=[MinValueValidator(1), MaxValueValidator(5)], default=5)
+    comment = models.TextField(verbose_name='Комментария')
+
+    user = models.ForeignKey(User, on_delete=models.CASCADE, related_name='reviews', related_query_name='reviews',
+                             verbose_name='Какому пользователю принадлежит отзыв', null=True)
+    product = models.ForeignKey('Product', on_delete=models.CASCADE, related_name='reviews',
+                                related_query_name='reviews', verbose_name='Какому продукту принадлежит отзыв')
+
+    def __str__(self):
+        return 'Пользователь: {0}, рейтинг: {1}'.format(self.full_name, self.rating)
+
+    class Meta:
+        verbose_name = 'Отзыв'
+        verbose_name_plural = 'Отзывы'
+        ordering = ['-created_at']
+
 
 class Basket(BaseModel):
-
-    total_price = models.PositiveBigIntegerField(default=0, verbose_name='Общая сумма')
+    price = models.PositiveBigIntegerField(default=0, verbose_name='Общая сумма')
     quantity = models.PositiveIntegerField(verbose_name='Кол-во товара')
 
-    user = models.ManyToManyField('User', verbose_name='Кому принадлежит товар',
-                                  related_name='baskets', related_query_name='baskets', null=True)
-    product = models.ManyToManyField('Product', related_name='baskets', related_query_name='baskets', null=True)
+    user = models.ForeignKey(User, verbose_name='Кому принадлежит товар',
+                             related_name='baskets', related_query_name='baskets', null=True, on_delete=models.SET_NULL)
+    product = models.ForeignKey('Product', related_name='baskets', related_query_name='baskets', null=True,
+                                on_delete=models.SET_NULL)
+    order = models.ForeignKey('Order', related_name='baskets', related_query_name='baskets', on_delete=models.SET_NULL,
+                              null=True, default=None)
 
     def __str__(self):
         return self.__str__()
 
     class Meta:
-        verbose_name = 'Basket'
-        verbose_name_plural = 'Baskets'
+        verbose_name = 'Корзина'
+        verbose_name_plural = 'Корзины'
 
 
 class Favorite(BaseModel):
-    user = models.ManyToManyField('User', related_name='favorites',
+    user = models.ManyToManyField(User, related_name='favorites',
                                   related_query_name='favorites', null=True)
-    product = models.ManyToManyField('Product',  related_name='favorites',
+    product = models.ManyToManyField('Product', related_name='favorites',
                                      related_query_name='favorites', null=True)
 
     def __str__(self):
         return '#{0}, {1} {2}'.format(self.pk, self.user.first_name, self.user.last_name)
 
     class Meta:
-        verbose_name = 'Favorite'
-        verbose_name_plural = 'Favorites'
+        verbose_name = 'Избранное'
+        verbose_name_plural = 'Избранные'
 
 
 class Order(BaseModel):
-    ...
+    DELIVERY_CHOICES = (
+        ('dcb', 'Доставка по городу Бухара'),
+        ('dtu', 'Доставка по всему Узбекистану'),
+        ('pickup', 'Самовывоз'),
+    )
+
+    STATUS_CHOICES = (
+        ('purchased', 'Куплен'),
+        ('moderation', 'На модерации'),
+    )
+
+    total_price = models.PositiveBigIntegerField(default=0)
+    type = models.CharField(max_length=100, choices=DELIVERY_CHOICES)
+    full_name = models.CharField(max_length=255)
+    phone = models.CharField(max_length=13)
+
+    status = models.CharField(max_length=50, choices=STATUS_CHOICES, default='moderation')
+    order_code = models.CharField(max_length=10, unique=True)
+
+    order_code_idx = models.Index(fields=['order_code'], name='order_code_idx')
+
+    user = models.ForeignKey(User, related_name='orders', on_delete=models.SET_NULL, null=True,
+                             related_query_name='order', verbose_name='orders')
+
+    def __str__(self):
+        return '#{0} - {1}'.format(self.order_code, self.full_name)
+
+    class Meta:
+        verbose_name = 'Заказ'
+        verbose_name_plural = 'Заказы'
+        ordering = ['-created_at']
