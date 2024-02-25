@@ -1,5 +1,6 @@
 from ckeditor.fields import RichTextField
 from django.db import models
+from users.models import User
 
 
 def category_directory_path(instance, filename):
@@ -140,15 +141,51 @@ class Product(BaseModel):
                                                                 'скидка на 20000 сум. итог:100000'
                                                                 'здесь 20000 сум скидочная цена)')
 
-    slug = models.SlugField(max_length=255, unique=True)
+    slug = models.SlugField(max_length=255, unique=True, verbose_name='Название товара (url)', editable=True,
+                            help_text='без пробела, либо через "-", либо через "_"')
+    country = models.CharField(max_length=100, verbose_name='Старана-Производитель', unique=True)
 
     composition = RichTextField(verbose_name='Состав продукта')
     view_count = models.PositiveIntegerField(default=0, verbose_name='Кол-во. просмотров')
 
-    category = models.ForeignKey(Category, on_delete=models.PROTECT, verbose_name='Категория продукта',
-                                 related_name='products', related_query_name='products')
+    category = models.ForeignKey('Category', on_delete=models.SET_NULL, verbose_name='Категория продукта',
+                                 related_name='products', related_query_name='products', null=True, blank=True)
 
-    brand = models.ForeignKey(Brand, on_delete=models.PROTECT, verbose_name='Бренд продукта', related_name='products',
-                              related_query_name='products')
+    brand = models.ForeignKey('Brand', on_delete=models.SET_NULL, verbose_name='Бренд продукта',
+                              related_name='products',
+                              related_query_name='products', null=True, blank=True)
 
 
+class Basket(BaseModel):
+
+    total_price = models.PositiveBigIntegerField(default=0, verbose_name='Общая сумма')
+    quantity = models.PositiveIntegerField(verbose_name='Кол-во товара')
+
+    user = models.ManyToManyField('User', verbose_name='Кому принадлежит товар',
+                                  related_name='baskets', related_query_name='baskets', null=True)
+    product = models.ManyToManyField('Product', related_name='baskets', related_query_name='baskets', null=True)
+
+    def __str__(self):
+        return self.__str__()
+
+    class Meta:
+        verbose_name = 'Basket'
+        verbose_name_plural = 'Baskets'
+
+
+class Favorite(BaseModel):
+    user = models.ManyToManyField('User', related_name='favorites',
+                                  related_query_name='favorites', null=True)
+    product = models.ManyToManyField('Product',  related_name='favorites',
+                                     related_query_name='favorites', null=True)
+
+    def __str__(self):
+        return '#{0}, {1} {2}'.format(self.pk, self.user.first_name, self.user.last_name)
+
+    class Meta:
+        verbose_name = 'Favorite'
+        verbose_name_plural = 'Favorites'
+
+
+class Order(BaseModel):
+    ...
