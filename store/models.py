@@ -72,7 +72,7 @@ class Filial(BaseModel):
         verbose_name_plural = 'Филиалы'
 
 
-class SetOfProducts(BaseModel):
+class SetOfProduct(BaseModel):
     name = models.CharField(max_length=255, verbose_name="Название комплекта", null=False, blank=False)
     photo = models.ImageField(upload_to='set/%Y/%m/%d', verbose_name="Картинка комплекта", null=False, blank=False)
 
@@ -104,7 +104,7 @@ class Category(BaseModel):
 
 class Blog(BaseModel):
     name = models.CharField(max_length=255, verbose_name="Название блога", unique=True, null=False, blank=False)
-    photo = models.ImageField(upload_to=category_directory_path, verbose_name="Картинка блога", null=False, blank=False)
+    photo = models.ImageField(upload_to=blog_directory_path, verbose_name="Картинка блога", null=False, blank=False)
 
     description = RichTextField(verbose_name="Описание блога", null=False, blank=False)
 
@@ -118,7 +118,7 @@ class Blog(BaseModel):
 
 class Brand(BaseModel):
     name = models.CharField(max_length=100, verbose_name="Название бренда", unique=True)
-    photo = models.ImageField(upload_to=blog_directory_path, verbose_name="Фотография бренда")
+    photo = models.ImageField(upload_to=brand_directory_path, verbose_name="Фотография бренда")
 
     def __str__(self):
         return self.name
@@ -159,6 +159,9 @@ class Product(BaseModel):
     brand = models.ForeignKey('Brand', on_delete=models.SET_NULL, verbose_name='Бренд продукта',
                               related_name='products',
                               related_query_name='products', null=True, blank=True)
+    set_of_products = models.ForeignKey('SetOfProduct', on_delete=models.SET_NULL, null=True,
+                                        verbose_name='Выберите Комплект',
+                                        related_name='products', related_query_name='products')
 
     def __str__(self):
         return self.name
@@ -171,7 +174,7 @@ class Product(BaseModel):
 class ProductImage(models.Model):
     product = models.ForeignKey('Product', on_delete=models.CASCADE, related_name='product_images',
                                 related_query_name='product_images', verbose_name='картинка продуктов')
-    image = models.ImageField(upload_to=product_image_directory_path, verbose_name='Фото продукта')
+    photo = models.ImageField(upload_to=product_image_directory_path, verbose_name='Фото продукта')
 
     def __str__(self):
         return '{} - {}'.format(self.product.name, self.image[:10])
@@ -222,9 +225,9 @@ class Basket(BaseModel):
 
 class Favorite(BaseModel):
     user = models.ManyToManyField(User, related_name='favorites',
-                                  related_query_name='favorites', null=True)
+                                  related_query_name='favorites')
     product = models.ManyToManyField('Product', related_name='favorites',
-                                     related_query_name='favorites', null=True)
+                                     related_query_name='favorites')
 
     def __str__(self):
         return '#{0}, {1} {2}'.format(self.pk, self.user.first_name, self.user.last_name)
