@@ -9,6 +9,7 @@ DEBUG = True
 ALLOWED_HOSTS = ['*']
 
 INSTALLED_APPS = [
+    'ckeditor',
     'modeltranslation',
     'django.contrib.admin',
     'django.contrib.auth',
@@ -67,7 +68,7 @@ AUTH_PASSWORD_VALIDATORS = [
     },
 ]
 
-LANGUAGE_CODE = 'en'
+LANGUAGE_CODE = 'ru'
 
 TIME_ZONE = 'Asia/Tashkent'
 
@@ -75,16 +76,13 @@ USE_I18N = True
 
 USE_TZ = True
 
-gettext = lambda s: s
-
 LANGUAGES = (
-    ('en', gettext('English')),
-    ('ru', gettext('Russian')),
+    ('en', 'English'),
+    ('ru', 'Russia'),
 )
 
-MODELTRANSLATION_DEFAULT_LANGUAGE = 'ru'
 
-MODELTRANSLATION_LANGUAGES = ('en', 'ru', )
+MODELTRANSLATION_LANGUAGES = ('en',)
 
 MODELTRANSLATION_TRANSLATION_FILES = (
     'store.translation',

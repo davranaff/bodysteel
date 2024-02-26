@@ -17,7 +17,7 @@ class User(AbstractUser):
     phone_idx = models.Index(fields=['phone'], name='phone_idx')
 
     def __str__(self):
-        return '{} {}'.format(self.last_name, self.first_name)
+        return '{0} {1} / {2}'.format(self.last_name, self.first_name, self.username)
 
     class Meta:
         verbose_name = 'User'

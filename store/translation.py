@@ -1,32 +1,32 @@
-from modeltranslation.translator import translator, TranslationOptions
+from modeltranslation.translator import TranslationOptions, register
 from store.models import SetOfProduct, Menu, Filial, Category, Blog, Product
 
 
-@translator.register(SetOfProduct)
+@register(SetOfProduct)
 class SetOfProductsTranslationOptions(TranslationOptions):
     fields = ('name',)
 
 
-@translator.register(Menu)
+@register(Menu)
 class MenusTranslationOptions(TranslationOptions):
     fields = ('about', 'blog', 'set_product', 'delivery_and_payment')
 
 
-@translator.register(Filial)
+@register(Filial)
 class FilialTranslationOptions(TranslationOptions):
-    fields = ('name',)
+    fields = ('name', 'day_off')
 
 
-@translator.register(Category)
+@register(Category)
 class CategoryTranslationOptions(TranslationOptions):
     fields = ('name',)
 
 
-@translator.register(Blog)
+@register(Blog)
 class BlogsTranslationOptions(TranslationOptions):
     fields = ('name', 'description')
 
 
-@translator.register(Product)
+@register(Product)
 class ProductsTranslationOptions(TranslationOptions):
     fields = ('name', 'description', 'country', 'composition')
