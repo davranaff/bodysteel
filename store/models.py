@@ -177,7 +177,7 @@ class ProductImage(models.Model):
     photo = models.ImageField(upload_to=product_image_directory_path, verbose_name='Фото продукта')
 
     def __str__(self):
-        return '{} - {}'.format(self.product.name, self.image[:10])
+        return '{} - {}'.format(self.product.name, self.photo[:10])
 
     class Meta:
         verbose_name = 'Картинка продукта'
@@ -206,7 +206,7 @@ class Review(BaseModel):
 
 class Basket(BaseModel):
     price = models.PositiveBigIntegerField(default=0, verbose_name='Общая сумма')
-    quantity = models.PositiveIntegerField(verbose_name='Кол-во товара')
+    quantity = models.PositiveBigIntegerField(verbose_name='Кол-во товара')
 
     user = models.ForeignKey(User, verbose_name='Кому принадлежит товар',
                              related_name='baskets', related_query_name='baskets', null=True, on_delete=models.SET_NULL)
@@ -214,6 +214,14 @@ class Basket(BaseModel):
                                 on_delete=models.SET_NULL)
     order = models.ForeignKey('Order', related_name='baskets', related_query_name='baskets', on_delete=models.SET_NULL,
                               null=True, default=None)
+
+    def save(self, *args, **kwargs):
+        if self.product.discounted_price:
+            self.price = self.quantity * self.product.discounted_price
+            return super(Basket, self).save(*args, **kwargs)
+
+        self.price = self.quantity * self.product.price
+        return super(Basket, self).save(*args, **kwargs)
 
     def __str__(self):
         return self.__str__()
@@ -224,10 +232,10 @@ class Basket(BaseModel):
 
 
 class Favorite(BaseModel):
-    user = models.ManyToManyField(User, related_name='favorites',
-                                  related_query_name='favorites')
-    product = models.ManyToManyField('Product', related_name='favorites',
-                                     related_query_name='favorites')
+    user = models.ForeignKey(User, related_name='favorites',
+                             related_query_name='favorites', on_delete=models.CASCADE)
+    product = models.ForeignKey('Product', related_name='favorites',
+                                related_query_name='favorites', on_delete=models.CASCADE)
 
     def __str__(self):
         return '#{0}, {1} {2}'.format(self.pk, self.user.first_name, self.user.last_name)
