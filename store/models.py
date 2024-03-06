@@ -166,6 +166,13 @@ class Product(BaseModel):
     def __str__(self):
         return self.name
 
+    def save(self, *args, **kwargs):
+
+        if self.discounted_price > self.price:
+            raise ValueError('скидочная цена не может быть меньше цены продукты!')
+
+        return super(Product, self).save(*args, **kwargs)
+
     class Meta:
         verbose_name = 'Продукт'
         verbose_name_plural = 'Продукты'

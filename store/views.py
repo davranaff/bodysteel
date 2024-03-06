@@ -2,7 +2,8 @@ from rest_framework.views import APIView, Response
 from rest_framework import status
 from django.db.models import Count
 
-from store.models import SetOfProduct, Category, Product, Brand
+from store.models import SetOfProduct, Category, Product, Brand, Blog
+from store.serializers.blogs import BlogSerializer
 from store.serializers.brand import BrandSerializer
 from store.serializers.category import CategorySerializer
 from store.serializers.products import ProductSerializer
@@ -25,6 +26,7 @@ class HomaPageAPIView(APIView):
         serializer_latest_products = ProductSerializer(Product.objects.all().order_by('-created_at')[:8],
                                                        many=True).data
         serializer_brands = BrandSerializer(Brand.objects.all()[:6], many=True).data
+        serializer_blogs = BlogSerializer(Blog.objects.all()[:6], many=True).data
 
         return Response({
             'data': {
@@ -34,5 +36,6 @@ class HomaPageAPIView(APIView):
                 'sale_products': serializer_sale_products,
                 'latest_products': serializer_latest_products,
                 'brands': serializer_brands,
+                'blogs': serializer_blogs,
             }
         }, status=status.HTTP_200_OK)
