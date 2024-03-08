@@ -10,6 +10,13 @@ from store.serializers.products import ProductSerializer
 from store.serializers.set_of_product import SetOfProductsSerializerForHome
 
 
+class MenuAPIView(APIView):
+    allowed_methods = ['get', ]
+
+    def get(self, request):
+        return
+
+
 class HomaPageAPIView(APIView):
     allowed_methods = ['get', ]
 

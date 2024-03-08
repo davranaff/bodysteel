@@ -184,7 +184,7 @@ class ProductImage(models.Model):
     photo = models.ImageField(upload_to=product_image_directory_path, verbose_name='Фото продукта')
 
     def __str__(self):
-        return '{} - {}'.format(self.product.name, self.photo[:10])
+        return '{}'.format(self.product.name)
 
     class Meta:
         verbose_name = 'Картинка продукта'
