@@ -11,7 +11,7 @@ class SetOfProductSerializer(serializers.ModelSerializer):
         fields = '__all__'
 
 
-class SetOfProductsSerializerForHome(serializers.ModelSerializer):
+class SetOfProductsSerializerWithCount(serializers.ModelSerializer):
     products_count = serializers.IntegerField()
 
     class Meta:

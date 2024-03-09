@@ -1,31 +1,28 @@
 from rest_framework.views import APIView, Response
 from rest_framework import status
+from rest_framework.generics import get_object_or_404
 from django.db.models import Count
+from rest_framework import viewsets
 
-from store.models import SetOfProduct, Category, Product, Brand, Blog
+from store.models import SetOfProduct, Category, Product, Brand, Blog, Menu, Filial
 from store.serializers.blogs import BlogSerializer
 from store.serializers.brand import BrandSerializer
 from store.serializers.category import CategorySerializer
+from store.serializers.filiales import FilialSerializer
+from store.serializers.menu import MenuSerializer
 from store.serializers.products import ProductSerializer
-from store.serializers.set_of_product import SetOfProductsSerializerForHome
-
-
-class MenuAPIView(APIView):
-    allowed_methods = ['get', ]
-
-    def get(self, request):
-        return
+from store.serializers.set_of_product import SetOfProductsSerializerWithCount, SetOfProductSerializer
 
 
 class HomaPageAPIView(APIView):
     allowed_methods = ['get', ]
 
     def get(self, request):
-        serializer_set_of_products = SetOfProductsSerializerForHome(SetOfProduct
-                                                                    .objects
-                                                                    .annotate(products_count=Count('products'))
-                                                                    .all(),
-                                                                    many=True).data
+        serializer_set_of_products = SetOfProductsSerializerWithCount(SetOfProduct
+                                                                      .objects
+                                                                      .annotate(products_count=Count('products'))
+                                                                      .all(),
+                                                                      many=True).data
         serializer_category = CategorySerializer(Category.objects.all(), many=True).data
         serializer_leader_products = ProductSerializer(Product.objects.filter(baskets__order__isnull=False)[:5],
                                                        many=True).data
@@ -46,3 +43,82 @@ class HomaPageAPIView(APIView):
                 'blogs': serializer_blogs,
             }
         }, status=status.HTTP_200_OK)
+
+
+class AboutAPIView(APIView):
+    allowed_methods = ['get', ]
+
+    def get(self, request):
+        menu = get_object_or_404(Menu, is_active=True)
+        serializer = MenuSerializer(menu, many=False).data
+        return Response({'data': serializer}, status=status.HTTP_200_OK)
+
+
+class BlogViewSet(viewsets.ViewSet):
+
+    def list(self, request):
+        params = request.query_params.dict()
+
+        menu = get_object_or_404(Menu, is_active=True)
+        blogs = Blog.objects.order_by('-created_at')[int(params.get('limit', 0)):int(params.get('offset', 10))]
+        blog_serializer = BlogSerializer(blogs, many=True).data
+        menu_serializer = MenuSerializer(menu, many=False).data
+        return Response({'data': {"blogs": blog_serializer, **menu_serializer}}, status=status.HTTP_200_OK)
+
+    def retrieve(self, request, pk=None):
+        blog = get_object_or_404(Blog, pk=pk)
+        blog_serializer = BlogSerializer(blog, many=False).data
+
+        blogs = Blog.objects.all()[:5]
+        blogs_serializer = BlogSerializer(blogs, many=True).data
+        return Response({'data': {'recommendations': blogs_serializer, 'detail': blog_serializer}},
+                        status=status.HTTP_200_OK)
+
+
+class SetOfProductViewSet(viewsets.ViewSet):
+
+    def list(self, request):
+        serializer = SetOfProductsSerializerWithCount(SetOfProduct
+                                                      .objects
+                                                      .annotate(products_count=Count('products'))
+                                                      .all(), many=True).data
+
+        menu = get_object_or_404(Menu, is_active=True)
+        menu_serializer = MenuSerializer(menu).data
+
+        return Response({'data': {'set_of_products': serializer, **menu_serializer}}, status=status.HTTP_200_OK)
+
+    def retrieve(self, request, pk):
+        set_of_product = SetOfProduct.objects.prefetch_related('products').get(pk=pk)
+        serializer = SetOfProductSerializer(set_of_product, many=False).data
+        return Response({'data': serializer}, status=status.HTTP_200_OK)
+
+
+class BrandAPIView(APIView):
+    allowed_methods = ['get', ]
+
+    def get(self, request):
+        brands = Brand.objects.all()
+        serializer = BrandSerializer(brands, many=True).data
+        return Response({'data': serializer}, status=status.HTTP_200_OK)
+
+
+class DeliveryAndPaymentsAPIView(APIView):
+    allowed_methods = ['get', ]
+
+    def get(self, request):
+        menu = get_object_or_404(Menu, is_active=True)
+        serializer = MenuSerializer(menu).data
+
+        return Response({'data': serializer}, status=status.HTTP_200_OK)
+
+
+class FilialAPIView(APIView):
+    allowed_methods = ['get', ]
+
+    def get(self, request):
+
+        filiales = Filial.objects.all()
+        serializer = FilialSerializer(filiales, many=True).data
+
+        return Response({'data': serializer}, status=status.HTTP_200_OK)

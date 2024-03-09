@@ -163,6 +163,8 @@ class Product(BaseModel):
                                         verbose_name='Выберите Комплект',
                                         related_name='products', related_query_name='products')
 
+    objects = ...
+
     def __str__(self):
         return self.name
 
