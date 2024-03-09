@@ -83,7 +83,6 @@ LANGUAGES = (
     ('ru', 'Russia'),
 )
 
-
 MODELTRANSLATION_LANGUAGES = ('en',)
 
 MODELTRANSLATION_TRANSLATION_FILES = (
@@ -123,6 +122,10 @@ BASE_URL = 'http://localhost:8000/'
 
 LOGIN_URL = 'http://localhost:8000/api/v1/users/signin/'
 SIGNUP_URL = 'http://localhost:8000/api/v1/users/signup/'
+
+ESKIZ_FROM_TO = ''
+ESKIZ_PROVIDER_EMAIL = 'deff0427@gmail.com'
+ESKIZ_PROVIDER_PASSWORD = 'l52LiHIsfeshhp2MbQO9T6rrqPuBJ28W574tipJw'
 
 if not DEBUG:
     from .settings_prod import *
