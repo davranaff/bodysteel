@@ -1,6 +1,7 @@
 from django.urls import path
 
 from store import views
+from store.views import ProductViewSet, CategoryViewSet
 
 urlpatterns = [
     path('home/', views.HomaPageAPIView.as_view(), name='home'),
@@ -19,4 +20,9 @@ urlpatterns = [
 
     path('filiales/', views.FilialAPIView.as_view(), name='filiales'),
 
+    path('products/', ProductViewSet.as_view({'get': 'list'}), name='products'),
+    path('products/<pk>/', ProductViewSet.as_view({'get': 'retrieve'}, name="product_detail")),
+
+    path('categories/', CategoryViewSet.as_view({'get': 'list'}), name='categories'),
+    path('categories/<pk>/', CategoryViewSet.as_view({'get': 'retrieve'}, name="category_detail"))
 ]

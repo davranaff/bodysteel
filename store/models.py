@@ -1,5 +1,7 @@
 from ckeditor.fields import RichTextField
 from django.db import models
+
+from store.querysets.product import ProductQueryset
 from users.models import User
 from django.core.validators import MaxValueValidator, MinValueValidator
 
@@ -163,7 +165,7 @@ class Product(BaseModel):
                                         verbose_name='Выберите Комплект',
                                         related_name='products', related_query_name='products')
 
-    objects = ...
+    objects = ProductQueryset.as_manager()
 
     def __str__(self):
         return self.name
