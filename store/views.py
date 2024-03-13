@@ -25,12 +25,12 @@ class HomaPageAPIView(APIView):
                                                                       many=True).data
         serializer_category = CategorySerializer(Category.objects.all(), many=True).data
         serializer_leader_products = ProductSerializer(
-            Product.objects.with_all_rating().filter(baskets__order__isnull=False)[:5],
+            Product.objects.with_rating().filter(baskets__order__isnull=False)[:5],
             many=True).data
         serializer_sale_products = ProductSerializer(
-            Product.objects.with_all_rating().filter(discounted_price__gt=0)[:5], many=True).data
+            Product.objects.with_rating().filter(discounted_price__gt=0)[:5], many=True).data
         serializer_latest_products = ProductSerializer(
-            Product.objects.with_all_rating().all().order_by('-created_at')[:8],
+            Product.objects.with_rating().all().order_by('-created_at')[:8],
             many=True).data
         serializer_brands = BrandSerializer(Brand.objects.all()[:6], many=True).data
         serializer_blogs = BlogSerializer(Blog.objects.all()[:6], many=True).data
@@ -141,7 +141,6 @@ class ProductViewSet(viewsets.ViewSet):
         is_sale = request.query_params.get('is_sale', False)
         is_new = request.query_params.get('is_new', False)
         is_accessories = request.query_params.get('is_accessories', False)
-
 
         products = Product.objects.with_flags(is_leader, is_sale, is_new, is_accessories).with_favorite(
             request.auth).with_rating().all()[offset:limit]
