@@ -5,6 +5,8 @@ from store.querysets.product import ProductQueryset
 from users.models import User
 from django.core.validators import MaxValueValidator, MinValueValidator
 
+from users.utils.random_code import random_code
+
 
 def category_directory_path(instance, filename):
     return 'categories/{0}/{1}'.format(instance.name, filename)
@@ -227,8 +229,9 @@ class Basket(BaseModel):
                               null=True, default=None)
 
     def save(self, *args, **kwargs):
+
         if self.product.discounted_price:
-            self.price = self.quantity * self.product.discounted_price
+            self.price = self.quantity * (self.product.price - self.product.discounted_price)
             return super(Basket, self).save(*args, **kwargs)
 
         self.price = self.quantity * self.product.price
@@ -283,6 +286,10 @@ class Order(BaseModel):
 
     def __str__(self):
         return '#{0} - {1}'.format(self.order_code, self.full_name)
+
+    def save(self, *args, **kwargs):
+        self.order_code = random_code(length=10)
+        return super().save(*args, **kwargs)
 
     class Meta:
         verbose_name = 'Заказ'

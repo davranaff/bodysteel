@@ -1,6 +1,7 @@
 from rest_framework import serializers
 
 from store.models import Product, ProductImage
+from store.serializers.review import ReviewSerializer
 
 
 class ProductImageSerializer(serializers.ModelSerializer):
@@ -14,6 +15,7 @@ class ProductSerializer(serializers.ModelSerializer):
     rating = serializers.IntegerField(read_only=True)
     liked = serializers.BooleanField(read_only=True)
     is_leader_count = serializers.IntegerField(read_only=True)
+    reviews = ReviewSerializer(many=True, read_only=True)
 
     class Meta:
         model = Product

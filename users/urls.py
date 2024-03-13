@@ -11,4 +11,6 @@ urlpatterns = [
 
     path('phone_verification/', views.PhoneVerification.as_view(), name='phone_verification'),
     path('basket/', views.BasketAPIView.as_view(), name='basket'),
+    path('orders/', views.OrderAPIView.as_view(), name='histories'),
+    path('reviews/', views.ReviewAPIView.as_view(), name='reviews'),
 ]
