@@ -23,7 +23,7 @@ class ProductQueryset(BaseQuerySet):
 
         return query
 
-    def with_flags(self, is_leader, is_sale, is_new, is_accessories):
+    def with_flags(self, is_leader, is_sale, is_new, is_accessories, search):
         query = self
 
         if is_leader:
@@ -38,5 +38,8 @@ class ProductQueryset(BaseQuerySet):
 
         if is_accessories:
             query = query.filter(category__name__in=['Accessories', 'Аксессуары'])
+
+        if search is not None:
+            query = query.filter(Q(name__icontains=search) | Q(name_en__icontains=search))
 
         return query
