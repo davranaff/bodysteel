@@ -34,17 +34,25 @@ class BaseModel(models.Model):
 class Menu(BaseModel):
     name = models.CharField(max_length=100, unique=True, verbose_name='Дайте название для этого меню')
 
-    about = RichTextField(verbose_name='О нас', help_text='Текст для раздела о нас')
-    blog = RichTextField(verbose_name='Блог', help_text='Текст для раздела Блог')
-    set_product = RichTextField(verbose_name='Комплект', help_text='Текст для раздела Комплект')
-    delivery_and_payment = RichTextField(verbose_name='Доставка и Оплата',
-                                         help_text='Текст для раздела Доставка и Оплата')
+    about_uz = RichTextField(verbose_name='О нас', help_text='Текст для раздела о нас uz')
+    about_ru = RichTextField(verbose_name='О нас', help_text='Текст для раздела о нас ru')
+
+    blog_uz = RichTextField(verbose_name='Блог', help_text='Текст для раздела Блог uz')
+    blog_ru = RichTextField(verbose_name='Блог', help_text='Текст для раздела Блог ru')
+
+    set_product_uz = RichTextField(verbose_name='Комплект', help_text='Текст для раздела Комплект uz')
+    set_product_ru = RichTextField(verbose_name='Комплект', help_text='Текст для раздела Комплект ru')
+
+    delivery_and_payment_uz = RichTextField(verbose_name='Доставка и Оплата uz',
+                                            help_text='Текст для раздела Доставка и Оплата')
+    delivery_and_payment_ru = RichTextField(verbose_name='Доставка и Оплата ru',
+                                            help_text='Текст для раздела Доставка и Оплата')
 
     is_active = models.BooleanField(default=True, verbose_name='Активировать',
                                     help_text='Если отключено, то не будет видно', unique=True)
 
     def __str__(self):
-        return self.about
+        return self.about_ru
 
     class Meta:
         verbose_name = 'Меню'
@@ -52,9 +60,13 @@ class Menu(BaseModel):
 
 
 class Filial(BaseModel):
-    name = models.CharField(max_length=100, verbose_name='Название филиала')
-    address = models.CharField(max_length=255, verbose_name='Адрес филиала (без ссылки)',
-                               help_text='Адрес филиала, а не ссылка (Рес. Узбекистан, г. Бухара, ул. Абдулла кодирий 100 дом)')
+    name_uz = models.CharField(max_length=100, verbose_name='Название филиала uz')
+    name_ru = models.CharField(max_length=100, verbose_name='Название филиала ru')
+
+    address_uz = models.CharField(max_length=255, verbose_name='Адрес филиала (без ссылки) uz',
+                                  help_text='Адрес филиала, а не ссылка (Рес. Узбекистан, г. Бухара, ул. Абдулла кодирий 100 дом)')
+    address_ru = models.CharField(max_length=255, verbose_name='Адрес филиала (без ссылки) ru',
+                                  help_text='Адрес филиала, а не ссылка (Рес. Узбекистан, г. Бухара, ул. Абдулла кодирий 100 дом)')
 
     work_time_start = models.TimeField(verbose_name='Время старта работы', help_text='от ПН. до СБ.')
     work_time_end = models.TimeField(verbose_name='Время заканчиваие работы', help_text='от ПН. до СБ.')
@@ -69,7 +81,7 @@ class Filial(BaseModel):
     photo = models.ImageField(upload_to='filial/', verbose_name='Фотография филиала')
 
     def __str__(self):
-        return self.name
+        return self.name_ru
 
     class Meta:
         verbose_name = 'Филиал'
@@ -77,20 +89,24 @@ class Filial(BaseModel):
 
 
 class SetOfProduct(BaseModel):
-    name = models.CharField(max_length=255, verbose_name="Название комплекта", null=False, blank=False)
+    name_uz = models.CharField(max_length=255, verbose_name="Название комплекта uz", null=False, blank=False)
+    name_ru = models.CharField(max_length=255, verbose_name="Название комплекта ru", null=False, blank=False)
+
     photo = models.ImageField(upload_to='set/%Y/%m/%d', verbose_name="Картинка комплекта", null=False, blank=False)
 
     def __str__(self):
-        return self.name
+        return self.name_ru
 
     class Meta:
         verbose_name = "Комплект"
         verbose_name_plural = "Комплекты"
-        unique_together = ('name',)
+        unique_together = ('name_uz', 'name_ru', )
 
 
 class Category(BaseModel):
-    name = models.CharField(max_length=255, verbose_name="Название категории", null=False, blank=False)
+    name_uz = models.CharField(max_length=255, verbose_name="Название категории uz", null=False, blank=False)
+    name_ru = models.CharField(max_length=255, verbose_name="Название категории ru", null=False, blank=False)
+
     photo = models.ImageField(upload_to=category_directory_path, verbose_name="Картинка категории", null=False,
                               blank=False)
     sort = models.PositiveIntegerField(verbose_name="Сортировка Категории",
@@ -98,22 +114,25 @@ class Category(BaseModel):
                                        null=True, blank=True)
 
     def __str__(self):
-        return self.name
+        return self.name_ru
 
     class Meta:
         verbose_name = "Категория"
         verbose_name_plural = "Категории"
-        unique_together = ('name', 'sort')
+        unique_together = ('name_uz', 'name_ru', 'sort')
 
 
 class Blog(BaseModel):
-    name = models.CharField(max_length=255, verbose_name="Название блога", unique=True, null=False, blank=False)
+    name_uz = models.CharField(max_length=255, verbose_name="Название блога uz", unique=True, null=False, blank=False)
+    name_ru = models.CharField(max_length=255, verbose_name="Название блога ru", unique=True, null=False, blank=False)
+
     photo = models.ImageField(upload_to=blog_directory_path, verbose_name="Картинка блога", null=False, blank=False)
 
-    description = RichTextField(verbose_name="Описание блога", null=False, blank=False)
+    description_uz = RichTextField(verbose_name="Описание блога uz", null=False, blank=False)
+    description_ru = RichTextField(verbose_name="Описание блога ru", null=False, blank=False)
 
     def __str__(self):
-        return self.name
+        return self.name_ru
 
     class Meta:
         verbose_name = "Блог"
@@ -133,8 +152,11 @@ class Brand(BaseModel):
 
 
 class Product(BaseModel):
-    name = models.CharField(max_length=100, verbose_name='Название Продукта', unique=True)
-    description = RichTextField(verbose_name='Описание Товара')
+    name_uz = models.CharField(max_length=100, verbose_name='Название Продукта uz', unique=True)
+    name_ru = models.CharField(max_length=100, verbose_name='Название Продукта ru', unique=True)
+
+    description_uz = RichTextField(verbose_name='Описание Товара uz')
+    description_ru = RichTextField(verbose_name='Описание Товара ru')
 
     price = models.PositiveBigIntegerField(verbose_name='Стоимость товара')
 
@@ -152,9 +174,13 @@ class Product(BaseModel):
 
     slug = models.SlugField(max_length=255, unique=True, verbose_name='Название товара (url)', editable=True,
                             help_text='без пробела, либо через "-", либо через "_"')
-    country = models.CharField(max_length=100, verbose_name='Старана-Производитель', unique=True)
 
-    composition = RichTextField(verbose_name='Состав продукта')
+    country_uz = models.CharField(max_length=100, verbose_name='Старана-Производитель uz', unique=True)
+    country_ru = models.CharField(max_length=100, verbose_name='Старана-Производитель ru', unique=True)
+
+    composition_uz = RichTextField(verbose_name='Состав продукта uz')
+    composition_ru = RichTextField(verbose_name='Состав продукта ru')
+
     view_count = models.PositiveIntegerField(default=0, verbose_name='Кол-во. просмотров')
 
     category = models.ForeignKey('Category', on_delete=models.SET_NULL, verbose_name='Категория продукта',
@@ -170,10 +196,9 @@ class Product(BaseModel):
     objects = ProductQueryset.as_manager()
 
     def __str__(self):
-        return self.name
+        return self.name_ru
 
     def save(self, *args, **kwargs):
-
         if self.discounted_price > self.price:
             raise ValueError('скидочная цена не может быть меньше цены продукты!')
 
@@ -190,7 +215,7 @@ class ProductImage(models.Model):
     photo = models.ImageField(upload_to=product_image_directory_path, verbose_name='Фото продукта')
 
     def __str__(self):
-        return '{}'.format(self.product.name)
+        return '{}'.format(self.product.name_ru)
 
     class Meta:
         verbose_name = 'Картинка продукта'
@@ -229,7 +254,6 @@ class Basket(BaseModel):
                               null=True, default=None)
 
     def save(self, *args, **kwargs):
-
         if self.product.discounted_price:
             self.price = self.quantity * (self.product.price - self.product.discounted_price)
             return super(Basket, self).save(*args, **kwargs)

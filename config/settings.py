@@ -10,7 +10,6 @@ ALLOWED_HOSTS = ['*']
 
 INSTALLED_APPS = [
     'ckeditor',
-    'modeltranslation',
     'django.contrib.admin',
     'django.contrib.auth',
     'django.contrib.contenttypes',
@@ -86,15 +85,8 @@ USE_I18N = True
 USE_TZ = True
 
 LANGUAGES = (
-    ('en', 'English'),
+    ('uz', 'Uzbek'),
     ('ru', 'Russia'),
-)
-
-MODELTRANSLATION_LANGUAGES = ('en',)
-
-MODELTRANSLATION_TRANSLATION_FILES = (
-    'store.translation',
-    'users.translation',
 )
 
 STATIC_URL = '/assets/'
