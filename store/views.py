@@ -153,6 +153,11 @@ class ProductViewSet(viewsets.ViewSet):
 
     def retrieve(self, request, pk):
         product = get_object_or_404(Product.objects.with_favorite(request.auth).with_rating(), pk=pk)
+
+        product.view_count += 1
+
+        product.save()
+
         serializer = ProductSerializer(product, many=False).data
 
         return Response({'data': serializer})

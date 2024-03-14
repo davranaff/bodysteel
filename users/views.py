@@ -139,6 +139,8 @@ class BasketAPIView(APIView):
     permission_classes = [IsAuthenticated]
     allowed_methods = ['get', 'post', 'put', 'delete']
 
+    @swagger_auto_schema(manual_parameters=[],
+                         responses={status.HTTP_200_OK: BasketSerializer(many=True)})
     def get(self, request):
         basket = Basket.objects.filter(user=request.user, order__isnull=True).select_related('product')
         serializer = BasketSerializer(instance=basket, many=True).data

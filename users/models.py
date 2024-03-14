@@ -1,3 +1,4 @@
+from django.conf import settings
 from django.db import models
 from django.contrib.auth.models import AbstractUser
 
@@ -22,12 +23,19 @@ class User(AbstractUser):
     phone_idx = models.Index(fields=['phone'], name='phone_idx')
 
     def save(self, with_code=True, *args, **kwargs):
+
         if not self.username:
             self.username = random_username()
+
         if not self.code:
             self.code = random_code()
+
         if not with_code:
             self.code = None
+
+        if with_code and settings.DEBUG:
+            self.code = '000000'
+
         return super().save(*args, **kwargs)
 
     def __str__(self):
