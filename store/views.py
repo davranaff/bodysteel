@@ -11,7 +11,7 @@ from store.serializers.category import CategorySerializer
 from store.serializers.filiales import FilialSerializer
 from store.serializers.menu import MenuSerializer
 from store.serializers.products import ProductSerializer
-from store.serializers.set_of_product import SetOfProductsSerializerWithCount, SetOfProductSerializer
+from store.serializers.set_of_product import SetOfProductsSerializerWithCount
 
 
 class HomaPageAPIView(APIView):

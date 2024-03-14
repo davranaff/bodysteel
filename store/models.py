@@ -9,11 +9,11 @@ from users.utils.random_code import random_code
 
 
 def category_directory_path(instance, filename):
-    return 'categories/{0}/{1}'.format(instance.name, filename)
+    return 'categories/{0}/{1}'.format(instance.name_ru, filename)
 
 
 def blog_directory_path(instance, filename):
-    return 'blog/{0}/{1}'.format(instance.name, filename)
+    return 'blog/{0}/{1}'.format(instance.name_ru, filename)
 
 
 def brand_directory_path(instance, filename):
@@ -21,7 +21,7 @@ def brand_directory_path(instance, filename):
 
 
 def product_image_directory_path(instance, filename):
-    return 'product_images/{0}/{1}'.format(instance.product.name, filename)
+    return 'product_images/{0}/{1}'.format(instance.product.name_ru, filename)
 
 
 class BaseModel(models.Model):
@@ -155,8 +155,8 @@ class Product(BaseModel):
     name_uz = models.CharField(max_length=100, verbose_name='Название Продукта uz', unique=True)
     name_ru = models.CharField(max_length=100, verbose_name='Название Продукта ru', unique=True)
 
-    description_uz = RichTextField(verbose_name='Описание Товара uz')
-    description_ru = RichTextField(verbose_name='Описание Товара ru')
+    description_uz = RichTextField(verbose_name='Описание Товара uz', null=True, blank=True)
+    description_ru = RichTextField(verbose_name='Описание Товара ru', null=True, blank=True)
 
     price = models.PositiveBigIntegerField(verbose_name='Стоимость товара')
 
@@ -175,11 +175,11 @@ class Product(BaseModel):
     slug = models.SlugField(max_length=255, unique=True, verbose_name='Название товара (url)', editable=True,
                             help_text='без пробела, либо через "-", либо через "_"')
 
-    country_uz = models.CharField(max_length=100, verbose_name='Старана-Производитель uz', unique=True)
-    country_ru = models.CharField(max_length=100, verbose_name='Старана-Производитель ru', unique=True)
+    country_uz = models.CharField(max_length=100, verbose_name='Старана-Производитель uz')
+    country_ru = models.CharField(max_length=100, verbose_name='Старана-Производитель ru')
 
-    composition_uz = RichTextField(verbose_name='Состав продукта uz')
-    composition_ru = RichTextField(verbose_name='Состав продукта ru')
+    composition_uz = RichTextField(verbose_name='Состав продукта uz', null=True, blank=True)
+    composition_ru = RichTextField(verbose_name='Состав продукта ru', null=True, blank=True)
 
     view_count = models.PositiveIntegerField(default=0, verbose_name='Кол-во. просмотров')
 
@@ -189,7 +189,7 @@ class Product(BaseModel):
     brand = models.ForeignKey('Brand', on_delete=models.SET_NULL, verbose_name='Бренд продукта',
                               related_name='products',
                               related_query_name='products', null=True, blank=True)
-    set_of_products = models.ForeignKey('SetOfProduct', on_delete=models.SET_NULL, null=True,
+    set_of_products = models.ForeignKey('SetOfProduct', on_delete=models.SET_NULL, null=True, blank=True,
                                         verbose_name='Выберите Комплект',
                                         related_name='products', related_query_name='products')
 
