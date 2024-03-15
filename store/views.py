@@ -145,7 +145,7 @@ class ProductViewSet(viewsets.ViewSet):
         search = request.query_params.get('search', None)
 
         products = Product.objects.with_flags(is_leader, is_sale, is_new, is_accessories, search).with_favorite(
-            request.auth).with_rating().all()[offset:limit]
+            request.auth).with_rating().all().order_by('-created_at')[offset:limit]
 
         serializer = ProductSerializer(products, many=True).data
 
