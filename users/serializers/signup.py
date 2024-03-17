@@ -21,11 +21,11 @@ class SignUpSerializer(serializers.Serializer):
     phone = serializers.CharField(max_length=13, required=True, validators=[validate_phone])
     password = serializers.CharField(min_length=8)
     password_confirm = serializers.CharField(min_length=8)
-    code = serializers.CharField(max_length=6, required=True)
+    # code = serializers.CharField(max_length=6, required=True)
 
     def check(self, attrs):
         try:
-            user = User.objects.get(phone=attrs.get('phone'), code=attrs.get('code'))
+            user = User.objects.get(phone=attrs.get('phone'))
 
             if user:
 
