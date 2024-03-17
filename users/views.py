@@ -206,7 +206,12 @@ class CreateBasketsView(APIView):
 
     @swagger_auto_schema(manual_parameters=[],
                          responses={status.HTTP_201_CREATED: openapi.Response(description='', examples={'data': {
-                             "baskets": 'array<dict<:product_id:<int>, :quantity:<int>>>',
+                             "baskets": [
+                                 {
+                                     "product_id": "integer",
+                                     "quantity": "integer",
+                                 }
+                             ],
                          }})})
     def post(self, request):
         serializer = CreateBasketsListSerializer(
@@ -230,6 +235,7 @@ class OrderAPIView(APIView):
                          responses={status.HTTP_200_OK: openapi.Response(description='', examples={'data': {
                              "type": "string",
                              "full_name": "string",
+                             "address": "string",
                              "phone": "string",
                          }})})
     def post(self, request):
