@@ -53,7 +53,7 @@ class AboutAPIView(APIView):
     allowed_methods = ['get', ]
 
     def get(self, request):
-        menu = get_object_or_404(Menu, is_active=True)
+        menu = Menu.objects.filter(is_active=True).first()
         serializer = MenuSerializer(menu, many=False).data
 
         return Response({'data': serializer}, status=status.HTTP_200_OK)
@@ -64,7 +64,7 @@ class BlogViewSet(viewsets.ViewSet):
     def list(self, request):
         params = request.query_params.dict()
 
-        menu = get_object_or_404(Menu, is_active=True)
+        menu = Menu.objects.filter(is_active=True).first()
         blogs = Blog.objects.order_by('-created_at')[int(params.get('offset', 0)):int(params.get('limit', 10))]
         blog_serializer = BlogSerializer(blogs, many=True).data
         menu_serializer = MenuSerializer(menu, many=False).data
@@ -90,7 +90,7 @@ class SetOfProductViewSet(viewsets.ViewSet):
                                                       .annotate(products_count=Count('products'))
                                                       .all(), many=True).data
 
-        menu = get_object_or_404(Menu, is_active=True)
+        menu = Menu.objects.filter(is_active=True).first()
         menu_serializer = MenuSerializer(menu).data
 
         return Response({'data': {'set_of_products': serializer, **menu_serializer}}, status=status.HTTP_200_OK)
@@ -117,7 +117,7 @@ class DeliveryAndPaymentsAPIView(APIView):
     allowed_methods = ['get', ]
 
     def get(self, request):
-        menu = get_object_or_404(Menu, is_active=True)
+        menu = Menu.objects.filter(is_active=True).first()
         serializer = MenuSerializer(menu).data
 
         return Response({'data': serializer}, status=status.HTTP_200_OK)
