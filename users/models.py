@@ -17,7 +17,7 @@ class User(AbstractUser):
         unique=True,
         validators=[phone.validate_phone]
     )
-    code = models.CharField(max_length=6, unique=True, null=True)
+    code = models.CharField(max_length=6, unique=False, null=True)
     verification = models.BooleanField(default=False)
 
     phone_idx = models.Index(fields=['phone'], name='phone_idx')
