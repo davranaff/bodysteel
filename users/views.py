@@ -7,9 +7,9 @@ from rest_framework.generics import get_object_or_404
 from store.models import Favorite, Basket, Order
 from store.serializers.review import ReviewSerializer
 from users.models import User
-from users.serializers.basket import BasketSerializer
+from users.serializers.basket import BasketSerializer, CreateBasketsListSerializer
 from users.serializers.me import UserSerializer
-from users.serializers.favorites import GetFavoritesSerializer, CreateFavoritesSerializer
+from users.serializers.favorites import GetFavoritesSerializer, CreateFavoritesSerializer, CreateFavoritesListSerializer
 from users.serializers.order import OrderSerializer, OrderCreateSerializer
 from users.serializers.signin import SigninSerializer
 from users.serializers.signup import PhoneVerificationSerializer, SignUpSerializer
@@ -57,7 +57,6 @@ class SignUp(APIView):
                          responses={status.HTTP_200_OK: openapi.Response(description='', examples={'data': {
                              "id": 'integer',
                              "username": 'string',
-                             "email": 'string',
                              "phone": 'string',
                              'token': 'string'
                          }})})
@@ -135,6 +134,22 @@ class FavoriteApi(APIView):
         return Response(data, status=status.HTTP_200_OK)
 
 
+class CreateFavoritesView(APIView):
+    permission_classes = [IsAuthenticated]
+    allowed_methods = ['post']
+
+    @swagger_auto_schema(manual_parameters=[],
+                         responses={status.HTTP_201_CREATED: openapi.Response(description='', examples={'data': {
+                             "products": 'array<integer>',
+                         }})})
+    def post(self, request):
+        serializer = CreateFavoritesListSerializer(
+            data={'user_id': request.user.id, 'products': request.data['products']})
+        serializer.is_valid(raise_exception=True)
+        data = serializer.create(serializer.validated_data)
+        return Response(data, status=status.HTTP_201_CREATED)
+
+
 class BasketAPIView(APIView):
     permission_classes = [IsAuthenticated]
     allowed_methods = ['get', 'post', 'put', 'delete']
@@ -185,6 +200,27 @@ class BasketAPIView(APIView):
         return Response(status=status.HTTP_204_NO_CONTENT)
 
 
+class CreateBasketsView(APIView):
+    permission_classes = [IsAuthenticated]
+    allowed_methods = ['post']
+
+    @swagger_auto_schema(manual_parameters=[],
+                         responses={status.HTTP_201_CREATED: openapi.Response(description='', examples={'data': {
+                             "baskets": [
+                                 {
+                                     "product_id": "integer",
+                                     "quantity": "integer",
+                                 }
+                             ],
+                         }})})
+    def post(self, request):
+        serializer = CreateBasketsListSerializer(
+            data={'user': request.user.id, 'baskets': request.data['baskets']})
+        serializer.is_valid(raise_exception=True)
+        data = serializer.create(serializer.validated_data)
+        return Response(data, status=status.HTTP_201_CREATED)
+
+
 class OrderAPIView(APIView):
     permission_classes = [IsAuthenticated]
 
@@ -199,6 +235,7 @@ class OrderAPIView(APIView):
                          responses={status.HTTP_200_OK: openapi.Response(description='', examples={'data': {
                              "type": "string",
                              "full_name": "string",
+                             "address": "string",
                              "phone": "string",
                          }})})
     def post(self, request):

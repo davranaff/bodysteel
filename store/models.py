@@ -300,6 +300,8 @@ class Order(BaseModel):
     full_name = models.CharField(max_length=255)
     phone = models.CharField(max_length=13)
 
+    address = models.CharField(max_length=255, blank=True, null=True)
+
     status = models.CharField(max_length=50, choices=STATUS_CHOICES, default='moderation')
     order_code = models.CharField(max_length=10, unique=True)
 
