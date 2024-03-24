@@ -105,12 +105,15 @@ class PhoneVerification(APIView):
                              'token': 'string'
                          }})})
     def post(self, request):
-        serializer = PhoneVerificationSerializer(data=request.data)
-        serializer.is_valid(raise_exception=True)
-        data = serializer.create(serializer.data)
-        if data.get("error"):
-            return Response({**data}, status=status.HTTP_400_BAD_REQUEST)
-        return Response(status=status.HTTP_201_CREATED)
+        try:
+            serializer = PhoneVerificationSerializer(data=request.data)
+            serializer.is_valid(raise_exception=True)
+            data = serializer.create(serializer.data)
+            if data.get("error"):
+                return Response({**data}, status=status.HTTP_400_BAD_REQUEST)
+            return Response(status=status.HTTP_201_CREATED)
+        except:
+            return Response({"error": "unique"}, status=status.HTTP_400_BAD_REQUEST)
 
 
 class FavoriteApi(APIView):
