@@ -14,7 +14,7 @@ class PhoneVerificationSerializer(serializers.Serializer):
         try:
             User.objects.create(**validated_data)
             return {'error': None}
-        except User:
+        except:
             return {'error': 'Phone number or email is exists'}
 
 
