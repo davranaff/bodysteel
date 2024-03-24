@@ -11,10 +11,11 @@ class PhoneVerificationSerializer(serializers.Serializer):
     phone = serializers.CharField(max_length=13, required=True, validators=[validate_phone])
 
     def create(self, validated_data):
-        if User.objects.filter(phone=validated_data['phone'], email=validated_data['email']).exists():
+        try:
+            User.objects.create(**validated_data)
+            return {'error': None}
+        except User:
             return {'error': 'Phone number or email is exists'}
-        User.objects.create(**validated_data)
-        return {'error': None}
 
 
 class SignUpSerializer(serializers.Serializer):
