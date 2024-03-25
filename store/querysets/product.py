@@ -27,7 +27,7 @@ class ProductQueryset(BaseQuerySet):
         query = self
 
         if search is not None:
-            query = query.filter(Q(name_ru__icontains=search) | Q(name_en__icontains=search))
+            query = query.filter(Q(name_ru__icontains=search) | Q(name_uz__icontains=search))
 
         if is_new:
             query = query.filter(created_at__gt=(datetime.datetime.now() - datetime.timedelta(days=30)))
