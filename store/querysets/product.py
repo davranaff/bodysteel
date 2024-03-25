@@ -27,7 +27,7 @@ class ProductQueryset(BaseQuerySet):
         query = self
 
         if search is not None:
-            query = query.filter(Q(name__icontains=search) | Q(name_en__icontains=search))
+            query = query.filter(Q(name_ru__icontains=search) | Q(name_en__icontains=search))
 
         if is_new:
             query = query.filter(created_at__gt=(datetime.datetime.now() - datetime.timedelta(days=30)))
@@ -36,7 +36,7 @@ class ProductQueryset(BaseQuerySet):
             query = query.filter(discounted_price__gt=0)
 
         if is_accessories:
-            query = query.filter(category__name__in=['Accessories', 'Аксессуары'])
+            query = query.filter(category__name_ru__in=['Accessories', 'Аксессуары'])
 
         if is_leader:
             query = query.annotate(
