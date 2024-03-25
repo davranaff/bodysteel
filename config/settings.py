@@ -6,7 +6,7 @@ SECRET_KEY = 'django-insecure-i(!^3@q&)btg5%skz2wc0tr(t(3avq20p3+*alul)$wv2(awq(
 
 DEBUG = True
 
-ALLOWED_HOSTS = ['*']
+ALLOWED_HOSTS = ['https://bodysteel.vercel.app', "http://localhost:8000", "http://localhost:3000",]
 
 INSTALLED_APPS = [
     'ckeditor',
@@ -55,6 +55,7 @@ MIDDLEWARE = [
 CORS_ALLOWED_ORIGINS = [
     "http://localhost:8000",
     "http://localhost:3000",
+    "https://bodysteel.vercel.app"
 ]
 
 ROOT_URLCONF = 'config.urls'
