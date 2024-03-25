@@ -43,7 +43,9 @@ class SignUpSerializer(serializers.Serializer):
                         "username": user.username,
                         "email": user.email,
                         "phone": user.phone,
-                        'token': token.key
+                        "first_name": user.first_name,
+                        "last_name": user.last_name,
+                        'token': token.key,
                     }}
                 return {'error': 'Password mismatch'}
 

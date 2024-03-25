@@ -3,6 +3,7 @@ from rest_framework.views import APIView
 from rest_framework import status
 from rest_framework.permissions import IsAuthenticated
 from rest_framework.generics import get_object_or_404
+from rest_framework.authtoken.models import Token
 
 from store.models import Favorite, Basket, Order
 from store.serializers.review import ReviewSerializer
@@ -46,6 +47,8 @@ class Me(APIView):
     def delete(self, request):
         user = get_object_or_404(User, phone=request.user.phone)
         user.code = random_code()
+        Token.objects.filter(user=user).delete()
+        user.delete()
         return Response({'data': 'activate code!'}, status=status.HTTP_204_NO_CONTENT)
 
 
@@ -82,6 +85,8 @@ class SignIn(APIView):
         serializer = SigninSerializer(data=request.data)
         serializer.is_valid(raise_exception=True)
         data = serializer.check(serializer.data)
+        if data.get('error'):
+            return Response({**data}, status=status.HTTP_404_NOT_FOUND)
         return Response({**data}, status=status.HTTP_200_OK)
 
 
