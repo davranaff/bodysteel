@@ -280,8 +280,23 @@ class ReviewAPIView(APIView):
     def post(self, request):
         serializer = ReviewSerializer(data=request.data)
         serializer.is_valid(raise_exception=True)
-        serializer.create({
+        data = serializer.create({
             **serializer.validated_data,
             'user': request.user,
         })
-        return Response(status=status.HTTP_201_CREATED)
+        return Response({'data': {
+            "id": data.id,
+            "rating": data.rating,
+            "user": {
+                "id": data.user.id,
+                "username": data.user.username,
+                "email": data.user.email,
+                "first_name": data.user.first_name,
+                "last_name": data.user.last_name,
+                "phone": data.user.phone,
+            },
+            "full_name": data.user.get_full_name(),
+            "created_at": data.created_at,
+            "comment": data.comment,
+            "product": data.product.id,
+        }}, status=status.HTTP_201_CREATED)
