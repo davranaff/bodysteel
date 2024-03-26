@@ -172,7 +172,14 @@ class BasketAPIView(APIView):
                              "product": 'integer<product_id>'
                          }})})
     def post(self, request):
-        serializer = BasketSerializer(data=request.data)
+
+        if request.data.get('baskets'):
+            serializer = BasketSerializer(data=request.data.get('baskets'), many=True)
+            serializer.is_valid(raise_exception=True)
+            data = serializer.create(baskets=request.data.get('baskets'), user=request.user)
+            return Response({'data': data}, status=status.HTTP_201_CREATED)
+
+        serializer = BasketSerializer(data=request.data, many=True)
         serializer.is_valid(raise_exception=True)
         serializer.save(user=request.user, product_id=request.data['product'])
         return Response({'data': serializer.data}, status=status.HTTP_201_CREATED)

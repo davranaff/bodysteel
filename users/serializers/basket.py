@@ -10,6 +10,16 @@ class BasketSerializer(serializers.ModelSerializer):
     quantity = serializers.IntegerField(validators=[MinValueValidator(1)])
     product = ProductSerializer(read_only=True)
 
+    def create(self, **validated_data):
+        print(validated_data)
+        baskets = Basket.objects.bulk_create([Basket(
+            user=validated_data.get('user'),
+            product_id=item.get('product'),
+            quantity=item.get('quantity', 1)
+        ) for item in validated_data.get('baskets')])
+
+        return {'data': baskets}
+
     def update(self, instance, validated_data):
         instance.quantity = validated_data.get("quantity", instance.quantity)
         return super(BasketSerializer, self).update(instance, validated_data)

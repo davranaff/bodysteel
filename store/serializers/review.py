@@ -8,7 +8,8 @@ from users.serializers.me import UserSerializer
 
 class ReviewSerializer(serializers.ModelSerializer):
     rating = serializers.IntegerField(required=True, validators=[MinValueValidator(0), MaxValueValidator(5)])
-    user = UserSerializer()
+    user = UserSerializer(read_only=True, required=False)
+    full_name = serializers.CharField(read_only=True, required=False)
 
     class Meta:
         model = Review
