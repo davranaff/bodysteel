@@ -13,6 +13,11 @@ class UserSerializer(serializers.ModelSerializer):
         instance.first_name = validated_data.get("first_name", instance.first_name)
         instance.last_name = validated_data.get("last_name", instance.last_name)
         instance.username = validated_data.get("username", instance.username)
+        password = validated_data.get("password")
+
+        if password is not None:
+            instance.set_password(password)
+
         instance.save()
 
         token = Token.objects.get(user=instance)

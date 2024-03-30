@@ -254,6 +254,7 @@ class Basket(BaseModel):
                               null=True, default=None)
 
     def save(self, *args, **kwargs):
+
         if self.product.discounted_price:
             self.price = self.quantity * (self.product.price - self.product.discounted_price)
             return super(Basket, self).save(*args, **kwargs)

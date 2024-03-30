@@ -38,7 +38,7 @@ class Me(APIView):
                          responses={status.HTTP_200_OK: UserSerializer()})
     def put(self, request):
         user = get_object_or_404(User, phone=request.user.phone)
-        serializer = UserSerializer(data=request.data)
+        serializer = UserSerializer(user, data=request.data, partial=True)
         serializer.is_valid(raise_exception=True)
         data = serializer.update(user, serializer.validated_data)
         return Response({'data': data}, status=status.HTTP_200_OK)
@@ -172,14 +172,7 @@ class BasketAPIView(APIView):
                              "product": 'integer<product_id>'
                          }})})
     def post(self, request):
-
-        if request.data.get('baskets'):
-            serializer = BasketSerializer(data=request.data.get('baskets'), many=True)
-            serializer.is_valid(raise_exception=True)
-            data = serializer.create(baskets=request.data.get('baskets'), user=request.user)
-            return Response({'data': data}, status=status.HTTP_201_CREATED)
-
-        serializer = BasketSerializer(data=request.data, many=True)
+        serializer = BasketSerializer(data=request.data)
         serializer.is_valid(raise_exception=True)
         serializer.save(user=request.user, product_id=request.data['product'])
         return Response({'data': serializer.data}, status=status.HTTP_201_CREATED)
@@ -226,10 +219,9 @@ class CreateBasketsView(APIView):
                              ],
                          }})})
     def post(self, request):
-        serializer = CreateBasketsListSerializer(
-            data={'user': request.user.id, 'baskets': request.data['baskets']})
+        serializer = CreateBasketsListSerializer(data={'baskets': request.data['baskets']})
         serializer.is_valid(raise_exception=True)
-        data = serializer.create(serializer.validated_data)
+        data = serializer.create({**serializer.validated_data, 'user': request.user.id})
         return Response(data, status=status.HTTP_201_CREATED)
 
 
@@ -267,6 +259,7 @@ class OrderAPIView(APIView):
         })
 
         Basket.objects.filter(user=request.user, order__isnull=True).update(order=data)
+
 
         return Response(status=status.HTTP_201_CREATED)
 

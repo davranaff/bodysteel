@@ -127,6 +127,13 @@ ESKIZ_FROM_TO = ''
 ESKIZ_PROVIDER_EMAIL = 'deff0427@gmail.com'
 ESKIZ_PROVIDER_PASSWORD = 'l52LiHIsfeshhp2MbQO9T6rrqPuBJ28W574tipJw'
 
+EMAIL_BACKEND = 'django.core.mail.backends.smtp.EmailBackend'
+EMAIL_HOST = 'smtp.gmail.com'
+EMAIL_PORT = 587
+EMAIL_USE_TLS = True
+EMAIL_HOST_USER = 'deff0427@gmail.com'
+EMAIL_HOST_PASSWORD = "jpmuregetnbuntfe"
+
 if not DEBUG:
     from .settings_prod import *
 else:

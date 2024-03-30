@@ -10,16 +10,6 @@ class BasketSerializer(serializers.ModelSerializer):
     quantity = serializers.IntegerField(validators=[MinValueValidator(1)])
     product = ProductSerializer(read_only=True)
 
-    def create(self, **validated_data):
-        print(validated_data)
-        baskets = Basket.objects.bulk_create([Basket(
-            user=validated_data.get('user'),
-            product_id=item.get('product'),
-            quantity=item.get('quantity', 1)
-        ) for item in validated_data.get('baskets')])
-
-        return {'data': baskets}
-
     def update(self, instance, validated_data):
         instance.quantity = validated_data.get("quantity", instance.quantity)
         return super(BasketSerializer, self).update(instance, validated_data)
@@ -33,6 +23,7 @@ class CreateBasketsListSerializer(serializers.Serializer):
     baskets = serializers.ListSerializer(allow_empty=True, required=True, child=serializers.DictField())
 
     def create(self, validated_data):
+        print(validated_data.get('user'))
         products_ids = [item.get('product_id') for item in validated_data['baskets']]
 
         baskets = Basket.objects.filter(user=validated_data.get('user'), product_id__in=products_ids)
@@ -41,13 +32,12 @@ class CreateBasketsListSerializer(serializers.Serializer):
             return {'error': 'Такие корзины уже существуют'}
 
         if len(validated_data.get('baskets')):
-            objs = [
-                Basket(user_id=validated_data.get('user'),
-                       product_id=item.get('product_id'),
-                       quantity=item.get('quantity'),
-                       ) for item in validated_data['baskets']
-            ]
 
-            Basket.objects.bulk_create(objs)
+            for item in validated_data['baskets']:
+                Basket(
+                    user_id=validated_data.get('user'),
+                    product=item.get('product_id'),
+                    quantity=item.get('quantity'),
+                ).save()
 
         return {'data': 'created'}
