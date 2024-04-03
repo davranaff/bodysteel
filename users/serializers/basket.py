@@ -23,7 +23,6 @@ class CreateBasketsListSerializer(serializers.Serializer):
     baskets = serializers.ListSerializer(allow_empty=True, required=True, child=serializers.DictField())
 
     def create(self, validated_data):
-        print(validated_data.get('user'))
         products_ids = [item.get('product_id') for item in validated_data['baskets']]
 
         baskets = Basket.objects.filter(user=validated_data.get('user'), product_id__in=products_ids)

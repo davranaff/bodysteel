@@ -132,7 +132,11 @@ EMAIL_HOST = 'smtp.gmail.com'
 EMAIL_PORT = 587
 EMAIL_USE_TLS = True
 EMAIL_HOST_USER = 'deff0427@gmail.com'
-EMAIL_HOST_PASSWORD = "jpmuregetnbuntfe"
+EMAIL_HOST_PASSWORD = 'jpmuregetnbuntfe'
+
+BOT_TOKEN = ''
+BOT_POOLING_INTERVAL = 5
+
 
 if not DEBUG:
     from .settings_prod import *

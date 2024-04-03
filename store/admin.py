@@ -5,7 +5,7 @@ from store.models import Menu, Filial, Product, SetOfProduct, Category, Blog, Br
 @admin.register(Menu)
 class MenuAdmin(admin.ModelAdmin):
     empty_value_display = "-пусто-"
-    fields = ['name_', 'about_uz', 'blog_uz', 'set_product_uz', 'delivery_and_payment_uz', 'about_ru', 'blog_ru',
+    fields = ['name', 'about_uz', 'blog_uz', 'set_product_uz', 'delivery_and_payment_uz', 'about_ru', 'blog_ru',
               'set_product_ru', 'delivery_and_payment_ru', 'is_active', ]
     list_display = ['name', 'is_active']
 
