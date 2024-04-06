@@ -1,3 +1,5 @@
+from django.core.mail import send_mail
+from django.template.loader import render_to_string
 from rest_framework.response import Response
 from rest_framework.views import APIView
 from rest_framework import status
@@ -5,10 +7,12 @@ from rest_framework.permissions import IsAuthenticated
 from rest_framework.generics import get_object_or_404
 from rest_framework.authtoken.models import Token
 
+from config.settings import BASE_DIR
 from store.models import Favorite, Basket, Order
 from store.serializers.review import ReviewSerializer
 from users.models import User
 from users.serializers.basket import BasketSerializer, CreateBasketsListSerializer
+from users.serializers.basket_with_order_serializer import BasketOrderSerializer
 from users.serializers.me import UserSerializer
 from users.serializers.favorites import GetFavoritesSerializer, CreateFavoritesSerializer, CreateFavoritesListSerializer
 from users.serializers.order import OrderSerializer, OrderCreateSerializer
@@ -260,6 +264,28 @@ class OrderAPIView(APIView):
 
         Basket.objects.filter(user=request.user, order__isnull=True).update(order=data)
 
+        baskets = Basket.objects.filter(user=request.user, order__isnull=False)
+
+        html_messages = render_to_string(f'{BASE_DIR}/users/templates/email.html', {
+            'baskets': baskets,
+            'created_at': baskets[0].created_at,
+            'order_code': baskets[0].order.order_code,
+            'type': baskets[0].order.type,
+            'address': baskets[0].order.address,
+            'status': baskets[0].order.status,
+            'total_price': f'{baskets[0].order.total_price:,}',
+            'full_name': baskets[0].order.full_name,
+            'phone': baskets[0].order.phone,
+        })
+
+        send_mail(
+            "BodySteel.",
+            "Поступил Новый Заказ.",
+            "deff0427@gmail.com",
+            ["deff0427@gmail.com"],
+            fail_silently=False,
+            html_message=html_messages,
+        )
 
         return Response(status=status.HTTP_201_CREATED)
 

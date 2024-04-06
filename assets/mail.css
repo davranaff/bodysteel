@@ -1,0 +1,18 @@
+body {
+    margin: 0;
+    padding: 0;
+}
+
+.container {
+    width: auto;
+    height: auto;
+}
+
+.logo {
+    width: min-content;
+    height: auto;
+}
+
+.content {
+    width: min-content;
+}

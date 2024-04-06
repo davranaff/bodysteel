@@ -1,0 +1,33 @@
+{% load static %}
+<!doctype html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport"
+          content="width=device-width, user-scalable=no, initial-scale=1.0, maximum-scale=1.0, minimum-scale=1.0">
+    <meta http-equiv="X-UA-Compatible" content="ie=edge">
+    <link rel="stylesheet" href="{% static 'mail.css' %}">
+    <title>BodySteel</title>
+</head>
+<body>
+    <div class="container">
+        <div class="logo">
+            <img src="{% static 'logo.JPG' %}" alt="bodysteel">
+        </div>
+        <div class="content">
+            <h2>Заказ на сумму: {{ total_price }} UZS</h2>
+            <br>
+            <date>Дата и Время заказа: {{ created_at }}</date>
+            <p>Код Заказа и Статус Товара: <code>#{{ order_code }}</code> / {{ status }}</p>
+            <p>Полное Имя Покупателя и номер телефона: {{ full_name }} / {{ phone }}</p>
+            <p>Тип Доставки: {{ type }}</p>
+            <p>Адрес Доставки: {{ address }}</p>
+            <ul>
+                {% for basket in baskets %}
+                    <li>Товар: {{ basket.product.name_ru }}, Кол-во: {{ basket.quantity }}, Сумма: {{ basket.price }} UZS</li>
+                {% endfor %}
+            </ul>
+        </div>
+    </div>
+</body>
+</html>

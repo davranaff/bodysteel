@@ -303,7 +303,7 @@ class Order(BaseModel):
 
     address = models.CharField(max_length=255, blank=True, null=True)
 
-    status = models.CharField(max_length=50, choices=STATUS_CHOICES, default='moderation')
+    status = models.CharField(max_length=50, choices=STATUS_CHOICES, default='На модерации')
     order_code = models.CharField(max_length=10, unique=True)
 
     order_code_idx = models.Index(fields=['order_code'], name='order_code_idx')
@@ -316,6 +316,13 @@ class Order(BaseModel):
 
     def save(self, *args, **kwargs):
         self.order_code = random_code(length=10)
+
+        if self.type == 'dtu' or self.type == 'Доставка по всему Узбекистану':
+            self.total_price += 60000
+
+        if self.type == 'dcb' or self.type == 'Доставка по городу Бухара':
+            self.total_price += 30000
+
         return super().save(*args, **kwargs)
 
     class Meta:
