@@ -6,6 +6,7 @@ from rest_framework import status
 from rest_framework.permissions import IsAuthenticated
 from rest_framework.generics import get_object_or_404
 from rest_framework.authtoken.models import Token
+from django.contrib.auth.models import AnonymousUser
 
 from config.settings import BASE_DIR
 from store.models import Favorite, Basket, Order
@@ -230,7 +231,6 @@ class CreateBasketsView(APIView):
 
 
 class OrderAPIView(APIView):
-    permission_classes = [IsAuthenticated]
 
     @swagger_auto_schema(manual_parameters=[],
                          responses={status.HTTP_200_OK: OrderSerializer(many=True)})
@@ -247,22 +247,58 @@ class OrderAPIView(APIView):
                              "phone": "string",
                          }})})
     def post(self, request):
+        print(request.data)
+
+        if not isinstance(request.user, AnonymousUser):
+            print('ok-1')
+            serializer_basket = CreateBasketsListSerializer(data={'baskets': request.data['baskets']})
+            serializer_basket.is_valid(raise_exception=True)
+            serializer_basket.create({**serializer.validated_data, 'user': request.user.id})
+
+            serializer = OrderCreateSerializer(data=request.data)
+            serializer.is_valid(raise_exception=True)
+
+            total_price = Basket.objects.filter(user=request.user).aggregate(total_price=Sum('price'))['total_price']
+            full_name = request.user.get_full_name()
+            phone = request.user.phone
+
+            data = serializer.create({
+                **serializer.validated_data,
+                'total_price': total_price,
+                'full_name': serializer.validated_data.get('full_name', full_name),
+                'phone': serializer.validated_data.get('phone', phone),
+                'user': request.user
+            })
+
+            Basket.objects.filter(user=request.user, order__isnull=True).update(order=data)
+
+
+            return Response(status=status.HTTP_201_CREATED)
+        
+        if request.data.get("baskets") and request.data.get("address") and request.data.get("full_name") and request.data.get("phone"):
+            return Response({'error': 'Данные заполнены некорректно!'}, status=status.HTTP_400_BAD_REQUEST)
+        print('ok-2')
+        serializer_basket = CreateBasketsListSerializer(data={'baskets': request.data.get('baskets')})
+        serializer_basket.is_valid(raise_exception=True)
+        
         serializer = OrderCreateSerializer(data=request.data)
         serializer.is_valid(raise_exception=True)
 
         total_price = Basket.objects.filter(user=request.user).aggregate(total_price=Sum('price'))['total_price']
-        full_name = request.user.get_full_name()
-        phone = request.user.phone
 
         data = serializer.create({
             **serializer.validated_data,
             'total_price': total_price,
-            'full_name': serializer.validated_data.get('full_name', full_name),
-            'phone': serializer.validated_data.get('phone', phone),
-            'user': request.user
+            'full_name': serializer.validated_data.get('full_name'),
+            'phone': serializer.validated_data.get('phone'),
         })
 
-        Basket.objects.filter(user=request.user, order__isnull=True).update(order=data)
+        for item in request.data.get('baskets'):
+            Basket(
+                product=item.get('product_id'),
+                quantity=item.get('quantity'),
+                order=data,
+            ).save()
 
         baskets = Basket.objects.filter(user=request.user, order__isnull=False)
 
