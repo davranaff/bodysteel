@@ -23,6 +23,9 @@ def brand_directory_path(instance, filename):
 def product_image_directory_path(instance, filename):
     return 'product_images/{0}/{1}'.format(instance.product.name_ru, filename)
 
+def check_path(instance, filename):
+    return 'checks/{0}/{1}'.format(instance.order_code, filename)
+
 
 class BaseModel(models.Model):
     created_at = models.DateTimeField(auto_now_add=True)
@@ -300,6 +303,8 @@ class Order(BaseModel):
     type = models.CharField(max_length=100, choices=DELIVERY_CHOICES)
     full_name = models.CharField(max_length=255)
     phone = models.CharField(max_length=13)
+    email = models.EmailField()
+    fix_check = models.FileField(upload_to=check_path)
 
     address = models.CharField(max_length=255, blank=True, null=True)
 

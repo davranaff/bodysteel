@@ -23,20 +23,16 @@ class CreateBasketsListSerializer(serializers.Serializer):
     baskets = serializers.ListSerializer(allow_empty=True, required=True, child=serializers.DictField())
 
     def create(self, validated_data):
-        products_ids = [item.get('product_id') for item in validated_data['baskets']]
-
-        baskets = Basket.objects.filter(user=validated_data.get('user'), product_id__in=products_ids)
-
-        if len(baskets) == len(validated_data.get('baskets')):
-            return {'error': 'Такие корзины уже существуют'}
 
         if len(validated_data.get('baskets')):
+            baskets = []
 
             for item in validated_data['baskets']:
-                Basket(
-                    user_id=validated_data.get('user'),
+                basket = Basket.objects.create(
                     product=item.get('product_id'),
                     quantity=item.get('quantity'),
-                ).save()
+                )
+                baskets.append(basket)
 
-        return {'data': 'created'}
+            return {'data': baskets}
+
