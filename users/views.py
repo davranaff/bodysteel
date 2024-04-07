@@ -1,5 +1,6 @@
 from django.core.mail import send_mail
 from django.template.loader import render_to_string
+from rest_framework.parsers import MultiPartParser
 from rest_framework.response import Response
 from rest_framework.views import APIView
 from rest_framework import status
@@ -231,6 +232,7 @@ class CreateBasketsView(APIView):
 
 
 class OrderAPIView(APIView):
+    parser_classes = [MultiPartParser]
 
     @swagger_auto_schema(manual_parameters=[],
                          responses={status.HTTP_200_OK: OrderSerializer(many=True)})
@@ -250,15 +252,15 @@ class OrderAPIView(APIView):
         serializer = OrderCreateSerializer(data=request.data)
         serializer.is_valid(raise_exception=True)
 
-        serializer_baskets = CreateBasketsListSerializer(data={'baskets': request.data['baskets']}, many=True)
+        serializer_baskets = CreateBasketsListSerializer(data={'baskets': eval(request.data['baskets'])})
         serializer_baskets.is_valid(raise_exception=True)
         data_baskets = serializer_baskets.create(serializer_baskets.validated_data)
 
-        total_price = sum([item.price for item in data_baskets])
+        baskets = Basket.objects.filter(pk__in=data_baskets.get('data'), order__isnull=True)
+        total_price = sum([item.price for item in baskets])
         full_name = request.data.get("full_name")
         phone = request.data.get("phone")
         email = request.data.get("email")
-
         data = serializer.create({
             **serializer.validated_data,
             'total_price': total_price,
@@ -267,11 +269,9 @@ class OrderAPIView(APIView):
             'email': email,
         })
 
-        for item in data_baskets:
+        for item in baskets:
             item.order = data
             item.save()
-
-        baskets = Basket.objects.filter(user=request.user, order__isnull=False)
 
         html_messages = render_to_string(f'{BASE_DIR}/users/templates/email.html', {
             'baskets': baskets,
@@ -287,9 +287,9 @@ class OrderAPIView(APIView):
 
         send_mail(
             "BodySteel.",
-            "Поступил Новый Заказ.",
+            "Новый Заказ.",
             "deff0427@gmail.com",
-            ["deff0427@gmail.com"],
+            [email],
             fail_silently=False,
             html_message=html_messages,
         )

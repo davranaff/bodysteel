@@ -313,9 +313,6 @@ class Order(BaseModel):
 
     order_code_idx = models.Index(fields=['order_code'], name='order_code_idx')
 
-    user = models.ForeignKey(User, related_name='orders', on_delete=models.SET_NULL, null=True,
-                             related_query_name='order', verbose_name='orders')
-
     def __str__(self):
         return '#{0} - {1}'.format(self.order_code, self.full_name)
 

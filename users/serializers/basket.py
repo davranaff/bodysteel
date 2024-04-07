@@ -29,10 +29,10 @@ class CreateBasketsListSerializer(serializers.Serializer):
 
             for item in validated_data['baskets']:
                 basket = Basket.objects.create(
-                    product=item.get('product_id'),
+                    product_id=item.get('product'),
                     quantity=item.get('quantity'),
                 )
-                baskets.append(basket)
+                baskets.append(basket.id)
 
             return {'data': baskets}
 
