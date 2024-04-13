@@ -294,7 +294,7 @@ class OrderAPIView(APIView):
             html_message=html_messages,
         )
 
-        return Response(status=status.HTTP_201_CREATED)
+        return Response({'data': data.order_code}status=status.HTTP_201_CREATED)
 
 
 class ReviewAPIView(APIView):
