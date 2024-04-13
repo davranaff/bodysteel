@@ -6,6 +6,10 @@
 __pycache__
 db.sqlite3
 files
+assets/admin
+assets/ckeditor
+assets/drf-yasg
+assets/rest_framework
 
 # Backup files #
 *.bak
