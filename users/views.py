@@ -271,18 +271,19 @@ class OrderAPIView(APIView):
 
         for item in baskets:
             item.order = data
+            item.product.quantity -= item.quantity
             item.save()
 
         html_messages = render_to_string(f'{BASE_DIR}/users/templates/email.html', {
             'baskets': baskets,
-            'created_at': baskets[0].created_at,
-            'order_code': baskets[0].order.order_code,
-            'type': baskets[0].order.type,
-            'address': baskets[0].order.address,
-            'status': baskets[0].order.status,
-            'total_price': f'{baskets[0].order.total_price:,}',
-            'full_name': baskets[0].order.full_name,
-            'phone': baskets[0].order.phone,
+            'created_at': data.created_at.strftime('%d/%m/%Y %H:%M'),
+            'order_code': data.order_code,
+            'type': [item[1] for item in Order.DELIVERY_CHOICES if item[0] == data.type][0],
+            'address': data.address,
+            'status': data.status,
+            'total_price': f'{data.total_price:,}',
+            'full_name': data.full_name,
+            'phone': data.phone,
         })
 
         send_mail(

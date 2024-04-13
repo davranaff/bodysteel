@@ -40,10 +40,18 @@ class BrandAdmin(admin.ModelAdmin):
     list_display = ['id', 'name', 'photo']
 
 
+class ProductImageInline(admin.TabularInline):
+    model = ProductImage
+
+
 @admin.register(Product)
 class ProductsAdmin(admin.ModelAdmin):
     empty_value_display = "-пусто-"
     list_display = ['id', 'name_uz', 'name_ru', 'price', 'quantity', 'view_count']
+    exclude = ['view_count']
+    inlines = [ProductImageInline]
+    list_filter = ['name_ru']
+    list_editable = ('name_uz', 'name_ru', 'quantity')
 
 
 @admin.register(ProductImage)
@@ -56,9 +64,13 @@ class ProductImageAdmin(admin.ModelAdmin):
 class ReviewAdmin(admin.ModelAdmin):
     empty_value_display = "-пусто-"
     list_display = ['id', 'full_name', 'rating', 'product', 'created_at']
+    list_filter = ['rating']
 
 
 @admin.register(Order)
 class OrdersAdmin(admin.ModelAdmin):
     empty_value_display = "-пусто-"
     list_display = ['id', 'full_name', 'phone', 'type', 'total_price', 'status']
+    list_editable = ['status', ]
+    readonly_fields = ['full_name', 'phone', 'type', 'total_price', 'email', 'order_code', 'address', 'fix_check']
+

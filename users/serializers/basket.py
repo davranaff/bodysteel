@@ -2,7 +2,7 @@ from rest_framework import serializers
 
 from django.core.validators import MinValueValidator
 
-from store.models import Basket
+from store.models import Basket, Product
 from store.serializers.products import ProductSerializer
 
 
@@ -32,6 +32,9 @@ class CreateBasketsListSerializer(serializers.Serializer):
                     product_id=item.get('product'),
                     quantity=item.get('quantity'),
                 )
+                product = Product.objects.get(id=item.get('product'))
+                product.quantity -= int(item.get('quantity'))
+                product.save()
                 baskets.append(basket.id)
 
             return {'data': baskets}

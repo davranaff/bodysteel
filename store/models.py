@@ -23,6 +23,7 @@ def brand_directory_path(instance, filename):
 def product_image_directory_path(instance, filename):
     return 'product_images/{0}/{1}'.format(instance.product.name_ru, filename)
 
+
 def check_path(instance, filename):
     return 'checks/{0}/{1}'.format(instance.order_code, filename)
 
@@ -50,6 +51,10 @@ class Menu(BaseModel):
                                             help_text='Текст для раздела Доставка и Оплата')
     delivery_and_payment_ru = RichTextField(verbose_name='Доставка и Оплата ru',
                                             help_text='Текст для раздела Доставка и Оплата')
+
+    delivery_price = models.IntegerField(verbose_name='Цена Доставки', default=0)
+    bank_card_number = models.CharField(max_length=16, verbose_name='Номер Банковской карты',
+                                        help_text='0000 0000 0000 0000')
 
     is_active = models.BooleanField(default=True, verbose_name='Активировать',
                                     help_text='Если отключено, то не будет видно', unique=True)
@@ -103,7 +108,7 @@ class SetOfProduct(BaseModel):
     class Meta:
         verbose_name = "Комплект"
         verbose_name_plural = "Комплекты"
-        unique_together = ('name_uz', 'name_ru', )
+        unique_together = ('name_uz', 'name_ru',)
 
 
 class Category(BaseModel):
@@ -257,7 +262,6 @@ class Basket(BaseModel):
                               null=True, default=None)
 
     def save(self, *args, **kwargs):
-
         if self.product.discounted_price:
             self.price = self.quantity * (self.product.price - self.product.discounted_price)
             return super(Basket, self).save(*args, **kwargs)
@@ -320,10 +324,7 @@ class Order(BaseModel):
         self.order_code = random_code(length=10)
 
         if self.type == 'dtu' or self.type == 'Доставка по всему Узбекистану':
-            self.total_price += 60000
-
-        if self.type == 'dcb' or self.type == 'Доставка по городу Бухара':
-            self.total_price += 30000
+            self.total_price += Menu.objects.get(is_active=True).delivery_price
 
         return super().save(*args, **kwargs)
 
