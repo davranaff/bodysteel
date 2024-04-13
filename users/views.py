@@ -12,6 +12,7 @@ from django.contrib.auth.models import AnonymousUser
 from config.settings import BASE_DIR
 from store.models import Favorite, Basket, Order
 from store.serializers.review import ReviewSerializer
+from teleg.utils.notify_message import notify_message
 from users.models import User
 from users.serializers.basket import BasketSerializer, CreateBasketsListSerializer
 from users.serializers.basket_with_order_serializer import BasketOrderSerializer
@@ -256,7 +257,7 @@ class OrderAPIView(APIView):
         serializer_baskets.is_valid(raise_exception=True)
         data_baskets = serializer_baskets.create(serializer_baskets.validated_data)
 
-        baskets = Basket.objects.filter(pk__in=data_baskets.get('data'), order__isnull=True)
+        baskets = Basket.objects.filter(pk__in=data_baskets.get('data'), order__isnull=True).select_related('product')
         total_price = sum([item.price for item in baskets])
         full_name = request.data.get("full_name")
         phone = request.data.get("phone")
@@ -294,6 +295,8 @@ class OrderAPIView(APIView):
             fail_silently=False,
             html_message=html_messages,
         )
+
+        notify_message(data, baskets)
 
         return Response(status=status.HTTP_201_CREATED)
 
