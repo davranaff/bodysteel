@@ -55,7 +55,9 @@ MIDDLEWARE = [
 CORS_ALLOWED_ORIGINS = [
     "http://localhost:8000",
     "http://localhost:3000",
-    "https://bodysteel.vercel.app"
+    "https://bodysteel.vercel.app",
+    "https://bosyteel.uz",
+    "https://api.bosyteel.uz",
 ]
 
 ROOT_URLCONF = 'config.urls'
