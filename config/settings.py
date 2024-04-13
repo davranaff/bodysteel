@@ -22,6 +22,7 @@ INSTALLED_APPS = [
     'store',
     'rest_framework',
     'rest_framework.authtoken',
+    'teleg',
 ]
 
 TEMPLATES = [
@@ -136,7 +137,8 @@ EMAIL_USE_TLS = True
 EMAIL_HOST_USER = 'deff0427@gmail.com'
 EMAIL_HOST_PASSWORD = 'jpmuregetnbuntfe'
 
-BOT_TOKEN = ''
+BOT_TOKEN = '7192020907:AAHaInQlICkrVoHurIHe4qvaYRjq2hqYx9Y'
+TELEGRAM_API_URL = f'https://api.telegram.org/bot{BOT_TOKEN}'
 BOT_POOLING_INTERVAL = 5
 
 

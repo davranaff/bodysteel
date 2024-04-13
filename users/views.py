@@ -12,6 +12,7 @@ from django.contrib.auth.models import AnonymousUser
 from config.settings import BASE_DIR
 from store.models import Favorite, Basket, Order
 from store.serializers.review import ReviewSerializer
+from teleg.utils.notify_message import notify_message
 from users.models import User
 from users.serializers.basket import BasketSerializer, CreateBasketsListSerializer
 from users.serializers.basket_with_order_serializer import BasketOrderSerializer
@@ -256,7 +257,7 @@ class OrderAPIView(APIView):
         serializer_baskets.is_valid(raise_exception=True)
         data_baskets = serializer_baskets.create(serializer_baskets.validated_data)
 
-        baskets = Basket.objects.filter(pk__in=data_baskets.get('data'), order__isnull=True)
+        baskets = Basket.objects.filter(pk__in=data_baskets.get('data'), order__isnull=True).select_related('product')
         total_price = sum([item.price for item in baskets])
         full_name = request.data.get("full_name")
         phone = request.data.get("phone")
@@ -271,18 +272,19 @@ class OrderAPIView(APIView):
 
         for item in baskets:
             item.order = data
+            item.product.quantity -= item.quantity
             item.save()
 
         html_messages = render_to_string(f'{BASE_DIR}/users/templates/email.html', {
             'baskets': baskets,
-            'created_at': baskets[0].created_at,
-            'order_code': baskets[0].order.order_code,
-            'type': baskets[0].order.type,
-            'address': baskets[0].order.address,
-            'status': baskets[0].order.status,
-            'total_price': f'{baskets[0].order.total_price:,}',
-            'full_name': baskets[0].order.full_name,
-            'phone': baskets[0].order.phone,
+            'created_at': data.created_at.strftime('%d/%m/%Y %H:%M'),
+            'order_code': data.order_code,
+            'type': [item[1] for item in Order.DELIVERY_CHOICES if item[0] == data.type][0],
+            'address': data.address,
+            'status': data.status,
+            'total_price': f'{data.total_price:,}',
+            'full_name': data.full_name,
+            'phone': data.phone,
         })
 
         send_mail(
@@ -294,7 +296,9 @@ class OrderAPIView(APIView):
             html_message=html_messages,
         )
 
-        return Response({'data': data.order_code}status=status.HTTP_201_CREATED)
+        notify_message(data, baskets)
+
+        return Response(status=status.HTTP_201_CREATED)
 
 
 class ReviewAPIView(APIView):

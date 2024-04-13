@@ -26,7 +26,8 @@ urlpatterns = [
         path('documentation/', schema_view.with_ui('redoc', cache_timeout=0), name='schema-redoc'),
         path('store/', include(('store.urls', 'store'), namespace='store')),
         path('users/', include(('users.urls', 'users'), namespace='users')),
-    ]))
+    ])),
+    path('telegram/', include(('teleg.urls', 'teleg'), namespace='telegram')),
 ]
 
 urlpatterns += static(settings.STATIC_URL, document_root=settings.STATIC_ROOT)
