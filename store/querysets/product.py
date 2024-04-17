@@ -1,7 +1,6 @@
 import datetime
 
 from django.db.models import Sum, Count, Q, FilteredRelation
-from django.db.models.functions import Coalesce
 from store.querysets.base_queryset import BaseQuerySet
 
 
@@ -10,7 +9,7 @@ class ProductQueryset(BaseQuerySet):
     def with_rating(self):
         query = self
 
-        query = query.annotate(rating=(Sum('reviews__rating', default=0) / Coalesce(Count('reviews__id'), 1)))
+        query = query.annotate(rating=(Sum('reviews__rating', default=0) / (1 or Count('reviews__id'))))
 
         return query
 
