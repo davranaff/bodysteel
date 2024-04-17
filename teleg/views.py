@@ -25,17 +25,13 @@ def start(message: telebot.types.Message):
     bot.send_message(message.chat.id, f'Добро Пожаловать!')
 
 
-@bot.message_handler(commands=['statistics_month'])
-async def statisticsMonth(message: telebot.types.Message):
-    try:
-        chat = ChatModel.objects.get(chat_id=message.chat.id)
+@bot.message_handler(commands=['statistics_month'], )
+def statisticsMonth(message: telebot.types.Message):
+    chat = ChatModel.objects.get(chat_id=message.chat.id)
+    print("---")
+    baskets = Basket.objects.all()
 
-        baskets = await Basket.objects.all()
-        print(baskets)
-
-        bot.send_message(chat.chat_id, f'Добро Пожаловать!')
-    except ChatModel.DoesNotExist:
-        ...
+    bot.send_message(message.chat.id, f'Добро Пожаловать!')
 
 
 @bot.message_handler(func=lambda message: True)

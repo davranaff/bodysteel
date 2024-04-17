@@ -1,12 +1,12 @@
 from django.contrib import admin
-from store.models import Menu, Filial, Product, SetOfProduct, Category, Blog, Brand, ProductImage, Review, Order
+from store.models import Basket, Menu, Filial, Product, SetOfProduct, Category, Blog, Brand, ProductImage, Review, Order
 
 
 @admin.register(Menu)
 class MenuAdmin(admin.ModelAdmin):
     empty_value_display = "-пусто-"
     fields = ['name', 'about_uz', 'blog_uz', 'set_product_uz', 'delivery_and_payment_uz', 'about_ru', 'blog_ru',
-              'set_product_ru', 'delivery_and_payment_ru', 'is_active', ]
+              'set_product_ru', 'delivery_and_payment_ru', 'is_active', 'delivery_price', 'bank_card_number']
     list_display = ['name', 'is_active']
 
 
@@ -70,7 +70,7 @@ class ReviewAdmin(admin.ModelAdmin):
 @admin.register(Order)
 class OrdersAdmin(admin.ModelAdmin):
     empty_value_display = "-пусто-"
-    list_display = ['id', 'full_name', 'phone', 'type', 'total_price', 'status']
+    list_display = ['id', 'full_name', 'phone', 'type', 'total_price', 'status', 'created_at']
     list_editable = ['status', ]
     readonly_fields = ['full_name', 'phone', 'type', 'total_price', 'email', 'order_code', 'address', 'fix_check']
 
