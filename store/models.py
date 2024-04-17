@@ -84,7 +84,8 @@ class Filial(BaseModel):
 
     phone = models.CharField(max_length=13, verbose_name='Телефон номер филиала')
 
-    address_url = models.URLField(verbose_name='Адрес филиала (только ссылка)')
+    address_url = models.TextField(verbose_name='Адрес филиала (только ссылка)')
+    address_location = models.TextField(verbose_name='Локация филиала (только ссылка)', default=None)
 
     photo = models.ImageField(upload_to='filial/', verbose_name='Фотография филиала')
 

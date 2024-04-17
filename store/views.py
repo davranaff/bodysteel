@@ -23,7 +23,7 @@ class HomaPageAPIView(APIView):
                                                                       .annotate(products_count=Count('products'))
                                                                       .all(),
                                                                       many=True).data
-        serializer_category = CategorySerializer(Category.objects.all(), many=True).data
+        serializer_category = CategorySerializer(Category.objects.all().order_by('sort')[:9], many=True).data
         serializer_leader_products = ProductSerializer(
             Product.objects.with_rating().with_favorite(request.auth).filter(baskets__order__isnull=False)[:5],
             many=True).data
@@ -138,13 +138,14 @@ class ProductViewSet(viewsets.ViewSet):
     def list(self, request):
         offset = request.query_params.get('offset', 0)
         limit = request.query_params.get('limit', 10)
+        brand = request.query_params.get('brand', None)
         is_leader = request.query_params.get('is_leader', False)
         is_sale = request.query_params.get('is_sale', False)
         is_new = request.query_params.get('is_new', False)
         is_accessories = request.query_params.get('is_accessories', False)
         search = request.query_params.get('search', None)
 
-        products = Product.objects.with_flags(is_leader, is_sale, is_new, is_accessories, search).with_favorite(
+        products = Product.objects.with_flags(is_leader, is_sale, is_new, is_accessories, search, brand).with_favorite(
             request.auth).with_rating().all().order_by('-created_at')[offset:limit]
 
         serializer = ProductSerializer(products, many=True).data

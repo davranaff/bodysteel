@@ -22,8 +22,11 @@ class ProductQueryset(BaseQuerySet):
 
         return query
 
-    def with_flags(self, is_leader, is_sale, is_new, is_accessories, search):
+    def with_flags(self, is_leader, is_sale, is_new, is_accessories, search, brand):
         query = self
+
+        if brand is not None:
+            query = query.filter(Q(brand__name__icontains=brand))
 
         if search is not None:
             query = query.filter(Q(name_ru__icontains=search) | Q(name_uz__icontains=search) | Q(
