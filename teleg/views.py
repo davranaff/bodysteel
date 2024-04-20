@@ -1,6 +1,7 @@
 import telebot
+import datetime
 from django.conf import settings
-from django.db.models import F, Count
+from django.db.models import F, Count, Sum
 from django.http import HttpResponse
 from datetime import timedelta
 
@@ -12,6 +13,16 @@ from teleg.models import SecretPhrase, Chat as ChatModel
 bot = telebot.TeleBot(settings.BOT_TOKEN)
 
 
+def check_chat_registered(func):
+    def wrapper(message: telebot.types.Message):
+        if not ChatModel.objects.filter(chat_id=message.chat.id).exists():
+            bot.send_message(message.chat.id, "")
+            return
+        return func(message)
+
+    return wrapper
+
+
 def index(request):
     if request.method == "POST":
         update = telebot.types.Update.de_json(request.body.decode('utf-8'))
@@ -20,12 +31,57 @@ def index(request):
     return HttpResponse('<h1>Ты подключился!</h1>')
 
 
+@bot.message_handler(commands=['filter'])
+@check_chat_registered
+def filter_by_dates(message: telebot.types.Message):
+    msg = bot.send_message(message.chat.id, 'Введите даты в формате "YYYY-MM-DD YYYY-MM-DD" для фильтрации.')
+    bot.register_next_step_handler(msg, process_date_filter)
+
+
+def process_date_filter(message: telebot.types.Message):
+    try:
+        start_date_str, end_date_str = message.text.split()
+        start_date = datetime.datetime.strptime(start_date_str, '%Y-%m-%d')
+        end_date = datetime.datetime.strptime(end_date_str, '%Y-%m-%d') + datetime.timedelta(
+            days=1) - datetime.timedelta(seconds=1)
+
+        if start_date > end_date:
+            bot.send_message(message.chat.id, 'Начальная дата должна быть меньше или равна конечной дате.')
+            return
+
+        orders = Basket.objects.filter(
+            created_at__gte=start_date,
+            created_at__lte=end_date,
+            order__isnull=False,
+        ).values('product__name_ru').annotate(
+            total_quantity=Sum('quantity'),
+            total_sum=Sum('price'),
+        ).order_by('-created_at')
+
+        basket_count = orders.count()
+        text = f'📊 Купленных товаров от {start_date.date()} до {end_date.date()}: {basket_count}шт.\n\n'
+        for item in orders:
+            text += (f'Товар: {item.get('product__name_ru')}, \n'
+                     f'Кол-во: {item.get('total_quantity')}шт, \n'
+                     f'Сумма {item.get('total_sum'):,}UZS \n\n')
+        bot.send_message(message.chat.id, text)
+
+        if not basket_count:
+            bot.send_message(message.chat.id, "Никакой покупки нету!")
+
+    except ValueError:
+        bot.send_message(message.chat.id,
+                         'Некорректный формат даты. Пожалуйста, используйте формат "YYYY-MM-DD YYYY-MM-DD".')
+        return
+
+
 @bot.message_handler(commands=['start'])
 def start(message: telebot.types.Message):
     bot.send_message(message.chat.id, f'Добро Пожаловать!')
 
 
 @bot.message_handler(commands=['month'])
+@check_chat_registered
 def month(message: telebot.types.Message):
     today = timezone.now()
     prev_month = today - timedelta(days=30)
@@ -34,18 +90,21 @@ def month(message: telebot.types.Message):
         created_at__gte=prev_month,
         created_at__lte=today,
         order__isnull=False,
-    )
-    
+    ).values('product__name_ru').annotate(
+        total_quantity=Sum('quantity'),
+        total_sum=Sum('price'),
+    ).order_by('-created_at')
+
     basket_count = orders.count()
-    
-    text = f'📊 Купленных товаров от {prev_month.date()} до {today.date()}: {basket_count}шт.\n'
-    subtext = ''
+
+    text = f'📊 Купленных товаров от {prev_month.date()} до {today.date()}: {basket_count}шт.\n\n'
     for item in orders:
-        subtext += f'Товар: {item.product.name_ru}, Кол-во: {item.quantity}шт, '
-    bot.send_message(message.chat.id, )
+        text += f'Товар: {item.get('product__name_ru')}, Кол-во: {item.get('total_quantity')}шт, Сумма: {item.get('total_sum'):,}UZS \n\n'
+    bot.send_message(message.chat.id, text)
 
 
 @bot.message_handler(commands=['year'])
+@check_chat_registered
 def year(message: telebot.types.Message):
     today = timezone.now()
     prev_month = today - timedelta(days=365)
@@ -54,16 +113,22 @@ def year(message: telebot.types.Message):
         created_at__gte=prev_month,
         created_at__lte=today,
         order__isnull=False,
-    )
-    
+    ).values('product__name_ru').annotate(
+        total_quantity=Sum('quantity'),
+        total_sum=Sum('price'),
+    ).order_by('-created_at')
+
     basket_count = orders.count()
 
-    
-    bot.send_message(message.chat.id, f'📊 Купленных товаров от {prev_month.date()} до {today.date()}: {basket_count}шт.')
+    text = f'📊 Купленных товаров от {prev_month.date()} до {today.date()}: {basket_count}шт.\n\n'
+    for item in orders:
+        text += f'Товар: {item.get('product__name_ru')}, Кол-во: {item.get('total_quantity')}шт, Сумма: {item.get('total_sum'):,}UZS \n\n'
+    bot.send_message(message.chat.id, text)
 
 
 @bot.message_handler(commands=['week'])
-def year(message: telebot.types.Message):
+@check_chat_registered
+def week(message: telebot.types.Message):
     today = timezone.now()
     prev_month = today - timedelta(days=7)
 
@@ -71,15 +136,22 @@ def year(message: telebot.types.Message):
         created_at__gte=prev_month,
         created_at__lte=today,
         order__isnull=False,
-    )
-    
+    ).values('product__name_ru').annotate(
+        total_quantity=Sum('quantity'),
+        total_sum=Sum('price'),
+    ).order_by('-created_at')
+
     basket_count = orders.count()
-    
-    bot.send_message(message.chat.id, f'📊 Купленных товаров от {prev_month.date()} до {today.date()}: {basket_count}шт.')
+
+    text = f'📊 Купленных товаров от {prev_month.date()} до {today.date()}: {basket_count}шт.\n\n'
+    for item in orders:
+        text += f'Товар: {item.get('product__name_ru')}, Кол-во: {item.get('total_quantity')}шт, Сумма: {item.get('total_sum'):,}UZS \n\n'
+    bot.send_message(message.chat.id, text)
 
 
 @bot.message_handler(commands=['day'])
-def year(message: telebot.types.Message):
+@check_chat_registered
+def day(message: telebot.types.Message):
     today = timezone.now()
     prev_month = today - timedelta(days=1)
 
@@ -87,11 +159,17 @@ def year(message: telebot.types.Message):
         created_at__gte=prev_month,
         created_at__lte=today,
         order__isnull=False,
-    )
-    
+    ).values('product__name_ru').annotate(
+        total_quantity=Sum('quantity'),
+        total_sum=Sum('price'),
+    ).order_by('-created_at')
+
     basket_count = orders.count()
-    
-    bot.send_message(message.chat.id, f'📊 Купленных товаров от {prev_month.date()} до {today.date()}: {basket_count}шт.')
+
+    text = f'📊 Купленных товаров от {prev_month.date()} до {today.date()}: {basket_count}шт.\n'
+    for item in orders:
+        text += f'\nТовар: {item.get('product__name_ru')}, Кол-во: {item.get('total_quantity')}шт, Сумма: {item.get('total_sum'):,}UZS \n\n'
+    bot.send_message(message.chat.id, text)
 
 
 @bot.message_handler(func=lambda message: True)
