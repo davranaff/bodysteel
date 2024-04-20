@@ -6,6 +6,7 @@ from django.http import HttpResponse
 from datetime import timedelta
 
 from django.utils import timezone
+from telebot.types import InlineKeyboardMarkup, InlineKeyboardButton
 
 from store.models import Basket
 from teleg.models import SecretPhrase, Chat as ChatModel
@@ -77,7 +78,13 @@ def process_date_filter(message: telebot.types.Message):
 
 @bot.message_handler(commands=['start'])
 def start(message: telebot.types.Message):
-    bot.send_message(message.chat.id, f'Добро Пожаловать!')
+    markup = InlineKeyboardMarkup()
+    web_app_button = InlineKeyboardButton(
+        text="Открыть веб-приложение",
+        url="https://t.me/test_teleg_app_bot/bodysteel",
+    )
+    markup.add(web_app_button)
+    bot.send_message(message.chat.id, f'Добро Пожаловать!', reply_markup=markup)
 
 
 @bot.message_handler(commands=['month'])
@@ -175,7 +182,8 @@ def day(message: telebot.types.Message):
 @bot.message_handler(func=lambda message: True)
 def echo_message(message: telebot.types.Message):
     if message.text.split(':')[0] == 'key':
-        if SecretPhrase.objects.filter(phrase=message.text.split(':')[1]).exists():
+        if SecretPhrase.objects.filter(phrase=message.text.split(':')[1],
+                                       expired_date__lte=datetime.datetime.now()).exists():
             data = ChatModel.objects.filter(chat_id=message.chat.id).exists()
             if not data:
                 ChatModel.objects.create(
