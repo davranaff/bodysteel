@@ -99,8 +99,12 @@ class SetOfProductViewSet(viewsets.ViewSet):
         set_of_product = Product.objects.with_rating().with_favorite(request.auth).filter(
             set_of_products_id=pk)
         serializer = ProductSerializer(set_of_product, many=True).data
-
-        return Response({'data': serializer}, status=status.HTTP_200_OK)
+        set_data = SetOfProduct.objects.get(pk=pk)
+        return Response({'data': {
+            'products': serializer,
+            'name_uz': set_data.name_uz,
+            'name_ru': set_data.name_ru
+        }}, status=status.HTTP_200_OK)
 
 
 class BrandAPIView(APIView):
