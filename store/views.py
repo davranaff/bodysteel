@@ -71,8 +71,8 @@ class BlogViewSet(viewsets.ViewSet):
 
         return Response({'data': {"blogs": blog_serializer, **menu_serializer}}, status=status.HTTP_200_OK)
 
-    def retrieve(self, request, pk=None):
-        blog = get_object_or_404(Blog, pk=pk)
+    def retrieve(self, request, slug=None):
+        blog = get_object_or_404(Blog, slug=slug)
         blog_serializer = BlogSerializer(blog, many=False).data
 
         blogs = Blog.objects.all()[:5]
@@ -95,11 +95,11 @@ class SetOfProductViewSet(viewsets.ViewSet):
 
         return Response({'data': {'set_of_products': serializer, **menu_serializer}}, status=status.HTTP_200_OK)
 
-    def retrieve(self, request, pk):
+    def retrieve(self, request, slug):
         set_of_product = Product.objects.with_rating().with_favorite(request.auth).filter(
-            set_of_products_id=pk)
+            set_of_products__slug=slug)
         serializer = ProductSerializer(set_of_product, many=True).data
-        set_data = SetOfProduct.objects.get(pk=pk)
+        set_data = SetOfProduct.objects.get(slug=slug)
         return Response({'data': {
             'products': serializer,
             'name_uz': set_data.name_uz,
@@ -156,8 +156,8 @@ class ProductViewSet(viewsets.ViewSet):
 
         return Response({'data': serializer}, status=status.HTTP_200_OK)
 
-    def retrieve(self, request, pk):
-        product = get_object_or_404(Product.objects.with_favorite(request.auth).with_rating(), pk=pk)
+    def retrieve(self, request, slug):
+        product = get_object_or_404(Product.objects.with_favorite(request.auth).with_rating(), slug=slug)
 
         product.view_count += 1
 
@@ -176,8 +176,13 @@ class CategoryViewSet(viewsets.ViewSet):
 
         return Response({'data': serializer}, status=status.HTTP_200_OK)
 
-    def retrieve(self, request, pk):
-        category_products = Product.objects.with_favorite(request.auth).with_rating().filter(category_id=pk)
+    def retrieve(self, request, slug):
+        category = get_object_or_404(Category, slug=slug)
+        category_products = Product.objects.with_favorite(request.auth).with_rating().filter(category=category)
         serializer = ProductSerializer(category_products, many=True).data
+        category_serializer = CategorySerializer(category).data
 
-        return Response({'data': serializer}, status=status.HTTP_200_OK)
+        return Response({'data': {
+            'category': category_serializer,
+            'products': serializer,
+        }}, status=status.HTTP_200_OK)

@@ -6,7 +6,8 @@ from store.models import Basket, Menu, Filial, Product, SetOfProduct, Category, 
 class MenuAdmin(admin.ModelAdmin):
     empty_value_display = "-пусто-"
     fields = ['name', 'about_uz', 'blog_uz', 'set_product_uz', 'delivery_and_payment_uz', 'about_ru', 'blog_ru',
-              'set_product_ru', 'delivery_and_payment_ru', 'is_active', 'delivery_price', 'bank_card_number']
+              'set_product_ru', 'delivery_and_payment_ru', 'is_active', 'delivery_price', 'bank_card_number',
+              'uzbekistan_description_uz', 'bukhara_description_uz', 'uzbekistan_description_ru', 'bukhara_description_ru']
     list_display = ['name', 'is_active']
 
 
@@ -19,19 +20,19 @@ class FilialAdmin(admin.ModelAdmin):
 @admin.register(SetOfProduct)
 class SetOfProductAdmin(admin.ModelAdmin):
     empty_value_display = "-пусто-"
-    list_display = ['id', 'name_uz', 'name_ru', 'photo']
+    list_display = ['id', 'name_uz', 'name_ru', 'photo', 'slug']
 
 
 @admin.register(Category)
 class CategoryAdmin(admin.ModelAdmin):
     empty_value_display = "-пусто-"
-    list_display = ['id', 'name_uz', 'name_ru', 'photo', 'sort']
+    list_display = ['id', 'name_uz', 'name_ru', 'photo', 'sort', 'slug']
 
 
 @admin.register(Blog)
 class BlogAdmin(admin.ModelAdmin):
     empty_value_display = "-пусто-"
-    list_display = ['id', 'name_uz', 'name_ru', 'photo']
+    list_display = ['id', 'name_uz', 'name_ru', 'photo', 'slug']
 
 
 @admin.register(Brand)
@@ -73,4 +74,3 @@ class OrdersAdmin(admin.ModelAdmin):
     list_display = ['id', 'full_name', 'phone', 'type', 'total_price', 'status', 'created_at']
     list_editable = ['status', ]
     readonly_fields = ['full_name', 'phone', 'type', 'total_price', 'email', 'order_code', 'address', 'fix_check']
-

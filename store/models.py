@@ -59,6 +59,11 @@ class Menu(BaseModel):
     is_active = models.BooleanField(default=True, verbose_name='Активировать',
                                     help_text='Если отключено, то не будет видно', unique=True)
 
+    uzbekistan_description_uz = RichTextField(verbose_name='Описание (Доставка по узб.) uz', null=True)
+    bukhara_description_uz = RichTextField(verbose_name='Описание (Доставка по Бухаре) uz', null=True)
+    uzbekistan_description_ru = RichTextField(verbose_name='Описание (Доставка по узб.) ru', null=True)
+    bukhara_description_ru = RichTextField(verbose_name='Описание (Доставка по Бухаре) ru', null=True)
+
     def __str__(self):
         return self.about_ru
 
@@ -101,6 +106,7 @@ class SetOfProduct(BaseModel):
     name_uz = models.CharField(max_length=255, verbose_name="Название комплекта uz", null=False, blank=False)
     name_ru = models.CharField(max_length=255, verbose_name="Название комплекта ru", null=False, blank=False)
 
+    slug = models.SlugField(verbose_name='без пробела, либо через "-", либо через "_"', null=True)
     photo = models.ImageField(upload_to='set/%Y/%m/%d', verbose_name="Картинка комплекта", null=False, blank=False)
 
     def __str__(self):
@@ -118,6 +124,8 @@ class Category(BaseModel):
 
     photo = models.ImageField(upload_to=category_directory_path, verbose_name="Картинка категории", null=False,
                               blank=False)
+    slug = models.SlugField(verbose_name='без пробела, либо через "-", либо через "_"', null=True, blank=True)
+    description = RichTextField(verbose_name="Описание категории", null=False, blank=False)
     sort = models.PositiveIntegerField(verbose_name="Сортировка Категории",
                                        help_text='сортируется по возрастанию, у каждой категории должен быть уникальный номер',
                                        null=True, blank=True)
@@ -139,6 +147,7 @@ class Blog(BaseModel):
 
     description_uz = RichTextField(verbose_name="Описание блога uz", null=False, blank=False)
     description_ru = RichTextField(verbose_name="Описание блога ru", null=False, blank=False)
+    slug = models.SlugField(verbose_name='без пробела, либо через "-", либо через "_"', null=True)
 
     def __str__(self):
         return self.name_ru
@@ -308,7 +317,7 @@ class Order(BaseModel):
     type = models.CharField(max_length=100, choices=DELIVERY_CHOICES)
     full_name = models.CharField(max_length=255)
     phone = models.CharField(max_length=13)
-    email = models.EmailField()
+    email = models.EmailField(null=True, blank=True)
     fix_check = models.FileField(upload_to=check_path)
 
     address = models.CharField(max_length=255, blank=True, null=True)
