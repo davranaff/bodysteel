@@ -53,13 +53,30 @@ MIDDLEWARE = [
     'config.middleware.AuthMiddleware',
 ]
 
+DATABASES = {
+    'default': {
+        'ENGINE': 'django.db.backends.postgresql_psycopg2',
+        'NAME': 'bodysteel',
+        'USER': 'bodysteel',
+        'PASSWORD': 'bodysteel_password',
+        'HOST': 'localhost',
+        'PORT': '5432',
+    }
+}
+
 CORS_ALLOWED_ORIGINS = [
-    "http://localhost:8000",
     "http://localhost:3000",
-    "https://bodysteel.vercel.app",
-    "https://bosyteel.uz",
-    "https://api.bosyteel.uz",
+    "http://localhost:8000",
+    "https://bodysteel.uz/",
+    "https://api.bodysteel.uz/",
 ]
+#CORS_ORIGIN_ALLOW_ALL = False
+#CORS_ORIGIN_WHITELIST = (
+#    "http://localhost:8000",
+#    "http://localhost:3000",#    "https://bodysteel.vercel.app",
+    "https://bodysteel.uz",
+    "https://www.bodysteel.uz",
+)
 
 ROOT_URLCONF = 'config.urls'
 
@@ -94,10 +111,11 @@ LANGUAGES = (
 )
 
 STATIC_URL = '/assets/'
-STATIC_ROOT = BASE_DIR / 'assets'
+#STATIC_ROOT = '/home/bodysteel/apps/bodysteel.uz/bodysteel/assets'
+STATICFILES_DIRS = ('/home/bodysteel/apps/bodysteel.uz/bodysteel/assets',)
 
 MEDIA_URL = '/files/'
-MEDIA_ROOT = BASE_DIR / 'files'
+MEDIA_ROOT = '/home/bodysteel/apps/bodysteel.uz/bodysteel/files'
 
 DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
 
@@ -137,12 +155,6 @@ EMAIL_USE_TLS = True
 EMAIL_HOST_USER = 'deff0427@gmail.com'
 EMAIL_HOST_PASSWORD = 'jpmuregetnbuntfe'
 
-BOT_TOKEN = '7099818467:AAEdJSuitqCYDiJNJDeahew7Ob5p1Vl-IHM'
+BOT_TOKEN = '7192020907:AAHaInQlICkrVoHurIHe4qvaYRjq2hqYx9Y'
 TELEGRAM_API_URL = f'https://api.telegram.org/bot{BOT_TOKEN}'
 BOT_POOLING_INTERVAL = 5
-
-
-if DEBUG:
-    from .settings_prod import *
-else:
-    from .settings_dev import *

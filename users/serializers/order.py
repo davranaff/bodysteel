@@ -15,9 +15,8 @@ class OrderSerializer(serializers.ModelSerializer):
 class OrderCreateSerializer(serializers.ModelSerializer):
     full_name = serializers.CharField(required=True)
     phone = serializers.CharField(required=True)
-    email = serializers.EmailField(required=False)
-    address = serializers.CharField(required=True)
-    fix_check = serializers.FileField(required=True)
+    address = serializers.CharField(required=False)
+    fix_check = serializers.FileField(required=False)
     order_code = serializers.CharField(required=False)
 
     def create(self, validated_data):

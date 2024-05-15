@@ -233,7 +233,6 @@ class CreateBasketsView(APIView):
 
 
 class OrderAPIView(APIView):
-    parser_classes = [MultiPartParser]
 
     @swagger_auto_schema(manual_parameters=[],
                          responses={status.HTTP_200_OK: OrderSerializer(many=True)})
@@ -246,14 +245,13 @@ class OrderAPIView(APIView):
                          responses={status.HTTP_200_OK: openapi.Response(description='', examples={'data': {
                              "type": "string",
                              "full_name": "string",
-                             "address": "string",
                              "phone": "string",
                          }})})
     def post(self, request):
         serializer = OrderCreateSerializer(data=request.data)
         serializer.is_valid(raise_exception=True)
 
-        serializer_baskets = CreateBasketsListSerializer(data={'baskets': eval(request.data['baskets'])})
+        serializer_baskets = CreateBasketsListSerializer(data={'baskets': request.data['baskets']})
         serializer_baskets.is_valid(raise_exception=True)
         data_baskets = serializer_baskets.create(serializer_baskets.validated_data)
 
@@ -261,40 +259,39 @@ class OrderAPIView(APIView):
         total_price = sum([item.price for item in baskets])
         full_name = request.data.get("full_name")
         phone = request.data.get("phone")
-        email = request.data.get("email")
         data = serializer.create({
             **serializer.validated_data,
             'total_price': total_price,
             'full_name': full_name,
             'phone': phone,
-            'email': email,
         })
 
         for item in baskets:
             item.order = data
             item.product.quantity -= item.quantity
             item.save()
+        
+        #if request.data.get("email", False):
+        #    html_messages = render_to_string(f'{BASE_DIR}/users/templates/email.html', {
+        #        'baskets': baskets,
+        #        'created_at': data.created_at.strftime('%d/%m/%Y %H:%M'),
+        #        'order_code': data.order_code,
+        #        'type': [item[1] for item in Order.DELIVERY_CHOICES if item[0] == data.type][0],
+        #        'address': data.address,
+        #        'status': data.status,
+        #        'total_price': f'{data.total_price:,}',
+        #        'full_name': data.full_name,
+        #        'phone': data.phone,
+        #    })
 
-        html_messages = render_to_string(f'{BASE_DIR}/users/templates/email.html', {
-            'baskets': baskets,
-            'created_at': data.created_at.strftime('%d/%m/%Y %H:%M'),
-            'order_code': data.order_code,
-            'type': [item[1] for item in Order.DELIVERY_CHOICES if item[0] == data.type][0],
-            'address': data.address,
-            'status': data.status,
-            'total_price': f'{data.total_price:,}',
-            'full_name': data.full_name,
-            'phone': data.phone,
-        })
-
-        send_mail(
-            "BodySteel.",
-            "Новый Заказ.",
-            "deff0427@gmail.com",
-            [email],
-            fail_silently=False,
-            html_message=html_messages,
-        )
+        #    send_mail(
+        #        "BodySteel.",
+        #        "Новый Заказ.",
+        #        "deff0427@gmail.com",
+        #        [email],
+        #        fail_silently=False,
+        #        html_message=html_messages,
+        #    )
 
         notify_message(data, baskets)
 

@@ -73,4 +73,4 @@ class OrdersAdmin(admin.ModelAdmin):
     empty_value_display = "-пусто-"
     list_display = ['id', 'full_name', 'phone', 'type', 'total_price', 'status', 'created_at']
     list_editable = ['status', ]
-    readonly_fields = ['full_name', 'phone', 'type', 'total_price', 'email', 'order_code', 'address', 'fix_check']
+    readonly_fields = ['full_name', 'phone', 'type', 'total_price', 'order_code', 'address', 'fix_check']

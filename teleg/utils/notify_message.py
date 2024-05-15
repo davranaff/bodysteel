@@ -14,7 +14,7 @@ def notify_message(order, baskets):
                              f'- - - 💸{basket.price:,} UZS\n')
             count += 1
         bot.send_message(chat.chat_id,
-                         text=f"Новый Заказ. (🕘{order.created_at.strftime('%d/%m/%Y %H:%M')}) \n"
+                         text=f"Новый Заказ.\n"
                               f"Номер Заказа: #{order.order_code} \n"
                               f"Тип доставки - {[item[1] for item in Order.DELIVERY_CHOICES if item[0] == order.type][0]} \n"
                               f"Адрес доставки - 🚚{order.address} \n"

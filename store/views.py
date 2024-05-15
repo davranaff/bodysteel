@@ -25,13 +25,13 @@ class HomaPageAPIView(APIView):
                                                                       many=True).data
         serializer_category = CategorySerializer(Category.objects.all().order_by('sort')[:9], many=True).data
         serializer_leader_products = ProductSerializer(
-            Product.objects.with_rating().with_favorite(request.auth).filter(baskets__order__isnull=False)[:5],
+            Product.objects.with_rating().with_favorite(request.auth).order_by('-view_count')[:5],
             many=True).data
         serializer_sale_products = ProductSerializer(
-            Product.objects.with_rating().with_favorite(request.auth).filter(discounted_price__gt=0)[:5],
+            Product.objects.with_rating().with_favorite(request.auth).filter(discounted_price__gt=0)[:10],
             many=True).data
         serializer_latest_products = ProductSerializer(
-            Product.objects.with_rating().with_favorite(request.auth).all().order_by('-created_at')[:8],
+            Product.objects.with_rating().with_favorite(request.auth).all().order_by('-created_at')[:10],
             many=True).data
         serializer_brands = BrandSerializer(Brand.objects.all()[:6], many=True).data
         serializer_blogs = BlogSerializer(Blog.objects.all()[:6], many=True).data
@@ -148,10 +148,13 @@ class ProductViewSet(viewsets.ViewSet):
         is_new = request.query_params.get('is_new', False)
         is_accessories = request.query_params.get('is_accessories', False)
         search = request.query_params.get('search', None)
+        all = request.query_params.get('all', None)
 
-        products = Product.objects.with_flags(is_leader, is_sale, is_new, is_accessories, search, brand).with_favorite(
-            request.auth).with_rating().all().order_by('-created_at')[offset:limit]
-
+        products = Product.objects.with_flags(is_leader, is_sale, is_new, is_accessories, search, brand).with_favorite(request.auth).with_rating().all().order_by('-created_at')
+        
+        if not all:
+            products = products[int(offset):int(limit)]
+        
         serializer = ProductSerializer(products, many=True).data
 
         return Response({'data': serializer}, status=status.HTTP_200_OK)
@@ -171,7 +174,7 @@ class ProductViewSet(viewsets.ViewSet):
 class CategoryViewSet(viewsets.ViewSet):
 
     def list(self, request):
-        categories = Category.objects.all()
+        categories = Category.objects.all().order_by('sort')
         serializer = CategorySerializer(categories, many=True).data
 
         return Response({'data': serializer}, status=status.HTTP_200_OK)

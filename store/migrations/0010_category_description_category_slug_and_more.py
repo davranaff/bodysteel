@@ -7,7 +7,7 @@ from django.db import migrations, models
 class Migration(migrations.Migration):
 
     dependencies = [
-        ('store', '0009_filial_address_location'),
+        ('store', '0008_filial_address_location_alter_filial_address_url'),
     ]
 
     operations = [
