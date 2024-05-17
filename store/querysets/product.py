@@ -1,6 +1,6 @@
 import datetime
 
-from django.db.models import Sum, Count, Q, FilteredRelation
+from django.db.models import Sum, Count, Case, When, Value, FloatField, Q, FilteredRelation
 from store.querysets.base_queryset import BaseQuerySet
 
 
@@ -9,7 +9,18 @@ class ProductQueryset(BaseQuerySet):
     def with_rating(self):
         query = self
 
-        query = query.annotate(rating=(Sum('reviews__rating', default=0) / (1 or Count('reviews__id'))))
+        query = query.annotate(
+            review_count=Count('reviews__id'),
+            rating=Case(
+                When(review_count=0, then=Value(0)),
+                default=Sum('reviews__rating') / Case(
+                    When(review_count=0, then=Value(1)),
+                    default=Count('reviews__id'),
+                    output_field=FloatField()
+                ),
+                output_field=FloatField()
+            )
+        )
 
         return query
 

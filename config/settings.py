@@ -142,7 +142,7 @@ TELEGRAM_API_URL = f'https://api.telegram.org/bot{BOT_TOKEN}'
 BOT_POOLING_INTERVAL = 5
 
 
-if DEBUG:
+if not DEBUG:
     from .settings_prod import *
 else:
     from .settings_dev import *

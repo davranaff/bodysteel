@@ -7,7 +7,7 @@ class MenuAdmin(admin.ModelAdmin):
     empty_value_display = "-пусто-"
     fields = ['name', 'about_uz', 'blog_uz', 'set_product_uz', 'delivery_and_payment_uz', 'about_ru', 'blog_ru',
               'set_product_ru', 'delivery_and_payment_ru', 'is_active', 'delivery_price', 'bank_card_number',
-              'uzbekistan_description_uz', 'bukhara_description_uz', 'uzbekistan_description_ru', 'bukhara_description_ru']
+              'uzbekistan_description_uz', 'bukhara_description_uz', 'uzbekistan_description_ru', 'bukhara_description_ru', 'bonus']
     list_display = ['name', 'is_active']
 
 

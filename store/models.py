@@ -64,6 +64,8 @@ class Menu(BaseModel):
     uzbekistan_description_ru = RichTextField(verbose_name='Описание (Доставка по узб.) ru', null=True)
     bukhara_description_ru = RichTextField(verbose_name='Описание (Доставка по Бухаре) ru', null=True)
 
+    bonus = models.PositiveBigIntegerField(default=0, verbose_name='Бонусная цена')
+
     def __str__(self):
         return self.about_ru
 
@@ -201,15 +203,15 @@ class Product(BaseModel):
 
     view_count = models.PositiveIntegerField(default=0, verbose_name='Кол-во. просмотров')
 
-    category = models.ForeignKey('Category', on_delete=models.SET_NULL, verbose_name='Категория продукта',
-                                 related_name='products', related_query_name='products', null=True, blank=True)
+    category = models.ManyToManyField('Category', verbose_name='Категория продукта',
+                                      related_name='products', related_query_name='products', null=True, blank=True)
 
     brand = models.ForeignKey('Brand', on_delete=models.SET_NULL, verbose_name='Бренд продукта',
                               related_name='products',
                               related_query_name='products', null=True, blank=True)
-    set_of_products = models.ForeignKey('SetOfProduct', on_delete=models.SET_NULL, null=True, blank=True,
-                                        verbose_name='Выберите Комплект',
-                                        related_name='products', related_query_name='products')
+    set_of_products = models.ManyToManyField('SetOfProduct', null=True, blank=True,
+                                             verbose_name='Выберите Комплект',
+                                             related_name='products', related_query_name='products')
 
     objects = ProductQueryset.as_manager()
 
@@ -312,6 +314,8 @@ class Order(BaseModel):
         ('purchased', 'Куплен'),
         ('moderation', 'На модерации'),
     )
+    user = models.ForeignKey(User, on_delete=models.CASCADE, related_name='orders', verbose_name='Пользователь',
+                             null=True, blank=True)
 
     total_price = models.PositiveBigIntegerField(default=0)
     type = models.CharField(max_length=100, choices=DELIVERY_CHOICES)

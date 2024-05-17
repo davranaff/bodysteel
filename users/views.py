@@ -10,8 +10,10 @@ from rest_framework.authtoken.models import Token
 from django.contrib.auth.models import AnonymousUser
 
 from config.settings import BASE_DIR
-from store.models import Favorite, Basket, Order
+from store.models import Favorite, Basket, Menu, Order
 from store.serializers.review import ReviewSerializer
+from store.utils.format_phone import format_phone_number
+from teleg.utils import notify_review
 from teleg.utils.notify_message import notify_message
 from users.models import User
 from users.serializers.basket import BasketSerializer, CreateBasketsListSerializer
@@ -257,13 +259,22 @@ class OrderAPIView(APIView):
 
         baskets = Basket.objects.filter(pk__in=data_baskets.get('data'), order__isnull=True).select_related('product')
         total_price = sum([item.price for item in baskets])
+
+        user = request.user
+        if not user.is_anonymous and not user.bonus_used:
+            menu = Menu.objects.get(is_active=True)
+            total_price -= menu.bonus
+            user.bonus_used = True
+            serializer.validated_data['user'] = user
+            user.save()
+
         full_name = request.data.get("full_name")
         phone = request.data.get("phone")
         data = serializer.create({
             **serializer.validated_data,
             'total_price': total_price,
             'full_name': full_name,
-            'phone': phone,
+            'phone': format_phone_number(phone),
         })
 
         for item in baskets:
@@ -311,6 +322,20 @@ class ReviewAPIView(APIView):
             **serializer.validated_data,
             'user': request.user,
         })
+
+        notify_review({
+            "id": data.id,
+            "rating": data.rating,
+            "username": data.user.username,
+            "email": data.user.email,
+            "first_name": data.user.first_name,
+            "last_name": data.user.last_name,
+            "phone": data.user.phone,
+            "created_at": data.created_at,
+            "comment": data.comment,
+            "product": data.product,
+        })
+
         return Response({'data': {
             "id": data.id,
             "rating": data.rating,
@@ -322,8 +347,10 @@ class ReviewAPIView(APIView):
                 "last_name": data.user.last_name,
                 "phone": data.user.phone,
             },
-            "full_name": data.user.get_full_name(),
+            "full_name": f"{data.user.first_name} {data.user.last_name}",
             "created_at": data.created_at,
             "comment": data.comment,
             "product": data.product.id,
+        }, 'bonus': {
+            'bonus_used': request.user.bonus_used,
         }}, status=status.HTTP_201_CREATED)

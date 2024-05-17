@@ -22,10 +22,13 @@ class User(AbstractUser):
 
     phone_idx = models.Index(fields=['phone'], name='phone_idx')
 
+    bonus_used = models.BooleanField(default=False)
+
     def save(self, with_code=True, *args, **kwargs):
 
         if not self.username:
             self.username = random_username()
+            self.full_name = self.username
 
         if not self.code:
             self.code = random_code()
