@@ -1,4 +1,3 @@
-from store.models import Order
 from teleg.models import Chat as ChatModel
 from teleg.views import bot
 
@@ -12,5 +11,5 @@ def notify_review(message):
             f"Полное Имя: {message.get('first_name')} {message.get('last_name')} \n"
             f"Телефон номер: {message.get('phone')} \n"
             f"Комментарие: {message.get('comment')} \n"
-            f"Продукт: {message.get('product').name_ru} \n"
+            f"Продукт: {message.get('product')} \n"
         )

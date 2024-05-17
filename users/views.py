@@ -333,7 +333,7 @@ class ReviewAPIView(APIView):
             "phone": data.user.phone,
             "created_at": data.created_at,
             "comment": data.comment,
-            "product": data.product,
+            "product": data.product.name_ru,
         })
 
         return Response({'data': {
