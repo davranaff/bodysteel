@@ -323,7 +323,7 @@ class ReviewAPIView(APIView):
             'user': request.user,
         })
 
-        notify_review({
+        notify_review.notify_review({
             "id": data.id,
             "rating": data.rating,
             "username": data.user.username,
