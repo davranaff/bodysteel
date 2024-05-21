@@ -168,7 +168,10 @@ class ProductViewSet(viewsets.ViewSet):
 
         serializer = ProductSerializer(product, many=False).data
 
-        return Response({'data': serializer})
+        related_products = Product.objects.filter(category__in=product.category.all()).order_by('-created_at')[:4]
+        serializer_related = ProductSerializer(related_products, many=True).data
+
+        return Response({'data': serializer, 'related': serializer_related})
 
 
 class CategoryViewSet(viewsets.ViewSet):
