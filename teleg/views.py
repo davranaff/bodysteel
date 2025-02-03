@@ -62,9 +62,9 @@ def process_date_filter(message: telebot.types.Message):
         basket_count = orders.count()
         text = f'📊 Купленных товаров от {start_date.date()} до {end_date.date()}: {basket_count}шт.\n\n'
         for item in orders:
-            text += (f'Товар: {item.get('product__name_ru')}, \n'
-                     f'Кол-во: {item.get('total_quantity')}шт, \n'
-                     f'Сумма {item.get('total_sum'):,}UZS \n\n')
+            text += (f'Товар: {item.get("product__name_ru")}, \n'
+                     f'Кол-во: {item.get("total_quantity")}шт, \n'
+                     f'Сумма {item.get("total_sum"):,}UZS \n\n')
         bot.send_message(message.chat.id, text)
 
         if not basket_count:
@@ -106,7 +106,7 @@ def month(message: telebot.types.Message):
 
     text = f'📊 Купленных товаров от {prev_month.date()} до {today.date()}: {basket_count}шт.\n\n'
     for item in orders:
-        text += f'Товар: {item.get('product__name_ru')}, Кол-во: {item.get('total_quantity')}шт, Сумма: {item.get('total_sum'):,}UZS \n\n'
+        text += f'Товар: {item.get("product__name_ru")}, Кол-во: {item.get("total_quantity")}шт, Сумма: {item.get("total_sum"):,}UZS \n\n'
     bot.send_message(message.chat.id, text)
 
 
@@ -129,7 +129,7 @@ def year(message: telebot.types.Message):
 
     text = f'📊 Купленных товаров от {prev_month.date()} до {today.date()}: {basket_count}шт.\n\n'
     for item in orders:
-        text += f'Товар: {item.get('product__name_ru')}, Кол-во: {item.get('total_quantity')}шт, Сумма: {item.get('total_sum'):,}UZS \n\n'
+        text += f'Товар: {item.get("product__name_ru")}, Кол-во: {item.get("total_quantity")}шт, Сумма: {item.get("total_sum"):,}UZS \n\n'
     bot.send_message(message.chat.id, text)
 
 
@@ -152,7 +152,7 @@ def week(message: telebot.types.Message):
 
     text = f'📊 Купленных товаров от {prev_month.date()} до {today.date()}: {basket_count}шт.\n\n'
     for item in orders:
-        text += f'Товар: {item.get('product__name_ru')}, Кол-во: {item.get('total_quantity')}шт, Сумма: {item.get('total_sum'):,}UZS \n\n'
+        text += f'Товар: {item.get("product__name_ru")}, Кол-во: {item.get("total_quantity")}шт, Сумма: {item.get("total_sum"):,}UZS \n\n'
     bot.send_message(message.chat.id, text)
 
 
@@ -175,7 +175,7 @@ def day(message: telebot.types.Message):
 
     text = f'📊 Купленных товаров от {prev_month.date()} до {today.date()}: {basket_count}шт.\n'
     for item in orders:
-        text += f'\nТовар: {item.get('product__name_ru')}, Кол-во: {item.get('total_quantity')}шт, Сумма: {item.get('total_sum'):,}UZS \n\n'
+        text += f'\nТовар: {item.get("product__name_ru")}, Кол-во: {item.get("total_quantity")}шт, Сумма: {item.get("total_sum"):,}UZS \n\n'
     bot.send_message(message.chat.id, text)
 
 
