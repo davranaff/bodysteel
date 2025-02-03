@@ -10,6 +10,9 @@ assets/admin
 assets/ckeditor
 assets/drf-yasg
 assets/rest_framework
+config/settings_dev.py
+config/settings_prod.py
+
 
 # Backup files #
 *.bak
