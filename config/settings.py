@@ -1,10 +1,12 @@
 from pathlib import Path
+import os
+
 
 BASE_DIR = Path(__file__).resolve().parent.parent
 
-SECRET_KEY = 'django-insecure-i(!^3@q&)btg5%skz2wc0tr(t(3avq20p3+*alul)$wv2(awq('
+SECRET_KEY = os.getenv("SECRET_KEY", "django-insecure-i(!^3@q&)btg5%skz2wc0tr(t(3avq20p3+*alul)$wv2(awq(")
 
-DEBUG = False
+DEBUG = os.getenv("DEBUG", True)
 
 ALLOWED_HOSTS = ["*"]
 
@@ -126,16 +128,16 @@ BASE_URL = 'http://localhost:8000/'
 LOGIN_URL = 'http://localhost:8000/api/v1/users/signin/'
 SIGNUP_URL = 'http://localhost:8000/api/v1/users/signup/'
 
-ESKIZ_FROM_TO = ''
-ESKIZ_PROVIDER_EMAIL = 'deff0427@gmail.com'
-ESKIZ_PROVIDER_PASSWORD = 'l52LiHIsfeshhp2MbQO9T6rrqPuBJ28W574tipJw'
+ESKIZ_FROM_TO = os.getenv("ESKIZ_FROM_TO")
+ESKIZ_PROVIDER_EMAIL = os.getenv("ESKIZ_PROVIDER_EMAIL")
+ESKIZ_PROVIDER_PASSWORD = os.getenv("ESKIZ_PROVIDER_PASSWORD")
 
-EMAIL_BACKEND = 'django.core.mail.backends.smtp.EmailBackend'
-EMAIL_HOST = 'smtp.gmail.com'
-EMAIL_PORT = 587
-EMAIL_USE_TLS = True
-EMAIL_HOST_USER = 'deff0427@gmail.com'
-EMAIL_HOST_PASSWORD = 'jpmuregetnbuntfe'
+EMAIL_BACKEND = os.getenv("EMAIL_BACKEND")
+EMAIL_HOST = os.getenv("EMAIL_HOST")
+EMAIL_PORT = os.getenv("EMAIL_PORT")
+EMAIL_USE_TLS = os.getenv("EMAIL_USE_TLS")
+EMAIL_HOST_USER = os.getenv("EMAIL_HOST_USER")
+EMAIL_HOST_PASSWORD = os.getenv("EMAIL_HOST_PASSWORD")
 
 BOT_TOKEN = '7099818467:AAEdJSuitqCYDiJNJDeahew7Ob5p1Vl-IHM'
 TELEGRAM_API_URL = f'https://api.telegram.org/bot{BOT_TOKEN}'

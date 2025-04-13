@@ -1,5 +1,5 @@
 from django.contrib import admin
-from store.models import Basket, Menu, Filial, Product, SetOfProduct, Category, Blog, Brand, ProductImage, Review, Order
+from store.models import Basket, Menu, Filial, Product, SetOfProduct, Category, Blog, Brand, ProductImage, Review, Order, Coupon
 
 
 @admin.register(Menu)
@@ -74,3 +74,12 @@ class OrdersAdmin(admin.ModelAdmin):
     list_display = ['id', 'full_name', 'phone', 'type', 'total_price', 'status', 'created_at']
     list_editable = ['status', ]
     readonly_fields = ['full_name', 'phone', 'type', 'total_price', 'order_code', 'address', 'fix_check']
+
+
+@admin.register(Coupon)
+class CouponAdmin(admin.ModelAdmin):
+    empty_value_display = "-пусто-"
+    list_display = ['id', 'code', 'discount_percent', 'max_uses', 'used_count', 'is_active', 'created_at']
+    list_editable = ['is_active', 'discount_percent']
+    list_filter = ['is_active', 'discount_percent']
+    search_fields = ['code']

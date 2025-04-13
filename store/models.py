@@ -172,8 +172,8 @@ class Brand(BaseModel):
 
 
 class Product(BaseModel):
-    name_uz = models.CharField(max_length=100, verbose_name='Название Продукта uz', unique=True)
-    name_ru = models.CharField(max_length=100, verbose_name='Название Продукта ru', unique=True)
+    name_uz = models.CharField(max_length=255, verbose_name='Название Продукта uz', unique=True)
+    name_ru = models.CharField(max_length=255, verbose_name='Название Продукта ru', unique=True)
 
     description_uz = RichTextField(verbose_name='Описание Товара uz', null=True, blank=True)
     description_ru = RichTextField(verbose_name='Описание Товара ru', null=True, blank=True)
@@ -327,6 +327,9 @@ class Order(BaseModel):
 
     status = models.CharField(max_length=50, choices=STATUS_CHOICES, default='На модерации')
     order_code = models.CharField(max_length=10, unique=True)
+    
+    coupon = models.ForeignKey('Coupon', on_delete=models.SET_NULL, related_name='orders', 
+                              verbose_name='Использованный купон', null=True, blank=True)
 
     order_code_idx = models.Index(fields=['order_code'], name='order_code_idx')
 
@@ -344,4 +347,24 @@ class Order(BaseModel):
     class Meta:
         verbose_name = 'Заказ'
         verbose_name_plural = 'Заказы'
+        ordering = ['-created_at']
+
+
+class Coupon(BaseModel):
+    code = models.CharField(max_length=20, unique=True, verbose_name='Код купона')
+    discount_percent = models.PositiveIntegerField(validators=[MinValueValidator(1), MaxValueValidator(100)], 
+                                                 verbose_name='Процент скидки')
+    max_uses = models.PositiveIntegerField(default=1, verbose_name='Максимальное количество использований')
+    used_count = models.PositiveIntegerField(default=0, verbose_name='Количество использований')
+    is_active = models.BooleanField(default=True, verbose_name='Активен')
+    
+    def can_use(self):
+        return self.is_active and self.used_count < self.max_uses
+    
+    def __str__(self):
+        return f"{self.code} - {self.discount_percent}%"
+    
+    class Meta:
+        verbose_name = 'Купон'
+        verbose_name_plural = 'Купоны'
         ordering = ['-created_at']

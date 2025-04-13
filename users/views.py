@@ -10,7 +10,7 @@ from rest_framework.authtoken.models import Token
 from django.contrib.auth.models import AnonymousUser
 
 from config.settings import BASE_DIR
-from store.models import Favorite, Basket, Menu, Order
+from store.models import Favorite, Basket, Menu, Order, Coupon
 from store.serializers.review import ReviewSerializer
 from store.utils.format_phone import format_phone_number
 from teleg.utils import notify_review
@@ -24,11 +24,13 @@ from users.serializers.order import OrderSerializer, OrderCreateSerializer
 from users.serializers.signin import SigninSerializer
 from users.serializers.signup import PhoneVerificationSerializer, SignUpSerializer
 from users.utils.random_code import random_code
+from store.serializers.coupon import CouponSerializer, CouponValidateSerializer
 
 from drf_yasg.utils import swagger_auto_schema
 from drf_yasg import openapi
 
 from django.db.models import Sum
+from django.db import models
 
 
 class Me(APIView):
@@ -268,6 +270,25 @@ class OrderAPIView(APIView):
             serializer.validated_data['user'] = user
             user.save()
 
+        # Применяем купон если он есть
+        coupon = None
+        if 'coupon_code' in request.data and request.data['coupon_code']:
+            try:
+                coupon = Coupon.objects.get(code=request.data['coupon_code'], is_active=True)
+                if coupon.can_use():
+                    # Рассчитываем скидку
+                    discount_amount = int(total_price * (coupon.discount_percent / 100))
+                    total_price -= discount_amount
+
+                    # Обновляем счетчик использований
+                    coupon.used_count += 1
+                    coupon.save()
+
+                    # Добавляем купон к заказу
+                    serializer.validated_data['coupon'] = coupon
+            except Coupon.DoesNotExist:
+                pass
+
         full_name = request.data.get("full_name")
         phone = request.data.get("phone")
         data = serializer.create({
@@ -281,30 +302,8 @@ class OrderAPIView(APIView):
             item.order = data
             item.product.quantity -= item.quantity
             item.save()
-        
-        #if request.data.get("email", False):
-        #    html_messages = render_to_string(f'{BASE_DIR}/users/templates/email.html', {
-        #        'baskets': baskets,
-        #        'created_at': data.created_at.strftime('%d/%m/%Y %H:%M'),
-        #        'order_code': data.order_code,
-        #        'type': [item[1] for item in Order.DELIVERY_CHOICES if item[0] == data.type][0],
-        #        'address': data.address,
-        #        'status': data.status,
-        #        'total_price': f'{data.total_price:,}',
-        #        'full_name': data.full_name,
-        #        'phone': data.phone,
-        #    })
 
-        #    send_mail(
-        #        "BodySteel.",
-        #        "Новый Заказ.",
-        #        "deff0427@gmail.com",
-        #        [email],
-        #        fail_silently=False,
-        #        html_message=html_messages,
-        #    )
-
-        notify_message(data, baskets)
+        notify_message(data, baskets, coupon)
 
         return Response(status=status.HTTP_201_CREATED)
 
@@ -354,3 +353,48 @@ class ReviewAPIView(APIView):
         }, 'bonus': {
             'bonus_used': request.user.bonus_used,
         }}, status=status.HTTP_201_CREATED)
+
+
+class CouponAPIView(APIView):
+    permission_classes = [IsAuthenticated]
+    allowed_methods = ['post', 'get']
+
+    @swagger_auto_schema(manual_parameters=[],
+                         responses={status.HTTP_200_OK: CouponSerializer(many=True)})
+    def get(self, request):
+        coupon_code = request.query_params.get('key')
+        
+        # Если ключ не указан, возвращаем список доступных купонов
+        if not coupon_code:
+            coupons = Coupon.objects.filter(is_active=True)
+            serializer = CouponSerializer(coupons, many=True).data
+            return Response({'data': serializer}, status=status.HTTP_200_OK)
+        
+        # Если ключ указан, проверяем его и возвращаем процент скидки или null
+        try:
+            coupon = Coupon.objects.get(code=coupon_code, is_active=True)
+            
+            if not coupon.can_use():
+                return Response({'discount_percent': None}, status=status.HTTP_200_OK)
+                
+            return Response({'discount_percent': coupon.discount_percent}, status=status.HTTP_200_OK)
+        except Coupon.DoesNotExist:
+            return Response({'discount_percent': None}, status=status.HTTP_200_OK)
+
+    @swagger_auto_schema(manual_parameters=[],
+                         request_body=CouponValidateSerializer,
+                         responses={status.HTTP_200_OK: CouponSerializer})
+    def post(self, request):
+        serializer = CouponValidateSerializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+
+        # Проверяем существует ли купон и доступен ли он для использования
+        coupon = get_object_or_404(Coupon, code=serializer.validated_data['code'], is_active=True)
+
+        # Проверяем, достиг ли купон максимального количества использований
+        if not coupon.can_use():
+            return Response({'error': 'Купон больше не может быть использован'},
+                           status=status.HTTP_400_BAD_REQUEST)
+
+        coupon_serializer = CouponSerializer(coupon).data
+        return Response({'data': coupon_serializer}, status=status.HTTP_200_OK)
