@@ -213,7 +213,7 @@ def echo_message(message: telebot.types.Message):
     if message.text.startswith('key:'):
         phrase = message.text.split(':')[1].strip()
         # Исправим условие на правильное - expired_date должен быть больше текущей даты
-        if SecretPhrase.objects.filter(phrase=phrase, expired_date__gte=datetime.datetime.now()).exists():
+        if SecretPhrase.objects.filter(phrase=phrase, expired_date__gte=timezone.now()).exists():
             chat_data = ChatModel.objects.filter(chat_id=message.chat.id).first()
             if not chat_data:
                 ChatModel.objects.create(
