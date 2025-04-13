@@ -181,11 +181,11 @@ def day(message: telebot.types.Message):
 
 @bot.message_handler(func=lambda message: True)
 def echo_message(message: telebot.types.Message):
-    if message.text.split(':')[0] == 'key':
-        if SecretPhrase.objects.filter(phrase=message.text.split(':')[1],
-                                       expired_date__lte=datetime.datetime.now()).exists():
-            data = ChatModel.objects.filter(chat_id=message.chat.id).exists()
-            if not data:
+    if message.text.startswith('key:'):
+        phrase = message.text.split(':')[1]
+        if SecretPhrase.objects.filter(phrase=phrase, expired_date__lte=datetime.datetime.now()).exists():
+            chat_data = ChatModel.objects.filter(chat_id=message.chat.id).first()
+            if not chat_data:
                 ChatModel.objects.create(
                     chat_id=message.chat.id,
                     first_name=message.chat.first_name,
