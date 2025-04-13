@@ -17,7 +17,7 @@ bot = telebot.TeleBot(settings.BOT_TOKEN)
 def check_chat_registered(func):
     def wrapper(message: telebot.types.Message):
         if not ChatModel.objects.filter(chat_id=message.chat.id).exists():
-            bot.send_message(message.chat.id, "")
+            bot.send_message(message.chat.id, "Для доступа к этой команде необходимо пройти верификацию. Введите ключевую фразу в формате key:phrase")
             return
         return func(message)
 
@@ -40,6 +40,11 @@ def filter_by_dates(message: telebot.types.Message):
 
 
 def process_date_filter(message: telebot.types.Message):
+    # Проверяем верификацию перед обработкой даты
+    if not ChatModel.objects.filter(chat_id=message.chat.id).exists():
+        bot.send_message(message.chat.id, "Для доступа к этой команде необходимо пройти верификацию. Введите ключевую фразу в формате key:phrase")
+        return
+        
     try:
         start_date_str, end_date_str = message.text.split()
         start_date = datetime.datetime.strptime(start_date_str, '%Y-%m-%d')
@@ -84,7 +89,14 @@ def start(message: telebot.types.Message):
         url="https://t.me/test_teleg_app_bot/bodysteel",
     )
     markup.add(web_app_button)
-    bot.send_message(message.chat.id, f'Добро Пожаловать!', reply_markup=markup)
+    
+    # Проверяем верифицирован ли пользователь
+    if ChatModel.objects.filter(chat_id=message.chat.id).exists():
+        welcome_message = f'Добро Пожаловать! Вы верифицированы и имеете доступ ко всем командам.'
+    else:
+        welcome_message = f'Добро Пожаловать! Для доступа к командам необходимо пройти верификацию. Введите ключевую фразу в формате key:phrase'
+    
+    bot.send_message(message.chat.id, welcome_message, reply_markup=markup)
 
 
 @bot.message_handler(commands=['month'])
@@ -179,11 +191,29 @@ def day(message: telebot.types.Message):
     bot.send_message(message.chat.id, text)
 
 
+@bot.message_handler(commands=['help'])
+def help_command(message: telebot.types.Message):
+    if ChatModel.objects.filter(chat_id=message.chat.id).exists():
+        help_text = """Доступные команды:
+/day - Статистика за последний день
+/week - Статистика за последнюю неделю
+/month - Статистика за последний месяц
+/year - Статистика за последний год
+/filter - Фильтр по датам
+"""
+    else:
+        help_text = """Для доступа к командам необходимо пройти верификацию.
+Введите ключевую фразу в формате key:phrase"""
+    
+    bot.send_message(message.chat.id, help_text)
+
+
 @bot.message_handler(func=lambda message: True)
 def echo_message(message: telebot.types.Message):
     if message.text.startswith('key:'):
-        phrase = message.text.split(':')[1]
-        if SecretPhrase.objects.filter(phrase=phrase, expired_date__lte=datetime.datetime.now()).exists():
+        phrase = message.text.split(':')[1].strip()
+        # Исправим условие на правильное - expired_date должен быть больше текущей даты
+        if SecretPhrase.objects.filter(phrase=phrase, expired_date__gte=datetime.datetime.now()).exists():
             chat_data = ChatModel.objects.filter(chat_id=message.chat.id).first()
             if not chat_data:
                 ChatModel.objects.create(
@@ -192,4 +222,10 @@ def echo_message(message: telebot.types.Message):
                     last_name=message.chat.last_name,
                     username=message.chat.username,
                 )
-            bot.send_message(message.chat.id, f'✅: {message.chat.first_name}')
+                bot.send_message(message.chat.id, f'✅ Верификация успешна! Добро пожаловать, {message.chat.first_name}!\nИспользуйте /help для просмотра доступных команд.')
+            else:
+                bot.send_message(message.chat.id, f'Вы уже верифицированы. Используйте /help для просмотра доступных команд.')
+        else:
+            bot.send_message(message.chat.id, 'Неверный ключ или срок его действия истек.')
+    elif not ChatModel.objects.filter(chat_id=message.chat.id).exists():
+        bot.send_message(message.chat.id, 'Для доступа к командам необходимо пройти верификацию. Введите ключевую фразу в формате key:phrase')
