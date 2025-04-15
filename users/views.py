@@ -356,45 +356,44 @@ class ReviewAPIView(APIView):
 
 
 class CouponAPIView(APIView):
-    permission_classes = [IsAuthenticated]
     allowed_methods = ['post', 'get']
 
     @swagger_auto_schema(manual_parameters=[],
                          responses={status.HTTP_200_OK: CouponSerializer(many=True)})
     def get(self, request):
         coupon_code = request.query_params.get('key')
-        
+
         # Если ключ не указан, возвращаем список доступных купонов
         if not coupon_code:
             coupons = Coupon.objects.filter(is_active=True)
             serializer = CouponSerializer(coupons, many=True).data
             return Response({'data': serializer}, status=status.HTTP_200_OK)
-        
+
         # Если ключ указан, проверяем его и возвращаем процент скидки или null
         try:
             coupon = Coupon.objects.get(code=coupon_code, is_active=True)
-            
+
             if not coupon.can_use():
                 return Response({'discount_percent': None}, status=status.HTTP_200_OK)
-                
+
             return Response({'discount_percent': coupon.discount_percent}, status=status.HTTP_200_OK)
         except Coupon.DoesNotExist:
             return Response({'discount_percent': None}, status=status.HTTP_200_OK)
 
-    @swagger_auto_schema(manual_parameters=[],
-                         request_body=CouponValidateSerializer,
-                         responses={status.HTTP_200_OK: CouponSerializer})
-    def post(self, request):
-        serializer = CouponValidateSerializer(data=request.data)
-        serializer.is_valid(raise_exception=True)
+    # @swagger_auto_schema(manual_parameters=[],
+    #                      request_body=CouponValidateSerializer,
+    #                      responses={status.HTTP_200_OK: CouponSerializer})
+    # def post(self, request):
+    #     serializer = CouponValidateSerializer(data=request.data)
+    #     serializer.is_valid(raise_exception=True)
 
-        # Проверяем существует ли купон и доступен ли он для использования
-        coupon = get_object_or_404(Coupon, code=serializer.validated_data['code'], is_active=True)
+    #     # Проверяем существует ли купон и доступен ли он для использования
+    #     coupon = get_object_or_404(Coupon, code=serializer.validated_data['code'], is_active=True)
 
-        # Проверяем, достиг ли купон максимального количества использований
-        if not coupon.can_use():
-            return Response({'error': 'Купон больше не может быть использован'},
-                           status=status.HTTP_400_BAD_REQUEST)
+    #     # Проверяем, достиг ли купон максимального количества использований
+    #     if not coupon.can_use():
+    #         return Response({'error': 'Купон больше не может быть использован'},
+    #                        status=status.HTTP_400_BAD_REQUEST)
 
-        coupon_serializer = CouponSerializer(coupon).data
-        return Response({'data': coupon_serializer}, status=status.HTTP_200_OK)
+    #     coupon_serializer = CouponSerializer(coupon).data
+    #     return Response({'data': coupon_serializer}, status=status.HTTP_200_OK)
