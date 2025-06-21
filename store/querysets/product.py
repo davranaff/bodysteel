@@ -1,6 +1,6 @@
 import datetime
 
-from django.db.models import Sum, Count, Case, When, Value, FloatField, Q, FilteredRelation
+from django.db.models import Sum, Count, Case, When, Value, FloatField, Q, FilteredRelation, IntegerField
 from store.querysets.base_queryset import BaseQuerySet
 
 
@@ -58,3 +58,21 @@ class ProductQueryset(BaseQuerySet):
                 '-is_leader_count')
 
         return query
+
+    def order_by_stock(self, *order_fields):
+        """
+        Sort products by stock availability - in stock first, out of stock last
+        Additional order_fields can be passed for secondary sorting
+        """
+        query = self.annotate(
+            in_stock=Case(
+                When(quantity=0, then=1),
+                default=0,
+                output_field=IntegerField()
+            )
+        )
+
+        if order_fields:
+            return query.order_by('in_stock', *order_fields)
+        else:
+            return query.order_by('in_stock', '-created_at')

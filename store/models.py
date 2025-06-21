@@ -172,8 +172,8 @@ class Brand(BaseModel):
 
 
 class Product(BaseModel):
-    name_uz = models.CharField(max_length=255, verbose_name='Название Продукта uz', unique=True)
-    name_ru = models.CharField(max_length=255, verbose_name='Название Продукта ru', unique=True)
+    name_uz = models.CharField(max_length=500, verbose_name='Название Продукта uz', unique=True)
+    name_ru = models.CharField(max_length=500, verbose_name='Название Продукта ru', unique=True)
 
     description_uz = RichTextField(verbose_name='Описание Товара uz', null=True, blank=True)
     description_ru = RichTextField(verbose_name='Описание Товара ru', null=True, blank=True)

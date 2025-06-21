@@ -18,7 +18,7 @@ class SecretPhrase(BaseModel):
 
 
 class Chat(BaseModel):
-    chat_id = models.CharField()
+    chat_id = models.CharField(max_length=255)
     first_name = models.CharField(max_length=255)
     last_name = models.CharField(max_length=255, null=True)
     username = models.CharField(max_length=255, null=True)
