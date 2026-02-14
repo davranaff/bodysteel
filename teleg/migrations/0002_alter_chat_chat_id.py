@@ -13,6 +13,6 @@ class Migration(migrations.Migration):
         migrations.AlterField(
             model_name='chat',
             name='chat_id',
-            field=models.CharField(),
+            field=models.CharField(max_length=255),
         ),
     ]

@@ -28,6 +28,10 @@ def check_path(instance, filename):
     return 'checks/{0}/{1}'.format(instance.order_code, filename)
 
 
+def product_360_directory_path(instance, filename):
+    return 'product_360/{0}/{1}'.format(instance.product.name_ru, filename)
+
+
 class BaseModel(models.Model):
     created_at = models.DateTimeField(auto_now_add=True)
 
@@ -240,6 +244,22 @@ class ProductImage(models.Model):
     class Meta:
         verbose_name = 'Картинка продукта'
         verbose_name_plural = 'Картинки продуктов'
+
+
+class Product360Image(models.Model):
+    product = models.ForeignKey('Product', on_delete=models.CASCADE, related_name='product_360_images',
+                                related_query_name='product_360_images', verbose_name='360° изображения продукта')
+    photo = models.ImageField(upload_to=product_360_directory_path, verbose_name='Фото для 360°')
+    sort_order = models.PositiveIntegerField(default=0, verbose_name='Порядок сортировки',
+                                             help_text='Чем меньше число, тем раньше показывается кадр')
+
+    def __str__(self):
+        return '360° #{0} - {1}'.format(self.sort_order, self.product.name_ru)
+
+    class Meta:
+        verbose_name = '360° Изображение продукта'
+        verbose_name_plural = '360° Изображения продуктов'
+        ordering = ['sort_order']
 
 
 class Review(BaseModel):

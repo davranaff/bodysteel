@@ -1,5 +1,5 @@
 from django.contrib import admin
-from store.models import Basket, Menu, Filial, Product, SetOfProduct, Category, Blog, Brand, ProductImage, Review, Order, Coupon
+from store.models import Basket, Menu, Filial, Product, SetOfProduct, Category, Blog, Brand, ProductImage, Product360Image, Review, Order, Coupon
 
 
 @admin.register(Menu)
@@ -45,12 +45,18 @@ class ProductImageInline(admin.TabularInline):
     model = ProductImage
 
 
+class Product360ImageInline(admin.TabularInline):
+    model = Product360Image
+    extra = 1
+    ordering = ['sort_order']
+
+
 @admin.register(Product)
 class ProductsAdmin(admin.ModelAdmin):
     empty_value_display = "-пусто-"
     list_display = ['id', 'name_uz', 'name_ru', 'price', 'quantity', 'view_count']
     exclude = ['view_count']
-    inlines = [ProductImageInline]
+    inlines = [ProductImageInline, Product360ImageInline]
     list_filter = ['name_ru']
     list_editable = ('name_uz', 'name_ru', 'quantity')
 
@@ -59,6 +65,15 @@ class ProductsAdmin(admin.ModelAdmin):
 class ProductImageAdmin(admin.ModelAdmin):
     empty_value_display = "-пусто-"
     list_display = ['id', 'product', 'photo']
+
+
+@admin.register(Product360Image)
+class Product360ImageAdmin(admin.ModelAdmin):
+    empty_value_display = "-пусто-"
+    list_display = ['id', 'product', 'photo', 'sort_order']
+    list_filter = ['product']
+    list_editable = ['sort_order']
+    ordering = ['product', 'sort_order']
 
 
 @admin.register(Review)

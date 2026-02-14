@@ -1,6 +1,6 @@
 from rest_framework import serializers
 
-from store.models import Product, ProductImage, Category
+from store.models import Product, ProductImage, Product360Image, Category
 from store.serializers.brand import BrandSerializer
 from store.serializers.category import CategorySerializer
 from store.serializers.review import ReviewSerializer
@@ -12,8 +12,15 @@ class ProductImageSerializer(serializers.ModelSerializer):
         fields = ['photo']
 
 
+class Product360ImageSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = Product360Image
+        fields = ['id', 'photo', 'sort_order']
+
+
 class ProductSerializer(serializers.ModelSerializer):
     product_images = ProductImageSerializer(many=True, read_only=True)
+    product_360_images = Product360ImageSerializer(many=True, read_only=True)
     rating = serializers.IntegerField(read_only=True)
     liked = serializers.BooleanField(read_only=True)
     is_leader_count = serializers.IntegerField(read_only=True)
