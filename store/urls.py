@@ -1,7 +1,7 @@
 from django.urls import path
 
 from store import views
-from store.views import ProductViewSet, CategoryViewSet
+from store.views import ProductViewSet, CategoryViewSet, FilialViewSet
 
 urlpatterns = [
     path('home/', views.HomaPageAPIView.as_view(), name='home'),
@@ -18,7 +18,16 @@ urlpatterns = [
 
     path('delivery_and_payment/', views.DeliveryAndPaymentsAPIView.as_view(), name='delivery_and_payments'),
 
-    path('filiales/', views.FilialAPIView.as_view(), name='filiales'),
+    path('filiales/', FilialViewSet.as_view({'get': 'list', 'post': 'create'}), name='filiales'),
+    path('filiales/<int:pk>/', FilialViewSet.as_view({
+        'get': 'retrieve',
+        'put': 'update',
+        'patch': 'partial_update',
+        'delete': 'destroy',
+    }), name='filial_detail'),
+    path('filiales/<int:pk>/photos/', FilialViewSet.as_view({'post': 'add_photos'}), name='filial_add_photos'),
+    path('filiales/<int:pk>/photos/<int:photo_id>/',
+         FilialViewSet.as_view({'delete': 'delete_photo'}), name='filial_delete_photo'),
 
     path('products/', ProductViewSet.as_view({'get': 'list'}), name='products'),
     path('products/<slug>/', ProductViewSet.as_view({'get': 'retrieve'}, name="product_detail")),

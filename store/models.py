@@ -32,6 +32,10 @@ def product_360_directory_path(instance, filename):
     return 'product_360/{0}/{1}'.format(instance.product.name_ru, filename)
 
 
+def filial_image_directory_path(instance, filename):
+    return 'filial/{0}/{1}'.format(instance.filial.name_ru, filename)
+
+
 class BaseModel(models.Model):
     created_at = models.DateTimeField(auto_now_add=True)
 
@@ -98,7 +102,7 @@ class Filial(BaseModel):
     address_url = models.TextField(verbose_name='Адрес филиала (только ссылка)')
     address_location = models.TextField(verbose_name='Локация филиала (только ссылка)', default=None)
 
-    photo = models.ImageField(upload_to='filial/', verbose_name='Фотография филиала')
+    photo = models.ImageField(upload_to='filial/', verbose_name='Фотография филиала', null=True, blank=True)
 
     def __str__(self):
         return self.name_ru
@@ -122,6 +126,25 @@ class SetOfProduct(BaseModel):
         verbose_name = "Комплект"
         verbose_name_plural = "Комплекты"
         unique_together = ('name_uz', 'name_ru',)
+
+
+class FilialPhoto(BaseModel):
+    filial = models.ForeignKey(
+        'Filial',
+        on_delete=models.CASCADE,
+        related_name='photos',
+        related_query_name='photos',
+        verbose_name='Филиал',
+    )
+    photo = models.ImageField(upload_to=filial_image_directory_path, verbose_name='Фотография филиала')
+
+    def __str__(self):
+        return '{0} - фото #{1}'.format(self.filial.name_ru, self.pk)
+
+    class Meta:
+        verbose_name = 'Фото филиала'
+        verbose_name_plural = 'Фото филиалов'
+        ordering = ['created_at', 'id']
 
 
 class Category(BaseModel):

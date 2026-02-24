@@ -3,8 +3,9 @@ from rest_framework import status
 from rest_framework.generics import get_object_or_404
 from django.db.models import Count
 from rest_framework import viewsets
+from rest_framework.permissions import AllowAny, IsAdminUser
 
-from store.models import SetOfProduct, Category, Product, Brand, Blog, Menu, Filial
+from store.models import SetOfProduct, Category, Product, Brand, Blog, Menu, Filial, FilialPhoto
 from store.serializers.blogs import BlogSerializer
 from store.serializers.brand import BrandSerializer
 from store.serializers.category import CategorySerializer
@@ -145,13 +146,69 @@ class DeliveryAndPaymentsAPIView(APIView):
         return Response({'data': serializer}, status=status.HTTP_200_OK)
 
 
-class FilialAPIView(APIView):
-    allowed_methods = ['get', ]
+class FilialViewSet(viewsets.ModelViewSet):
+    queryset = Filial.objects.prefetch_related('photos').all()
+    serializer_class = FilialSerializer
 
-    def get(self, request):
-        filiales = Filial.objects.all()
-        serializer = FilialSerializer(filiales, many=True).data
+    def get_permissions(self):
+        if self.action in ['list', 'retrieve']:
+            return [AllowAny()]
+        return [IsAdminUser()]
 
+    def list(self, request, *args, **kwargs):
+        serializer = self.get_serializer(self.get_queryset(), many=True).data
+        return Response({'data': serializer}, status=status.HTTP_200_OK)
+
+    def retrieve(self, request, *args, **kwargs):
+        serializer = self.get_serializer(self.get_object()).data
+        return Response({'data': serializer}, status=status.HTTP_200_OK)
+
+    def create(self, request, *args, **kwargs):
+        serializer = self.get_serializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+        serializer.save()
+        return Response({'data': serializer.data}, status=status.HTTP_201_CREATED)
+
+    def partial_update(self, request, *args, **kwargs):
+        instance = self.get_object()
+        serializer = self.get_serializer(instance, data=request.data, partial=True)
+        serializer.is_valid(raise_exception=True)
+        serializer.save()
+        return Response({'data': serializer.data}, status=status.HTTP_200_OK)
+
+    def update(self, request, *args, **kwargs):
+        instance = self.get_object()
+        serializer = self.get_serializer(instance, data=request.data)
+        serializer.is_valid(raise_exception=True)
+        serializer.save()
+        return Response({'data': serializer.data}, status=status.HTTP_200_OK)
+
+    def destroy(self, request, *args, **kwargs):
+        instance = self.get_object()
+        instance.delete()
+        return Response(status=status.HTTP_204_NO_CONTENT)
+
+    def add_photos(self, request, pk=None):
+        filial = self.get_object()
+        images = request.FILES.getlist('photos') or request.FILES.getlist('new_photos')
+
+        if not images:
+            return Response(
+                {'errors': {'photos': ['Передайте минимум одно фото для загрузки.']}},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
+        for image in images:
+            FilialPhoto.objects.create(filial=filial, photo=image)
+
+        serializer = self.get_serializer(filial).data
+        return Response({'data': serializer}, status=status.HTTP_200_OK)
+
+    def delete_photo(self, request, pk=None, photo_id=None):
+        filial = self.get_object()
+        photo = get_object_or_404(filial.photos, pk=photo_id)
+        photo.delete()
+        serializer = self.get_serializer(filial).data
         return Response({'data': serializer}, status=status.HTTP_200_OK)
 
 

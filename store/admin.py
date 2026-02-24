@@ -1,5 +1,5 @@
 from django.contrib import admin
-from store.models import Basket, Menu, Filial, Product, SetOfProduct, Category, Blog, Brand, ProductImage, Product360Image, Review, Order, Coupon
+from store.models import Basket, Menu, Filial, Product, SetOfProduct, Category, Blog, Brand, ProductImage, Product360Image, Review, Order, Coupon, FilialPhoto
 
 
 @admin.register(Menu)
@@ -11,10 +11,16 @@ class MenuAdmin(admin.ModelAdmin):
     list_display = ['name', 'is_active']
 
 
+class FilialPhotoInline(admin.TabularInline):
+    model = FilialPhoto
+    extra = 1
+
+
 @admin.register(Filial)
 class FilialAdmin(admin.ModelAdmin):
     empty_value_display = "-пусто-"
     list_display = ['id', 'name_uz', 'name_ru', 'address_uz', 'address_ru', 'phone']
+    inlines = [FilialPhotoInline]
 
 
 @admin.register(SetOfProduct)
@@ -65,6 +71,13 @@ class ProductsAdmin(admin.ModelAdmin):
 class ProductImageAdmin(admin.ModelAdmin):
     empty_value_display = "-пусто-"
     list_display = ['id', 'product', 'photo']
+
+
+@admin.register(FilialPhoto)
+class FilialPhotoAdmin(admin.ModelAdmin):
+    empty_value_display = "-пусто-"
+    list_display = ['id', 'filial', 'photo', 'created_at']
+    list_filter = ['filial']
 
 
 @admin.register(Product360Image)
