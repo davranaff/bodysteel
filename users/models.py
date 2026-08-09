@@ -1,8 +1,6 @@
-from django.conf import settings
-from django.db import models
 from django.contrib.auth.models import AbstractUser
+from django.db import models
 
-from users.utils.random_code import random_code
 from users.utils.random_username import random_username
 from users.validators import phone
 
@@ -17,28 +15,11 @@ class User(AbstractUser):
         unique=True,
         validators=[phone.validate_phone]
     )
-    code = models.CharField(max_length=6, unique=False, null=True)
-    verification = models.BooleanField(default=False)
-
-    phone_idx = models.Index(fields=['phone'], name='phone_idx')
-
     bonus_used = models.BooleanField(default=False)
 
-    def save(self, with_code=True, *args, **kwargs):
-
+    def save(self, *args, **kwargs):
         if not self.username:
             self.username = random_username()
-            self.full_name = self.username
-
-        if not self.code:
-            self.code = random_code()
-
-        if not with_code:
-            self.code = None
-
-        if with_code and settings.DEBUG:
-            self.code = '000000'
-
         return super().save(*args, **kwargs)
 
     def __str__(self):
@@ -47,3 +28,7 @@ class User(AbstractUser):
     class Meta:
         verbose_name = 'User'
         verbose_name_plural = 'Users'
+
+
+# Django discovers models through this module. Implementations stay in the auth feature.
+from users.auth.models import AuthRateLimit, PhoneVerificationChallenge  # noqa: E402,F401

@@ -1,0 +1,32 @@
+import os
+from pathlib import Path
+
+from config.settings import *  # noqa: F403
+
+
+BASE_DIR = Path(__file__).resolve().parent.parent
+DEBUG = True
+DATABASES = {
+    'default': {
+        'ENGINE': 'django.db.backends.sqlite3',
+        'NAME': os.getenv('SQLITE_DATABASE_PATH', BASE_DIR / 'db.sqlite3'),
+    }
+}
+
+BOT_TOKEN = os.getenv('BOT_TOKEN', '')
+TELEGRAM_API_URL = 'https://api.telegram.org/bot{}'.format(BOT_TOKEN)
+
+# Unsafe local-only defaults. Use independent secret-store values outside development.
+BODYSTEEL_STOREFRONT_PROXY_TOKEN = os.getenv(
+    'BODYSTEEL_STOREFRONT_PROXY_TOKEN',
+    'unsafe-local-storefront-proxy-token-change-me',
+)
+PHONE_VERIFICATION_HASH_KEY = os.getenv(
+    'PHONE_VERIFICATION_HASH_KEY',
+    'unsafe-local-phone-verification-hash-key-change-me',
+)
+AUTH_RATE_LIMIT_HASH_KEY = os.getenv(
+    'AUTH_RATE_LIMIT_HASH_KEY',
+    'unsafe-local-auth-rate-limit-hash-key-change-me',
+)
+SMS_BACKEND = os.getenv('SMS_BACKEND', 'disabled')

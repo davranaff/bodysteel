@@ -1,7 +1,7 @@
-import random
+import secrets
 import string
 
 
-def random_username(length: int = 10):
-    numbers_list = random.sample(string.digits, length)
-    return "user_{}".format("".join(numbers_list))
+def random_username(length: int = 20):
+    suffix = ''.join(secrets.choice(string.ascii_lowercase + string.digits) for _ in range(length))
+    return f'user_{suffix}'

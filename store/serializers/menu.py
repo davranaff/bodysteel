@@ -1,9 +1,8 @@
-from rest_framework import serializers
-
 from store.models import Menu
+from store.serializers.sanitized_model import SanitizedModelSerializer
 
 
-class MenuSerializer(serializers.ModelSerializer):
+class MenuSerializer(SanitizedModelSerializer):
 
     class Meta:
         model = Menu

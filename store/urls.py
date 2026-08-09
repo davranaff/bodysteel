@@ -1,10 +1,10 @@
 from django.urls import path
 
 from store import views
-from store.views import ProductViewSet, CategoryViewSet, FilialViewSet
+from store.views import CategoryViewSet, FilialViewSet, ProductViewSet
 
 urlpatterns = [
-    path('home/', views.HomaPageAPIView.as_view(), name='home'),
+    path('home/', views.HomePageAPIView.as_view(), name='home'),
 
     path('about/', views.AboutAPIView.as_view(), name='menu'),
 

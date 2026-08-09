@@ -4,6 +4,7 @@ from store.models import Product, ProductImage, Product360Image, Category
 from store.serializers.brand import BrandSerializer
 from store.serializers.category import CategorySerializer
 from store.serializers.review import ReviewSerializer
+from store.serializers.sanitized_model import SanitizedModelSerializer
 
 
 class ProductImageSerializer(serializers.ModelSerializer):
@@ -18,7 +19,7 @@ class Product360ImageSerializer(serializers.ModelSerializer):
         fields = ['id', 'photo', 'sort_order']
 
 
-class ProductSerializer(serializers.ModelSerializer):
+class ProductSerializer(SanitizedModelSerializer):
     product_images = ProductImageSerializer(many=True, read_only=True)
     product_360_images = Product360ImageSerializer(many=True, read_only=True)
     rating = serializers.IntegerField(read_only=True)

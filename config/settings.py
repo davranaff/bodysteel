@@ -1,17 +1,23 @@
 from pathlib import Path
 import os
 
+from django.core.exceptions import ImproperlyConfigured
+
 
 BASE_DIR = Path(__file__).resolve().parent.parent
 
-SECRET_KEY = os.getenv("SECRET_KEY", "django-insecure-i(!^3@q&)btg5%skz2wc0tr(t(3avq20p3+*alul)$wv2(awq(")
+DEVELOPMENT_SECRET_KEY = 'unsafe-development-only-change-me'
+SECRET_KEY = os.getenv('SECRET_KEY', DEVELOPMENT_SECRET_KEY)
 
-DEBUG = os.getenv("DEBUG", False)
+DEBUG = os.getenv('DEBUG', '').strip().lower() in {'1', 'true', 'yes'}
 
-ALLOWED_HOSTS = ["*"]
+ALLOWED_HOSTS = [
+    host.strip()
+    for host in os.getenv('ALLOWED_HOSTS', 'localhost,127.0.0.1').split(',')
+    if host.strip()
+]
 
 INSTALLED_APPS = [
-    'ckeditor',
     'django.contrib.admin',
     'django.contrib.auth',
     'django.contrib.contenttypes',
@@ -25,6 +31,7 @@ INSTALLED_APPS = [
     'rest_framework',
     'rest_framework.authtoken',
     'teleg',
+    'integration.apps.IntegrationConfig',
 ]
 
 TEMPLATES = [
@@ -59,8 +66,8 @@ CORS_ALLOWED_ORIGINS = [
     "http://localhost:8000",
     "http://localhost:3000",
     "https://bodysteel.vercel.app",
-    "https://bosyteel.uz",
-    "https://api.bosyteel.uz",
+    "https://bodysteel.uz",
+    "https://api.bodysteel.uz",
 ]
 
 ROOT_URLCONF = 'config.urls'
@@ -131,6 +138,20 @@ SIGNUP_URL = 'http://localhost:8000/api/v1/users/signup/'
 ESKIZ_FROM_TO = os.getenv("ESKIZ_FROM_TO")
 ESKIZ_PROVIDER_EMAIL = os.getenv("ESKIZ_PROVIDER_EMAIL")
 ESKIZ_PROVIDER_PASSWORD = os.getenv("ESKIZ_PROVIDER_PASSWORD")
+ESKIZ_OTP_TEMPLATE = os.getenv('ESKIZ_OTP_TEMPLATE', '')
+SMS_BACKEND = os.getenv('SMS_BACKEND', 'disabled')
+
+BODYSTEEL_STOREFRONT_PROXY_TOKEN = os.getenv('BODYSTEEL_STOREFRONT_PROXY_TOKEN', '')
+PHONE_VERIFICATION_HASH_KEY = os.getenv('PHONE_VERIFICATION_HASH_KEY', '')
+AUTH_RATE_LIMIT_HASH_KEY = os.getenv('AUTH_RATE_LIMIT_HASH_KEY', '')
+PHONE_VERIFICATION_TTL_SECONDS = os.getenv('PHONE_VERIFICATION_TTL_SECONDS', '300')
+PHONE_VERIFICATION_RESEND_SECONDS = os.getenv('PHONE_VERIFICATION_RESEND_SECONDS', '60')
+PHONE_VERIFICATION_MAX_ATTEMPTS = os.getenv('PHONE_VERIFICATION_MAX_ATTEMPTS', '5')
+AUTH_TRUSTED_PROXY_NETWORKS = tuple(
+    network.strip()
+    for network in os.getenv('AUTH_TRUSTED_PROXY_NETWORKS', '').split(',')
+    if network.strip()
+)
 
 EMAIL_BACKEND = os.getenv("EMAIL_BACKEND")
 EMAIL_HOST = os.getenv("EMAIL_HOST")
@@ -139,12 +160,47 @@ EMAIL_USE_TLS = os.getenv("EMAIL_USE_TLS")
 EMAIL_HOST_USER = os.getenv("EMAIL_HOST_USER")
 EMAIL_HOST_PASSWORD = os.getenv("EMAIL_HOST_PASSWORD")
 
-BOT_TOKEN = '7099818467:AAEdJSuitqCYDiJNJDeahew7Ob5p1Vl-IHM'
+BOT_TOKEN = os.getenv('BOT_TOKEN', '')
 TELEGRAM_API_URL = f'https://api.telegram.org/bot{BOT_TOKEN}'
 BOT_POOLING_INTERVAL = 5
+
+
+SAVDOQ_INTEGRATION_CREDENTIALS = tuple(
+    credential
+    for credential in (
+        {
+            'token': os.getenv('SAVDOQ_INTEGRATION_FULL_TOKEN', ''),
+            'scopes': ('products:read', 'inventory:read', 'carts:write'),
+        },
+        {
+            'token': os.getenv('SAVDOQ_INTEGRATION_READ_TOKEN', ''),
+            'scopes': ('products:read', 'inventory:read'),
+        },
+    )
+    if credential['token']
+)
+SAVDOQ_STOREFRONT_ORIGIN = os.getenv('SAVDOQ_STOREFRONT_ORIGIN', 'https://bodysteel.uz')
+SAVDOQ_MEDIA_ORIGIN = os.getenv('SAVDOQ_MEDIA_ORIGIN', 'https://api.bodysteel.uz')
+SAVDOQ_CART_TTL_SECONDS = int(os.getenv('SAVDOQ_CART_TTL_SECONDS', '3600'))
+SAVDOQ_WEBHOOK_URL = os.getenv('SAVDOQ_WEBHOOK_URL', '')
+SAVDOQ_WEBHOOK_SECRET = os.getenv('SAVDOQ_WEBHOOK_SECRET', '')
 
 
 if not DEBUG:
     from .settings_prod import *
 else:
-    from .settings_dev import *
+    try:
+        from .settings_dev import *
+    except ModuleNotFoundError as error:
+        if error.name != 'config.settings_dev':
+            raise
+        DATABASES = {
+            'default': {
+                'ENGINE': 'django.db.backends.sqlite3',
+                'NAME': os.getenv('SQLITE_DATABASE_PATH', BASE_DIR / 'db.sqlite3'),
+            },
+        }
+
+
+if not DEBUG and SECRET_KEY == DEVELOPMENT_SECRET_KEY:
+    raise ImproperlyConfigured('SECRET_KEY must be configured in production')
