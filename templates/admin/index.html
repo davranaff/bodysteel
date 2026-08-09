@@ -1,0 +1,61 @@
+{% extends "admin/base_site.html" %}
+{% load i18n static %}
+
+{% block bodyclass %}{{ block.super }} dashboard{% endblock %}
+{% block nav-breadcrumbs %}{% endblock %}
+{% block nav-sidebar %}{% endblock %}
+{% block content_title %}{% endblock %}
+
+{% block content %}
+<div class="bs-dashboard">
+  <section class="bs-dashboard__intro">
+    <div>
+      <p class="bs-kicker">Операционный центр</p>
+      <h1>Добрый день, {{ user.first_name|default:user.username }}</h1>
+      <p class="bs-dashboard__lede">Контроль каталога, заказов и клиентского опыта — в одном рабочем пространстве.</p>
+    </div>
+    <div class="bs-dashboard__date"><span class="bs-dashboard__date-dot"></span><span>{% now "j E, Y" %}</span></div>
+  </section>
+
+  <section class="bs-metrics" aria-label="Ключевые показатели">
+    {% for metric in dashboard.metrics %}
+      <article class="bs-metric bs-metric--{{ metric.tone }}">
+        <div class="bs-metric__top"><span class="bs-metric__icon">{{ forloop.counter|stringformat:"02d" }}</span><span class="bs-metric__label">{{ metric.label }}</span></div>
+        <strong class="bs-metric__value">{{ metric.value }}</strong><span class="bs-metric__hint">{{ metric.hint }}</span>
+      </article>
+    {% endfor %}
+  </section>
+
+  <section class="bs-action-strip" aria-label="Быстрые действия">
+    <div class="bs-action-strip__title"><span class="bs-kicker">Быстрый доступ</span><strong>Что нужно сделать?</strong></div>
+    {% for action in dashboard.quick_actions %}
+      <a class="bs-action bs-action--{{ action.tone }}" href="{{ action.url }}"><span><strong>{{ action.label }}</strong><small>{{ action.description }}</small></span><span class="bs-action__arrow" aria-hidden="true">↗</span></a>
+    {% endfor %}
+  </section>
+
+  <div class="bs-dashboard-grid">
+    <section class="bs-panel bs-panel--orders">
+      <header class="bs-panel__header"><div><p class="bs-kicker">Последняя активность</p><h2>Новые заказы</h2></div><a class="bs-panel__link" href="{% url 'admin:store_order_changelist' %}">Все заказы <span>↗</span></a></header>
+      {% if dashboard.recent_orders %}<div class="bs-order-list">{% for order in dashboard.recent_orders %}<a class="bs-order-row" href="{{ order.admin_url }}"><span class="bs-order-row__code">#{{ order.order_code }}</span><span class="bs-order-row__customer"><strong>{{ order.full_name }}</strong><small>{{ order.phone }}</small></span><span class="bs-order-row__amount">{{ order.total_price|floatformat:0 }} сум</span>{% if order.status == 'purchased' %}<span class="bs-status bs-status--success">Куплен</span>{% else %}<span class="bs-status bs-status--warning">Модерация</span>{% endif %}</a>{% endfor %}</div>{% else %}<div class="bs-empty"><strong>Заказов пока нет</strong><span>Новые покупки появятся здесь автоматически.</span></div>{% endif %}
+    </section>
+
+    <section class="bs-panel bs-panel--catalog">
+      <header class="bs-panel__header"><div><p class="bs-kicker">Состояние ассортимента</p><h2>Каталог</h2></div><a class="bs-panel__link" href="{% url 'admin:store_product_changelist' %}">Открыть <span>↗</span></a></header>
+      <div class="bs-catalog-summary"><div class="bs-catalog-summary__hero"><strong>{{ dashboard.catalog.products }}</strong><span>товаров в каталоге</span></div><div class="bs-catalog-summary__rows"><div><span><i class="bs-dot bs-dot--success"></i>В наличии</span><strong>{{ dashboard.catalog.in_stock }}</strong></div><div><span><i class="bs-dot bs-dot--danger"></i>Нет на складе</span><strong>{{ dashboard.catalog.out_of_stock }}</strong></div><div><span><i class="bs-dot bs-dot--blue"></i>Активные купоны</span><strong>{{ dashboard.catalog.coupons }}</strong></div></div></div>
+      <div class="bs-integration-note"><span class="bs-integration-note__pulse"></span><span>Webhook очередь: <strong>{{ dashboard.webhook_pending }}</strong> событий требуют проверки</span></div>
+    </section>
+
+    <section class="bs-panel bs-panel--alerts">
+      <header class="bs-panel__header"><div><p class="bs-kicker">Требует внимания</p><h2>Остатки</h2></div><a class="bs-panel__link" href="{% url 'admin:store_product_changelist' %}?stock=low">Все остатки <span>↗</span></a></header>
+      {% if dashboard.stock_alerts %}<div class="bs-stock-list">{% for product in dashboard.stock_alerts %}<a class="bs-stock-row" href="{{ product.admin_url }}"><span class="bs-stock-row__name"><strong>{{ product.name_ru }}</strong><small>{% if product.brand %}{{ product.brand.name }}{% else %}Без бренда{% endif %}</small></span><span class="bs-status {% if product.quantity == 0 %}bs-status--danger{% else %}bs-status--warning{% endif %}">{{ product.quantity }} шт.</span></a>{% endfor %}</div>{% else %}<div class="bs-empty bs-empty--compact"><strong>Всё под контролем</strong><span>Критических остатков нет.</span></div>{% endif %}
+    </section>
+
+    <section class="bs-panel bs-panel--top">
+      <header class="bs-panel__header"><div><p class="bs-kicker">Продажи</p><h2>Лидеры каталога</h2></div><a class="bs-panel__link" href="{% url 'admin:store_product_changelist' %}">Каталог <span>↗</span></a></header>
+      {% if dashboard.top_products %}<div class="bs-top-list">{% for product in dashboard.top_products %}<div class="bs-top-row"><span class="bs-top-row__rank">0{{ forloop.counter }}</span><span class="bs-top-row__name"><strong>{{ product.name_ru }}</strong><small>{% if product.brand %}{{ product.brand.name }}{% endif %}</small></span><strong class="bs-top-row__count">{{ product.sold_count }} продаж</strong></div>{% endfor %}</div>{% else %}<div class="bs-empty bs-empty--compact"><strong>Данных пока мало</strong><span>Лидеры появятся после первых заказов.</span></div>{% endif %}
+    </section>
+  </div>
+
+  <section class="bs-workspaces"><header class="bs-panel__header"><div><p class="bs-kicker">Рабочие разделы</p><h2>Управление BodySteel</h2></div></header><div class="bs-workspaces__grid">{% for app in app_list %}{% for model in app.models %}<a class="bs-workspace" href="{{ model.admin_url }}"><span class="bs-workspace__mark">{{ forloop.parentloop.counter|stringformat:"02d" }}</span><span><strong>{{ model.name }}</strong><small>{{ app.name }}</small></span><span class="bs-workspace__arrow">↗</span></a>{% endfor %}{% endfor %}</div></section>
+</div>
+{% endblock %}

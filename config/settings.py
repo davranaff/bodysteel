@@ -37,7 +37,7 @@ INSTALLED_APPS = [
 TEMPLATES = [
     {
         'BACKEND': 'django.template.backends.django.DjangoTemplates',
-        'DIRS': [],
+        'DIRS': [BASE_DIR / 'templates'],
         'APP_DIRS': True,
         'OPTIONS': {
             'context_processors': [
@@ -184,6 +184,19 @@ SAVDOQ_MEDIA_ORIGIN = os.getenv('SAVDOQ_MEDIA_ORIGIN', 'https://api.bodysteel.uz
 SAVDOQ_CART_TTL_SECONDS = int(os.getenv('SAVDOQ_CART_TTL_SECONDS', '3600'))
 SAVDOQ_WEBHOOK_URL = os.getenv('SAVDOQ_WEBHOOK_URL', '')
 SAVDOQ_WEBHOOK_SECRET = os.getenv('SAVDOQ_WEBHOOK_SECRET', '')
+
+# REGOS remains the inventory source of truth.  These settings are deliberately
+# server-only: no REGOS credential is ever exposed through the Next.js app.
+REGOS_INTEGRATION_KEY = os.getenv('REGOS_INTEGRATION_KEY', '')
+REGOS_API_ENDPOINT = os.getenv('REGOS_API_ENDPOINT', '')
+REGOS_STOCK_IDS = tuple(
+    value.strip()
+    for value in os.getenv('REGOS_STOCK_IDS', '').split(',')
+    if value.strip()
+)
+REGOS_API_TIMEOUT_SECONDS = int(os.getenv('REGOS_API_TIMEOUT_SECONDS', '15'))
+REGOS_TO_SERVER_USERNAME = os.getenv('REGOS_TO_SERVER_USERNAME', '')
+REGOS_TO_SERVER_PASSWORD = os.getenv('REGOS_TO_SERVER_PASSWORD', '')
 
 
 if not DEBUG:

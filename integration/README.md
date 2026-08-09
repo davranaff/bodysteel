@@ -1,5 +1,11 @@
 # SAVDOQ Integration API for BodySteel
 
+## REGOS inventory source
+
+REGOS stock synchronization is documented in [regos/README.md](regos/README.md).
+It is independent from the SAVDOQ public catalog boundary and updates only the
+server-side `Product.quantity` field used by the storefront.
+
 Этот Django app — production store-side boundary между BodySteel и SAVDOQ. Он читает только модели
 магазина и никогда не предоставляет SaaS доступ к базе или её схеме.
 

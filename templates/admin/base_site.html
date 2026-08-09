@@ -1,0 +1,47 @@
+{% extends "admin/base.html" %}
+{% load static %}
+
+{% block title %}{% if subtitle %}{{ subtitle }} | {% endif %}{{ title }} | {{ site_title|default:"BodySteel Admin" }}{% endblock %}
+
+{% block extrastyle %}
+  {{ block.super }}
+  <link rel="stylesheet" href="{% static 'admin/css/body-steel.css' %}">
+  <link rel="stylesheet" href="{% static 'admin/css/body-steel-dashboard.css' %}">
+  <link rel="stylesheet" href="{% static 'admin/css/body-steel-responsive.css' %}">
+{% endblock %}
+
+{% block extrahead %}
+  {{ block.super }}
+  <meta name="theme-color" content="#101512">
+{% endblock %}
+
+{% block branding %}
+  <a class="bs-brand" href="{% url 'admin:index' %}" aria-label="BodySteel — командный центр">
+    <span class="bs-brand__mark">BS</span>
+    <span class="bs-brand__copy">
+      <strong>{{ brand_name|default:"BODY STEEL" }}</strong>
+      <small>{{ brand_tagline|default:"Операционный центр" }}</small>
+    </span>
+  </a>
+{% endblock %}
+
+{% block nav-global %}
+  <nav class="bs-topnav" aria-label="Основная навигация">
+    <a href="{% url 'admin:index' %}" class="bs-topnav__item{% if request.resolver_match.url_name == 'index' %} is-active{% endif %}">Обзор</a>
+    {% if perms.store.view_product %}<a href="{% url 'admin:store_product_changelist' %}" class="bs-topnav__item">Каталог</a>{% endif %}
+    {% if perms.store.view_order %}<a href="{% url 'admin:store_order_changelist' %}" class="bs-topnav__item">Заказы</a>{% endif %}
+    {% if perms.users.view_user %}<a href="{% url 'admin:users_user_changelist' %}" class="bs-topnav__item">Клиенты</a>{% endif %}
+  </nav>
+{% endblock %}
+
+{% block footer %}
+  <div class="bs-footer">
+    <span>BODY STEEL / ОПЕРАЦИОННЫЙ ЦЕНТР</span>
+    <span>Система управления магазином</span>
+  </div>
+{% endblock %}
+
+{% block extrabody %}
+  {{ block.super }}
+  <script src="{% static 'admin/js/body-steel.js' %}" defer></script>
+{% endblock %}

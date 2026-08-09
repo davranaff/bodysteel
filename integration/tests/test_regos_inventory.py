@@ -1,0 +1,187 @@
+import base64
+from unittest.mock import Mock, patch
+
+from django.test import override_settings
+
+from integration.regos.sync import apply_records, record_from_regos, sync_from_regos
+from integration.tests.fixtures import IntegrationAPITestCase
+from store.models import Product
+
+
+REGOS_SETTINGS = {
+    'REGOS_INTEGRATION_KEY': 'regos-integration-key-example',
+    'REGOS_API_ENDPOINT': '',
+    'REGOS_STOCK_IDS': ('3',),
+    'REGOS_API_TIMEOUT_SECONDS': 15,
+    'REGOS_TO_SERVER_USERNAME': 'regos-to-server-user',
+    'REGOS_TO_SERVER_PASSWORD': 'regos-to-server-password',
+}
+
+
+@override_settings(**REGOS_SETTINGS)
+class RegosInventoryTests(IntegrationAPITestCase):
+    def test_direct_sync_links_by_name_and_uses_allowed_quantity(self):
+        response = Mock()
+        response.raise_for_status.return_value = None
+        response.json.return_value = {
+            'ok': True,
+            'result': [
+                {
+                    'item': {'id': 9001, 'code': 101, 'articul': 'CRE-1', 'name': 'Креатин 1'},
+                    'quantity': {'common': 12, 'booked': 3, 'allowed': 9},
+                }
+            ],
+            'next_offset': 1,
+            'total': 1,
+        }
+        session = Mock()
+        session.post.return_value = response
+        with patch('integration.regos.sync.requests.Session', return_value=session):
+            result = sync_from_regos()
+
+        product = Product.objects.get(pk=self.products[0].pk)
+        self.assertEqual(result.updated, 1)
+        self.assertEqual(result.linked, 1)
+        self.assertEqual(product.quantity, 9)
+        self.assertEqual(product.regos_item_id, 9001)
+        self.assertEqual(product.regos_item_code, '101')
+        self.assertEqual(product.regos_item_articul, 'CRE-1')
+        url = session.post.call_args.args[0]
+        self.assertEqual(url, 'https://integration.regos.uz/gateway/out/regos-integration-key-example/v1/item/getext')
+        self.assertEqual(session.post.call_args.kwargs['json']['filters'][0]['Value'], '3')
+
+    def test_ambiguous_or_fractional_records_are_not_written(self):
+        result = apply_records([
+            record_from_regos({
+                'item': {'id': 9002, 'code': 102, 'name': 'Неизвестный'},
+                'quantity': {'allowed': 1},
+            }),
+            record_from_regos({
+                'item': {'id': 9003, 'code': 103, 'name': 'Креатин 2'},
+                'quantity': {'allowed': '1.5'},
+            }),
+        ], source='test')
+
+        self.assertEqual(result.unmatched, 1)
+        self.assertEqual(result.invalid, 1)
+        self.assertEqual(Product.objects.get(pk=self.products[1].pk).quantity, 2)
+
+    def test_to_server_receiver_updates_matching_item_with_basic_auth(self):
+        credentials = base64.b64encode(b'regos-to-server-user:regos-to-server-password').decode('ascii')
+        response = self.client.post(
+            '/integration/v1/regos/to-server',
+            data={
+                'jsonrpc': '2.0',
+                'id': 'sync-7',
+                'method': 'upload',
+                'params': {
+                    'items': [{
+                        'code': 101,
+                        'articul': 'CRE-1',
+                        'name': 'Креатин 1',
+                        'stock_quantities': [{'allowed': 4}, {'allowed': 3}],
+                    }]
+                },
+            },
+            content_type='application/json',
+            HTTP_AUTHORIZATION='Basic {}'.format(credentials),
+        )
+
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(response.json()['result']['updated'], 1)
+        product = Product.objects.get(pk=self.products[0].pk)
+        self.assertEqual(product.quantity, 7)
+        self.assertEqual(product.regos_item_code, '101')
+        self.assertEqual(product.regos_item_articul, 'CRE-1')
+
+    def test_offline_regos_sale_decreases_site_stock(self):
+        """A later REGOS export after an offline POS sale is authoritative."""
+        credentials = base64.b64encode(b'regos-to-server-user:regos-to-server-password').decode('ascii')
+        Product.objects.filter(pk=self.products[0].pk).update(
+            quantity=5,
+            regos_item_id=9001,
+            regos_item_code='101',
+        )
+
+        response = self.client.post(
+            '/integration/v1/regos/to-server',
+            data={
+                'jsonrpc': '2.0',
+                'id': 'offline-sale-8',
+                'method': 'upload',
+                'params': {
+                    'items': [{
+                        'id': 9001,
+                        'code': 101,
+                        'name': 'Креатин 1',
+                        # REGOS reports 4 available pieces after one offline sale.
+                        'quantity': [{'common': 5, 'booked': 1, 'allowed': 4}],
+                    }]
+                },
+            },
+            content_type='application/json',
+            HTTP_AUTHORIZATION='Basic {}'.format(credentials),
+        )
+
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(response.json()['result']['updated'], 1)
+        self.assertEqual(Product.objects.get(pk=self.products[0].pk).quantity, 4)
+
+    def test_offline_regos_return_restores_site_stock(self):
+        """A completed return in REGOS raises the quantity displayed on the site."""
+        credentials = base64.b64encode(b'regos-to-server-user:regos-to-server-password').decode('ascii')
+        Product.objects.filter(pk=self.products[0].pk).update(
+            quantity=4,
+            regos_item_id=9001,
+            regos_item_code='101',
+        )
+
+        response = self.client.post(
+            '/integration/v1/regos/to-server',
+            data={
+                'jsonrpc': '2.0',
+                'id': 'offline-return-9',
+                'method': 'upload',
+                'params': {
+                    'items': [{
+                        'id': 9001,
+                        'code': 101,
+                        'name': 'Креатин 1',
+                        # REGOS reports 5 available pieces after accepting a return.
+                        'quantity': [{'common': 6, 'booked': 1, 'allowed': 5}],
+                    }]
+                },
+            },
+            content_type='application/json',
+            HTTP_AUTHORIZATION='Basic {}'.format(credentials),
+        )
+
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(response.json()['result']['updated'], 1)
+        self.assertEqual(Product.objects.get(pk=self.products[0].pk).quantity, 5)
+
+    def test_to_server_receiver_rejects_missing_authentication(self):
+        response = self.client.post('/integration/v1/regos/to-server', data='{}', content_type='application/json')
+        self.assertEqual(response.status_code, 401)
+
+    def test_to_server_receiver_validates_json_boundary(self):
+        credentials = base64.b64encode(b'regos-to-server-user:regos-to-server-password').decode('ascii')
+        headers = {'HTTP_AUTHORIZATION': 'Basic {}'.format(credentials)}
+
+        unsupported = self.client.post(
+            '/integration/v1/regos/to-server', data='{}', content_type='text/plain', **headers
+        )
+        self.assertEqual(unsupported.status_code, 415)
+
+        malformed = self.client.post(
+            '/integration/v1/regos/to-server', data='{"id":', content_type='application/json', **headers
+        )
+        self.assertEqual(malformed.status_code, 400)
+
+        invalid_params = self.client.post(
+            '/integration/v1/regos/to-server',
+            data='{"id":"bad-params","params":"items"}',
+            content_type='application/json',
+            **headers,
+        )
+        self.assertEqual(invalid_params.status_code, 400)

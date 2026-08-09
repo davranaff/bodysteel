@@ -1,0 +1,1 @@
+"""REGOS inventory integration boundary."""

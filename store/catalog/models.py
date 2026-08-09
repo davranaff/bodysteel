@@ -43,6 +43,27 @@ class Category(BaseModel):
 
 class Product(BaseModel):
     updated_at = models.DateTimeField(auto_now=True)
+    regos_item_id = models.PositiveBigIntegerField(
+        null=True,
+        blank=True,
+        unique=True,
+        verbose_name='REGOS ID номенклатуры',
+        help_text='Заполняется автоматически при синхронизации с REGOS.',
+    )
+    regos_item_code = models.CharField(
+        max_length=100,
+        blank=True,
+        db_index=True,
+        verbose_name='Код номенклатуры REGOS',
+        help_text='Заполняется автоматически при синхронизации с REGOS.',
+    )
+    regos_item_articul = models.CharField(
+        max_length=255,
+        blank=True,
+        db_index=True,
+        verbose_name='Артикул REGOS',
+        help_text='Заполняется автоматически при синхронизации с REGOS.',
+    )
     name_uz = models.CharField(max_length=500, verbose_name='Название Продукта uz', unique=True)
     name_ru = models.CharField(max_length=500, verbose_name='Название Продукта ru', unique=True)
     description_uz = SanitizedHtmlField(verbose_name='Описание Товара uz', null=True, blank=True)
