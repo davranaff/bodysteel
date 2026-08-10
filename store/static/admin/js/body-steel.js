@@ -26,9 +26,23 @@
     });
   }
 
+  function addPasswordToggle() {
+    var toggle = document.querySelector('[data-password-toggle]');
+    var password = document.querySelector('#id_password');
+    if (!toggle || !password) return;
+    toggle.addEventListener('click', function () {
+      var isVisible = password.type === 'text';
+      password.type = isVisible ? 'password' : 'text';
+      toggle.setAttribute('aria-pressed', String(!isVisible));
+      toggle.textContent = isVisible ? toggle.dataset.showLabel : toggle.dataset.hideLabel;
+      password.focus();
+    });
+  }
+
   document.addEventListener('DOMContentLoaded', function () {
     enhanceTables();
     addKeyboardSearch();
     markExternalLinks();
+    addPasswordToggle();
   });
 }());

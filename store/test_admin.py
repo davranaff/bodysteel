@@ -38,3 +38,24 @@ class AdminPanelRenderTests(TestCase):
                 self.assertContains(response, 'body-steel.css')
                 self.assertContains(response, 'bs-brand')
                 self.assertContains(response, 'bs-topnav')
+
+    def test_login_uses_body_steel_workspace(self):
+        self.client.logout()
+        response = self.client.get('/admin/login/?next=/admin/')
+
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, 'body-steel-login.css')
+        self.assertContains(response, 'body-steel-logo.png')
+        self.assertContains(response, 'bs-login-shell')
+        self.assertContains(response, 'data-password-toggle')
+
+    def test_login_error_state_is_readable(self):
+        self.client.logout()
+        response = self.client.post(
+            '/admin/login/?next=/admin/',
+            {'username': 'wrong-user', 'password': 'wrong-password'},
+        )
+
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, 'bs-login-alert')
+        self.assertContains(response, 'Проверьте логин и пароль')

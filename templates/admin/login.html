@@ -1,0 +1,129 @@
+{% extends "admin/base_site.html" %}
+{% load i18n static %}
+
+{% block title %}{% if form.errors %}{% translate "Error:" %} {% endif %}{{ block.super }}{% endblock %}
+
+{% block extrastyle %}
+  {{ block.super }}
+  <link rel="stylesheet" href="{% static 'admin/css/login.css' %}">
+  <link rel="stylesheet" href="{% static 'admin/css/body-steel-login.css' %}">
+  {{ form.media }}
+{% endblock %}
+
+{% block bodyclass %}{{ block.super }} login{% endblock %}
+{% block usertools %}{% endblock %}
+{% block nav-global %}{% endblock %}
+{% block nav-sidebar %}{% endblock %}
+{% block nav-breadcrumbs %}{% endblock %}
+{% block content_title %}{% endblock %}
+{% block footer %}{% endblock %}
+
+{% block content %}
+  <div class="bs-login-shell" aria-labelledby="login-title">
+    <section class="bs-login-visual" aria-label="О BodySteel">
+      <div class="bs-login-visual__topline">
+        <span>BODY STEEL / ADMIN</span>
+        <span class="bs-login-visual__signal"><i></i> Система онлайн</span>
+      </div>
+
+      <div class="bs-login-visual__brand">
+        <div class="bs-login-logo-frame">
+          <img src="{% static 'admin/img/body-steel-logo.png' %}" alt="BODY STEEL">
+        </div>
+        <p>Питание для сильных результатов</p>
+      </div>
+
+      <div class="bs-login-visual__message">
+        <p class="bs-login-eyebrow">Операционный центр</p>
+        <h1>Двигайте бизнес<br><em>собранно.</em></h1>
+        <p>Каталог, заказы и команда — в одном спокойном пространстве.</p>
+      </div>
+
+      <ul class="bs-login-visual__list" aria-label="Возможности панели">
+        <li><span>01</span><strong>Каталог и остатки</strong><small>Управляйте ассортиментом без лишнего шума.</small></li>
+        <li><span>02</span><strong>Заказы и клиенты</strong><small>Держите каждый следующий шаг под контролем.</small></li>
+      </ul>
+
+      <div class="bs-login-visual__footer">
+        <span>BODY STEEL</span>
+        <span>УЗБЕКИСТАН · 2026</span>
+      </div>
+    </section>
+
+    <section class="bs-login-card" aria-labelledby="login-title">
+      <div class="bs-login-card__topline">
+        <span class="bs-login-card__section">Панель управления</span>
+        <span class="bs-login-card__index">ADMIN / 01</span>
+      </div>
+
+      <div class="bs-login-card__intro">
+        <p class="bs-login-eyebrow">Добро пожаловать</p>
+        <h2 id="login-title">Войдите в<br><span>командный центр</span></h2>
+        <p>Используйте рабочие данные BodySteel, чтобы продолжить.</p>
+      </div>
+
+      {% if form.errors and not form.non_field_errors %}
+        <div class="bs-login-alert" role="alert">Проверьте логин и пароль и попробуйте ещё раз.</div>
+      {% endif %}
+      {% if form.non_field_errors %}
+        <div class="bs-login-alert" role="alert">
+          Проверьте логин и пароль и попробуйте ещё раз.
+        </div>
+      {% endif %}
+
+      {% if user.is_authenticated %}
+        <div class="bs-login-alert" role="alert">
+          Вы вошли как {{ username }}, но у этой учётной записи нет доступа к панели.
+        </div>
+      {% endif %}
+
+      <form action="{{ app_path }}" method="post" id="login-form" class="bs-login-form">
+        {% csrf_token %}
+        <div class="bs-login-field{% if form.username.errors %} has-error{% endif %}">
+          <div class="bs-login-field__meta">
+            <label for="{{ form.username.id_for_label }}">{{ form.username.label }}</label>
+            <span>Обязательно</span>
+          </div>
+          {{ form.username.errors }}
+          <input type="text" name="{{ form.username.html_name }}" id="{{ form.username.id_for_label }}"
+                 value="{{ form.username.value|default_if_none:'' }}" autocomplete="username" autofocus required
+                 aria-invalid="{% if form.username.errors %}true{% else %}false{% endif %}">
+        </div>
+
+        <div class="bs-login-field{% if form.password.errors %} has-error{% endif %}">
+          <div class="bs-login-field__meta">
+            <label for="{{ form.password.id_for_label }}">{{ form.password.label }}</label>
+            <span>Защищённое поле</span>
+          </div>
+          {{ form.password.errors }}
+          <div class="bs-login-password">
+            <input type="password" name="{{ form.password.html_name }}" id="{{ form.password.id_for_label }}"
+                   autocomplete="current-password" required
+                   aria-invalid="{% if form.password.errors %}true{% else %}false{% endif %}">
+            <button type="button" class="bs-login-password__toggle" data-password-toggle
+                    data-show-label="Показать" data-hide-label="Скрыть" aria-pressed="false">Показать</button>
+          </div>
+          <input type="hidden" name="next" value="{{ next }}">
+        </div>
+
+        <div class="bs-login-form__meta">
+          {% url 'admin_password_reset' as password_reset_url %}
+          {% if password_reset_url %}
+            <a href="{{ password_reset_url }}">Забыли пароль?</a>
+          {% endif %}
+          <span><i></i> Данные защищены</span>
+        </div>
+
+        <button type="submit" class="bs-login-submit">
+          <span>{% translate 'Log in' %}</span>
+          <span class="bs-login-submit__arrow" aria-hidden="true">↗</span>
+        </button>
+      </form>
+
+      <div class="bs-login-card__support">
+        <span>Нужна помощь?</span>
+        <a href="https://bodysteel.uz/" target="_blank" rel="noopener noreferrer">Открыть BodySteel <span aria-hidden="true">↗</span></a>
+      </div>
+    </section>
+  </div>
+{% endblock %}
