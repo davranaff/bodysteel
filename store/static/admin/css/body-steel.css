@@ -155,3 +155,8 @@ html[data-theme="dark"] .bs-status--danger { background: #522427; color: #ffb5b6
 
 #footer { background: var(--bs-ink); color: #91a097; min-height: 0; padding: 0 34px; }
 .bs-footer { display: flex; font-size: 10px; justify-content: space-between; letter-spacing: .1em; padding: 18px 0; text-transform: uppercase; }
+
+/* Keep secondary labels visible without turning the interface harsh. */
+#nav-sidebar .module caption { color: var(--bs-ink-soft) !important; font-size: 11px; font-weight: 800; }
+label, .form-row label { color: var(--bs-ink-soft) !important; }
+fieldset h2, .aligned label, .required label { color: var(--bs-ink-soft); }

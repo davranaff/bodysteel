@@ -25,7 +25,9 @@ class AdminPanelRenderTests(TestCase):
         self.assertContains(response, 'bs-dashboard')
         self.assertContains(response, 'BODY STEEL')
         self.assertContains(response, 'body-steel-dashboard.css')
+        self.assertContains(response, 'body-steel-palette.css')
         self.assertContains(response, 'Быстрые действия')
+        self.assertContains(response, 'id="nav-sidebar"')
 
     def test_catalog_and_users_lists_render(self):
         for url in ('/admin/store/product/', '/admin/users/user/', '/admin/teleg/chat/'):
