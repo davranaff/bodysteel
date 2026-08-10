@@ -1,12 +1,14 @@
 # REGOS inventory synchronization
 
 REGOS is the source of truth for the `Product.quantity` shown by the BodySteel
-site. The integration has two compatible routes:
+site. The integration has three compatible routes:
 
-1. **Recommended — REGOS To Server.** REGOS pushes the complete selected stock
-   list to BodySteel at the period configured in REGOS. This has no polling
-   worker to operate and is the best option for keeping the site current.
-2. **Repair/reconciliation — direct REGOS API.** The `sync_regos_inventory`
+1. **Recommended for the current REGOS screen — local integration webhook.**
+   A REGOS sale or return event asks BodySteel to immediately read the current
+   authoritative balance through `Item/GetExt`.
+2. **Alternative — REGOS To Server.** REGOS pushes the complete selected stock
+   list to BodySteel at the period configured in REGOS.
+3. **Repair/reconciliation — direct REGOS API.** The `sync_regos_inventory`
    command reads `Item/GetExt`. Run it from cron every night, and on demand
    after the initial setup. It is also a useful diagnostic path.
 
@@ -35,6 +37,10 @@ REGOS_TO_SERVER_PASSWORD=<random-secret>
 REGOS_INTEGRATION_KEY=<connected-integration-id>
 # REGOS_API_ENDPOINT=https://integration.regos.uz/gateway/out/<key>/v1
 
+# Value delivered by REGOS as connected_integration_id after saving the local
+# integration. It is required to authenticate callbacks.
+REGOS_CONNECTED_INTEGRATION_ID=<connected-integration-id>
+
 # Optional: only sell inventory from these REGOS warehouse IDs.
 REGOS_STOCK_IDS=12,18
 REGOS_API_TIMEOUT_SECONDS=15
@@ -42,6 +48,25 @@ REGOS_API_TIMEOUT_SECONDS=15
 
 `REGOS_API_ENDPOINT` is useful when REGOS supplies a non-default endpoint; if
 it is set, it takes precedence over `REGOS_INTEGRATION_KEY`.
+
+## REGOS local integration setup
+
+This corresponds to the **Local integrations → Create** screen in
+`regos.online`.
+
+| REGOS field | Value |
+| --- | --- |
+| Name | `BodySteel — синхронизация остатков` |
+| URL handler | `https://api.bodysteel.uz/integration/v1/regos/webhook` |
+| Webhooks | `DocChequeClosed`, `DocOrderDeliveryPerformed`, `DocOrderDeliveryReturned`, `DocOrderDeliveryPerformCanceled` |
+
+After saving, copy the displayed full **Endpoint** into
+`REGOS_API_ENDPOINT`, and copy the integration ID REGOS delivers as
+`connected_integration_id` into `REGOS_CONNECTED_INTEGRATION_ID`. Do not
+publish that URL or ID. Each selected sale or return calls the
+handler, which re-reads `allowed` inventory and updates the site. Keep the
+direct reconciliation command scheduled nightly as a repair path in case REGOS
+retries are exhausted.
 
 ## REGOS To Server setup
 

@@ -3,7 +3,7 @@ from unittest.mock import Mock, patch
 
 from django.test import override_settings
 
-from integration.regos.sync import apply_records, record_from_regos, sync_from_regos
+from integration.regos.sync import SyncResult, apply_records, record_from_regos, sync_from_regos
 from integration.tests.fixtures import IntegrationAPITestCase
 from store.models import Product
 
@@ -15,6 +15,7 @@ REGOS_SETTINGS = {
     'REGOS_API_TIMEOUT_SECONDS': 15,
     'REGOS_TO_SERVER_USERNAME': 'regos-to-server-user',
     'REGOS_TO_SERVER_PASSWORD': 'regos-to-server-password',
+    'REGOS_CONNECTED_INTEGRATION_ID': 'connected-integration-id-example',
 }
 
 
@@ -162,6 +163,36 @@ class RegosInventoryTests(IntegrationAPITestCase):
 
     def test_to_server_receiver_rejects_missing_authentication(self):
         response = self.client.post('/integration/v1/regos/to-server', data='{}', content_type='application/json')
+        self.assertEqual(response.status_code, 401)
+
+    def test_local_webhook_refreshes_inventory_after_offline_event(self):
+        with patch('integration.regos.views.sync_from_regos', return_value=SyncResult(received=2, updated=1)) as sync:
+            response = self.client.post(
+                '/integration/v1/regos/webhook',
+                data={
+                    'action': 'HandleWebhook',
+                    'event_id': 'event-10',
+                    'connected_integration_id': 'connected-integration-id-example',
+                    'data': {'action': 'DocChequeClosed', 'data': {'uuid': 'cheque-10'}},
+                },
+                content_type='application/json',
+            )
+
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(response.json()['result']['updated'], 1)
+        sync.assert_called_once_with()
+
+    def test_local_webhook_rejects_unknown_integration(self):
+        response = self.client.post(
+            '/integration/v1/regos/webhook',
+            data={
+                'action': 'HandleWebhook',
+                'event_id': 'webhook-11',
+                'connected_integration_id': 'wrong-integration',
+                'data': {},
+            },
+            content_type='application/json',
+        )
         self.assertEqual(response.status_code, 401)
 
     def test_to_server_receiver_validates_json_boundary(self):

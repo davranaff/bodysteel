@@ -9,7 +9,8 @@ from django.utils.decorators import method_decorator
 from django.views import View
 from django.views.decorators.csrf import csrf_exempt
 
-from integration.regos.sync import apply_records, records_from_to_server
+from integration.regos.config import RegosSyncError
+from integration.regos.sync import apply_records, records_from_to_server, sync_from_regos
 
 
 MAX_BODY_BYTES = 1 * 1024 * 1024
@@ -62,6 +63,57 @@ class RegosToServerView(View):
         })
 
 
+@method_decorator(csrf_exempt, name='dispatch')
+class RegosWebhookView(View):
+    """Receiver for REGOS local-integration ``HandleWebhook`` callbacks.
+
+    REGOS webhook data describes the changed document, not the authoritative
+    available balance.  Therefore every accepted callback performs a fresh
+    Item/GetExt read and applies its ``allowed`` quantity.
+    """
+
+    http_method_names = ['post']
+
+    def post(self, request):
+        media_type = request.headers.get('Content-Type', '').split(';', 1)[0].strip().lower()
+        if media_type != 'application/json':
+            return _error(None, -32600, 'Content-Type must be application/json', status=415)
+        try:
+            body = request.body
+        except RequestDataTooBig:
+            return _error(None, -32600, 'Request body is too large', status=413)
+        if not body or len(body) > MAX_BODY_BYTES:
+            return _error(None, -32600, 'Request body is too large', status=413 if body else 400)
+        try:
+            payload = json.loads(body.decode('utf-8'), object_pairs_hook=_unique_object)
+        except (TypeError, UnicodeDecodeError, json.JSONDecodeError, ValueError):
+            return _error(None, -32700, 'Parse error')
+        if not isinstance(payload, dict):
+            return _error(None, -32600, 'Invalid Request')
+        connected_integration_id = payload.get('connected_integration_id')
+        if (
+            payload.get('action') != 'HandleWebhook'
+            or not isinstance(payload.get('event_id'), str)
+            or not isinstance(payload.get('data'), dict)
+            or not _is_connected_integration(connected_integration_id)
+        ):
+            return _error(None, -32600, 'Invalid Request', status=401)
+        try:
+            result = sync_from_regos()
+        except RegosSyncError:
+            # A non-2xx response lets REGOS retry a transient failed callback.
+            return JsonResponse({'ok': False, 'error': 'Inventory synchronization failed'}, status=503)
+        return JsonResponse({
+            'ok': True,
+            'result': {
+                'received': result.received,
+                'updated': result.updated,
+                'unmatched': result.unmatched,
+                'invalid': result.invalid,
+            },
+        })
+
+
 def _is_authorized(header):
     username = getattr(settings, 'REGOS_TO_SERVER_USERNAME', '')
     password = getattr(settings, 'REGOS_TO_SERVER_PASSWORD', '')
@@ -73,6 +125,16 @@ def _is_authorized(header):
         return False
     presented_username, separator, presented_password = decoded.partition(':')
     return bool(separator) and hmac.compare_digest(presented_username, username) and hmac.compare_digest(presented_password, password)
+
+
+def _is_connected_integration(value):
+    expected = getattr(settings, 'REGOS_CONNECTED_INTEGRATION_ID', '')
+    return (
+        bool(expected)
+        and isinstance(value, (str, int))
+        and len(str(value)) <= 1024
+        and hmac.compare_digest(str(value), str(expected))
+    )
 
 
 def _valid_request_id(value):

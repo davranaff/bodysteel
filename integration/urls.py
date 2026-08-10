@@ -2,7 +2,7 @@ from django.urls import path
 
 from integration.catalog.views import InventoryView, ProductView, ProductsView
 from integration.carts.views import CartRestoreView, CartsView
-from integration.regos.views import RegosToServerView
+from integration.regos.views import RegosToServerView, RegosWebhookView
 
 
 app_name = 'integration'
@@ -14,4 +14,5 @@ urlpatterns = [
     path('carts', CartsView.as_view(), name='carts'),
     path('cart-restores', CartRestoreView.as_view(), name='cart_restore'),
     path('regos/to-server', RegosToServerView.as_view(), name='regos_to_server'),
+    path('regos/webhook', RegosWebhookView.as_view(), name='regos_webhook'),
 ]
