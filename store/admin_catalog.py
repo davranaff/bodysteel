@@ -20,7 +20,9 @@ class ProductAdmin(admin.ModelAdmin):
     list_per_page = 25
     autocomplete_fields = ('brand', 'category', 'set_of_products')
     prepopulated_fields = {'slug': ('name_ru',)}
-    readonly_fields = ('view_count', 'updated_at', 'regos_item_id', 'regos_item_code', 'regos_item_articul')
+    # These fields are populated on the first automatic sync, but admins must
+    # be able to make a one-time explicit mapping when product names differ.
+    readonly_fields = ('view_count', 'updated_at')
     inlines = (ProductImageInline, Product360ImageInline)
     actions = ('mark_new',)
     fieldsets = (

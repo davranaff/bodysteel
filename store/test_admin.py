@@ -2,6 +2,8 @@ from django.contrib.auth import get_user_model
 from django.test import TestCase
 from django.urls import reverse
 
+from store.admin_catalog import ProductAdmin
+
 
 class AdminPanelRenderTests(TestCase):
     @classmethod
@@ -38,6 +40,13 @@ class AdminPanelRenderTests(TestCase):
                 self.assertContains(response, 'body-steel.css')
                 self.assertContains(response, 'bs-brand')
                 self.assertContains(response, 'bs-topnav')
+
+    def test_regos_mapping_fields_are_editable(self):
+        readonly_fields = ProductAdmin.readonly_fields
+
+        self.assertNotIn('regos_item_id', readonly_fields)
+        self.assertNotIn('regos_item_code', readonly_fields)
+        self.assertNotIn('regos_item_articul', readonly_fields)
 
     def test_login_uses_body_steel_workspace(self):
         self.client.logout()
