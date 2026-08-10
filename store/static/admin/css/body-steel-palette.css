@@ -89,11 +89,12 @@ body { background: var(--bs-canvas); color: var(--bs-ink); }
   background: var(--bs-surface);
   border-bottom: 1px solid var(--bs-line);
   color: var(--bs-ink);
-  min-height: 112px;
+  min-height: 152px;
   padding: 14px 32px 0;
 }
 #branding { padding-bottom: 14px; }
 .bs-brand, .bs-brand:hover { color: var(--bs-ink); }
+.bs-brand__logo { display: block; height: auto; max-width: 150px; width: 150px; }
 .bs-brand__mark { background: var(--bs-lime); color: var(--bs-lime-ink); }
 .bs-brand__copy strong { color: var(--bs-ink); }
 .bs-brand__copy small { color: var(--bs-muted); }

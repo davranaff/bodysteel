@@ -24,6 +24,7 @@ class AdminPanelRenderTests(TestCase):
         self.assertEqual(response.status_code, 200)
         self.assertContains(response, 'bs-dashboard')
         self.assertContains(response, 'BODY STEEL')
+        self.assertContains(response, 'body-steel-logo.png')
         self.assertContains(response, 'body-steel-dashboard.css')
         self.assertContains(response, 'body-steel-palette.css')
         self.assertContains(response, 'Быстрые действия')

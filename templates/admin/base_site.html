@@ -18,11 +18,7 @@
 
 {% block branding %}
   <a class="bs-brand" href="{% url 'admin:index' %}" aria-label="BodySteel — командный центр">
-    <span class="bs-brand__mark">BS</span>
-    <span class="bs-brand__copy">
-      <strong>{{ brand_name|default:"BODY STEEL" }}</strong>
-      <small>{{ brand_tagline|default:"Операционный центр" }}</small>
-    </span>
+    <img class="bs-brand__logo" src="{% static 'admin/img/body-steel-logo.png' %}" alt="{{ brand_name|default:'BODY STEEL' }}">
   </a>
 {% endblock %}
 

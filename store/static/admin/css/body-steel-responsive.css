@@ -9,8 +9,9 @@
 }
 
 @media (max-width: 900px) {
-  #header { align-items: flex-start; flex-direction: row !important; flex-wrap: wrap; gap: 12px; min-height: 92px; min-width: 0; overflow: hidden; }
+  #header { align-items: flex-start; flex-direction: row !important; flex-wrap: wrap; gap: 12px; min-height: 132px; min-width: 0; overflow: hidden; }
   #branding { min-width: 0; }
+  .bs-brand__logo { max-width: 150px; width: 150px; }
   #user-tools { flex: 0 1 200px; font-size: 0; max-width: 200px; min-width: 0; overflow: hidden; text-align: right; text-overflow: ellipsis; white-space: nowrap; }
   #user-tools > strong { font-size: 10px; }
   #user-tools > a { display: none; }
@@ -32,6 +33,7 @@
   #header { align-items: flex-start; flex-direction: row !important; flex-wrap: wrap; gap: 8px; min-width: 0; overflow: hidden; padding-left: 16px; padding-right: 16px; }
   #branding { padding-bottom: 10px; }
   .bs-brand { gap: 8px; min-width: 0; }
+  .bs-brand__logo { max-width: 130px; width: 130px; }
   .bs-brand__mark { flex: 0 0 34px; height: 34px; width: 34px; }
   .bs-brand__copy { min-width: 0; }
   .bs-brand__copy strong { font-size: 13px; letter-spacing: .1em; }
