@@ -179,6 +179,7 @@ SAVDOQ_INTEGRATION_CREDENTIALS = tuple(
     )
     if credential['token']
 )
+SAVDOQ_INTEGRATION_CHECK_ENABLED = not DEBUG
 SAVDOQ_STOREFRONT_ORIGIN = os.getenv('SAVDOQ_STOREFRONT_ORIGIN', 'https://bodysteel.uz')
 SAVDOQ_MEDIA_ORIGIN = os.getenv('SAVDOQ_MEDIA_ORIGIN', 'https://api.bodysteel.uz')
 SAVDOQ_CART_TTL_SECONDS = int(os.getenv('SAVDOQ_CART_TTL_SECONDS', '3600'))

@@ -119,6 +119,20 @@ DEBUG=1 ./venv/bin/python manage.py test integration.tests users.orders.test_ide
 ./venv/bin/python -m pip_audit -r requirements.txt
 ```
 
+В production `manage.py check` возвращает `integration.E002`, если не настроены два разных
+server-only SAVDOQ credentials: full (`products:read`, `inventory:read`, `carts:write`) и read-only
+(`products:read`, `inventory:read`). Это предотвращает deployment, который отвечает `503` на
+Integration API из-за отсутствующих токенов.
+
+Перед переключением traffic запускайте безопасный агрегированный release preflight:
+
+```bash
+./venv/bin/python manage.py check_integration_release
+```
+
+Команда завершается non-zero при ошибке system check или pending/недоступных миграциях и не печатает
+секреты, SQL, environment values или внутренние exception details.
+
 The focused suite covers auth/scopes, weighted RU/UZ, strict query/body validation, cursor/delta,
 ETag/304, inventory, idempotent carts, restore expiry, transactional checkout attribution, PII-free
 events, checkout replay/conflict, fixed-vector HMAC, retry classification, `Retry-After`, stale

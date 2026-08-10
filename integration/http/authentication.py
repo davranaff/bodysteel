@@ -62,6 +62,10 @@ def _bearer_token(value):
 
 
 def _valid_token(token):
+    return is_valid_integration_token(token)
+
+
+def is_valid_integration_token(token):
     return (
         isinstance(token, str)
         and 32 <= len(token) <= 4_096

@@ -39,3 +39,8 @@ DEBUG=1 ./venv/bin/python manage.py test
 
 Concurrency-sensitive checkout and auth tests must also run against PostgreSQL through
 `config.settings_test_postgres`.
+
+GitHub Actions повторяет SQLite test/migration gate и `pip-audit` на каждом push и pull request;
+production release дополнительно обязан пройти `check_integration_release` на целевой БД.
+Gunicorn не содержит release-specific paths или public IP: задайте `GUNICORN_COMMAND`,
+`GUNICORN_PYTHONPATH`, `GUNICORN_BIND` и bounded `GUNICORN_WORKERS` через systemd environment.

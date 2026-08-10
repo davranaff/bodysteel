@@ -1,0 +1,29 @@
+name: BodySteel backend CI
+
+on:
+  push:
+    branches: [main, master]
+  pull_request:
+
+permissions:
+  contents: read
+
+jobs:
+  verify:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.13'
+          cache: pip
+      - name: Install dependencies
+        run: python -m pip install -r requirements.txt -r requirements-dev.txt
+      - name: Check migrations
+        run: DEBUG=1 python manage.py makemigrations --check --dry-run
+      - name: Run Django tests
+        run: DEBUG=1 python manage.py test
+      - name: Test Gunicorn release configuration
+        run: python -m unittest conf.test_gunicorn_config
+      - name: Audit dependencies
+        run: python -m pip_audit -r requirements.txt
