@@ -6,6 +6,7 @@ import requests
 from django.conf import settings
 from django.db import transaction
 from django.db.models import Q
+from django.utils.text import slugify
 
 from integration.regos.config import RegosSyncError, clean, endpoint, normalise, timeout
 from store.models import Product
@@ -21,6 +22,7 @@ class InventoryRecord:
     articul: str
     name: str
     quantity: int
+    price: int | None = None
 
 
 @dataclass
@@ -30,6 +32,8 @@ class SyncResult:
     linked: int = 0
     unmatched: int = 0
     invalid: int = 0
+    created: int = 0
+    archived: int = 0
 
 
 def sync_from_regos():
@@ -72,6 +76,76 @@ def sync_from_regos():
     return apply_records(records, source='REGOS API')
 
 
+def sync_item_from_regos(item_id, *, create_draft=False):
+    """Refresh one REGOS item, creating only an explicitly announced draft."""
+    try:
+        item_id = int(item_id)
+    except (TypeError, ValueError):
+        return SyncResult(received=1, invalid=1)
+    if item_id < 1:
+        return SyncResult(received=1, invalid=1)
+    try:
+        response = requests.post(
+            '{}/item/getext'.format(endpoint()),
+            json={
+                'limit': 1,
+                'offset': 0,
+                'filters': [{'Field': 'id', 'Operator': 'In', 'Value': str(item_id)}],
+            },
+            headers={'Content-Type': 'application/json;charset=utf-8'},
+            timeout=timeout(),
+        )
+        response.raise_for_status()
+        body = response.json()
+    except (requests.RequestException, ValueError) as error:
+        raise RegosSyncError('REGOS item request failed') from error
+    page = body.get('result') if isinstance(body, dict) and body.get('ok') is True else None
+    if not isinstance(page, list):
+        raise RegosSyncError('REGOS returned an invalid item response')
+    records = [record_from_regos(value) for value in page]
+    records = [record for record in records if record and record.item_id == item_id]
+    if not records:
+        return SyncResult(received=1, unmatched=1)
+    return apply_records(
+        records,
+        source='REGOS item event',
+        create_drafts=create_draft,
+        update_catalog=True,
+    )
+
+
+def archive_regos_item(item_id):
+    """Hide a deleted REGOS item without deleting the audit trail or images."""
+    result = SyncResult(received=1)
+    try:
+        item_id = int(item_id)
+    except (TypeError, ValueError):
+        result.invalid = 1
+        return result
+    if item_id < 1:
+        result.invalid = 1
+        return result
+    with transaction.atomic():
+        product = Product.objects.select_for_update().filter(regos_item_id=item_id).first()
+        if product is None:
+            result.unmatched = 1
+            return result
+        changed = []
+        if product.regos_catalog_status != Product.REGOS_STATUS_ARCHIVED:
+            product.regos_catalog_status = Product.REGOS_STATUS_ARCHIVED
+            changed.append('regos_catalog_status')
+        if product.quantity:
+            product.quantity = 0
+            changed.append('quantity')
+        if changed:
+            changed.append('updated_at')
+            product.save(update_fields=tuple(changed))
+            result.updated = 1
+        result.archived = 1
+    logger.info('REGOS item archived: item_id=%s archived=%s', item_id, result.archived)
+    return result
+
+
 def record_from_regos(value):
     if not isinstance(value, dict):
         return None
@@ -83,6 +157,7 @@ def record_from_regos(value):
         articul=item.get('articul'),
         name=item.get('name'),
         quantity=quantity.get('allowed', quantity.get('common')),
+        price=_value(item, 'price', 'sale_price', 'salePrice') or _value(value, 'price', 'sale_price', 'salePrice'),
     )
 
 
@@ -92,7 +167,7 @@ def records_from_to_server(params):
     return [_record_from_to_server(value) for value in entries]
 
 
-def apply_records(records, source):
+def apply_records(records, source, *, create_drafts=False, update_catalog=False):
     result = SyncResult()
     for record in records:
         result.received += 1
@@ -102,8 +177,13 @@ def apply_records(records, source):
         with transaction.atomic():
             product = _find_product(record)
             if product is None:
-                result.unmatched += 1
-                continue
+                if create_drafts:
+                    product = _create_draft(record)
+                    if product is not None:
+                        result.created += 1
+                if product is None:
+                    result.unmatched += 1
+                    continue
             changed = []
             linked = False
             if record.item_id is not None and product.regos_item_id != record.item_id:
@@ -119,14 +199,36 @@ def apply_records(records, source):
             if product.quantity != record.quantity:
                 product.quantity = record.quantity
                 changed.extend(('quantity', 'updated_at'))
+            if update_catalog and product.regos_catalog_status in {
+                Product.REGOS_STATUS_DRAFT,
+                Product.REGOS_STATUS_PUBLISHED,
+            }:
+                if record.price is not None and product.price != record.price:
+                    product.price = record.price
+                    changed.append('price')
+                # Names for published cards are editorial content.  Drafts can
+                # safely follow REGOS until an administrator publishes them.
+                if product.regos_catalog_status == Product.REGOS_STATUS_DRAFT and record.name:
+                    has_name_collision = Product.objects.exclude(pk=product.pk).filter(
+                        Q(name_ru__iexact=record.name) | Q(name_uz__iexact=record.name)
+                    ).exists()
+                    if not has_name_collision:
+                        if product.name_ru != record.name:
+                            product.name_ru = record.name
+                            changed.append('name_ru')
+                        if product.name_uz != record.name:
+                            product.name_uz = record.name
+                            changed.append('name_uz')
             if changed:
+                if 'updated_at' not in changed:
+                    changed.append('updated_at')
                 product.save(update_fields=tuple(dict.fromkeys(changed)))
                 result.updated += 1
             if linked:
                 result.linked += 1
     logger.info(
-        '%s inventory sync finished: received=%s updated=%s linked=%s unmatched=%s invalid=%s',
-        source, result.received, result.updated, result.linked, result.unmatched, result.invalid,
+        '%s inventory sync finished: received=%s updated=%s created=%s linked=%s unmatched=%s invalid=%s',
+        source, result.received, result.updated, result.created, result.linked, result.unmatched, result.invalid,
     )
     return result
 
@@ -156,6 +258,40 @@ def _find_product(record):
     return candidates[0] if len(candidates) == 1 else None
 
 
+def _create_draft(record):
+    if record.item_id is None or not record.name:
+        return None
+    name = record.name[:500]
+    # Product names are unique in this project.  A name collision is handled
+    # by _find_product above; never overwrite a different local card here.
+    if Product.objects.filter(Q(name_ru__iexact=name) | Q(name_uz__iexact=name)).exists():
+        return None
+    return Product.objects.create(
+        regos_item_id=record.item_id,
+        regos_item_code=record.code,
+        regos_item_articul=record.articul,
+        regos_catalog_status=Product.REGOS_STATUS_DRAFT,
+        name_ru=name,
+        name_uz=name,
+        price=record.price or 0,
+        quantity=record.quantity,
+        slug=_draft_slug(record.item_id, name),
+        country_ru='REGOS',
+        country_uz='REGOS',
+    )
+
+
+def _draft_slug(item_id, name):
+    root = 'regos-{}-{}'.format(item_id, slugify(name) or 'item')[:255]
+    candidate = root[:255]
+    suffix = 2
+    while Product.objects.filter(slug=candidate).exists():
+        ending = '-{}'.format(suffix)
+        candidate = '{}{}'.format(root[:255 - len(ending)], ending)
+        suffix += 1
+    return candidate
+
+
 def _record_from_to_server(value):
     if not isinstance(value, dict):
         return None
@@ -166,10 +302,11 @@ def _record_from_to_server(value):
         articul=_value(value, 'articul', 'article', 'item_articul', 'itemArticul'),
         name=_value(value, 'name', 'item_name', 'itemName', 'fullname'),
         quantity=quantity,
+        price=_value(value, 'price', 'sale_price', 'salePrice'),
     )
 
 
-def _record(item_id, code, articul, name, quantity):
+def _record(item_id, code, articul, name, quantity, price=None):
     try:
         item_id = int(item_id) if item_id not in (None, '') else None
         if item_id is not None and item_id < 1:
@@ -185,7 +322,20 @@ def _record(item_id, code, articul, name, quantity):
         articul=clean(articul, 255),
         name=clean(name, 500),
         quantity=int(parsed_quantity),
+        price=_price(price),
     )
+
+
+def _price(value):
+    if value in (None, ''):
+        return None
+    try:
+        parsed = Decimal(str(value))
+        if parsed < 0 or parsed != parsed.to_integral_value():
+            return None
+        return int(parsed)
+    except (InvalidOperation, TypeError, ValueError):
+        return None
 
 
 def _find_entry_lists(value):

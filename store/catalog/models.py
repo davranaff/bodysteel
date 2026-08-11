@@ -42,6 +42,17 @@ class Category(BaseModel):
 
 
 class Product(BaseModel):
+    REGOS_STATUS_MANUAL = 'manual'
+    REGOS_STATUS_DRAFT = 'draft'
+    REGOS_STATUS_PUBLISHED = 'published'
+    REGOS_STATUS_ARCHIVED = 'archived'
+    REGOS_CATALOG_STATUS_CHOICES = (
+        (REGOS_STATUS_MANUAL, 'Обычная карточка'),
+        (REGOS_STATUS_DRAFT, 'Черновик из REGOS'),
+        (REGOS_STATUS_PUBLISHED, 'Опубликован из REGOS'),
+        (REGOS_STATUS_ARCHIVED, 'Архивирован из REGOS'),
+    )
+
     updated_at = models.DateTimeField(auto_now=True)
     regos_item_id = models.PositiveBigIntegerField(
         null=True,
@@ -63,6 +74,14 @@ class Product(BaseModel):
         db_index=True,
         verbose_name='Артикул REGOS',
         help_text='Заполняется автоматически при синхронизации с REGOS.',
+    )
+    regos_catalog_status = models.CharField(
+        max_length=16,
+        choices=REGOS_CATALOG_STATUS_CHOICES,
+        default=REGOS_STATUS_MANUAL,
+        db_index=True,
+        verbose_name='Статус карточки REGOS',
+        help_text='Черновики и архивированные позиции не показываются на витрине и недоступны для заказа.',
     )
     name_uz = models.CharField(max_length=500, verbose_name='Название Продукта uz', unique=True)
     name_ru = models.CharField(max_length=500, verbose_name='Название Продукта ru', unique=True)

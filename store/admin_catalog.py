@@ -24,7 +24,7 @@ class ProductAdmin(admin.ModelAdmin):
     # be able to make a one-time explicit mapping when product names differ.
     readonly_fields = ('view_count', 'updated_at')
     inlines = (ProductImageInline, Product360ImageInline)
-    actions = ('mark_new',)
+    actions = ('mark_new', 'publish_regos_drafts')
     fieldsets = (
         ('Основное', {
             'fields': (('name_ru', 'name_uz'), ('brand', 'category'), 'set_of_products', ('slug', 'is_new')),
@@ -39,7 +39,11 @@ class ProductAdmin(admin.ModelAdmin):
         }),
         ('Интеграции и аналитика', {
             'classes': ('collapse',),
-            'fields': (('regos_item_id', 'regos_item_code'), 'regos_item_articul', ('view_count', 'updated_at')),
+            'fields': (
+                ('regos_item_id', 'regos_item_code'),
+                ('regos_item_articul', 'regos_catalog_status'),
+                ('view_count', 'updated_at'),
+            ),
         }),
     )
 
@@ -70,14 +74,27 @@ class ProductAdmin(admin.ModelAdmin):
 
     @admin.display(description='REGOS')
     def regos_badge(self, obj):
-        label = 'Синхронизирован' if obj.regos_item_id else 'Не привязан'
-        tone = 'success' if obj.regos_item_id else 'muted'
+        if obj.regos_catalog_status == Product.REGOS_STATUS_DRAFT:
+            label, tone = 'Черновик REGOS', 'warning'
+        elif obj.regos_catalog_status == Product.REGOS_STATUS_ARCHIVED:
+            label, tone = 'Архив REGOS', 'danger'
+        elif obj.regos_item_id:
+            label, tone = 'Синхронизирован', 'success'
+        else:
+            label, tone = 'Не привязан', 'muted'
         return format_html('<span class="bs-status bs-status--{}">{}</span>', tone, label)
 
     @admin.action(description='Пометить как новинки')
     def mark_new(self, request, queryset):
         updated = queryset.update(is_new=True)
         self.message_user(request, 'Обновлено карточек: {}'.format(updated))
+
+    @admin.action(description='Опубликовать выбранные черновики REGOS')
+    def publish_regos_drafts(self, request, queryset):
+        updated = queryset.filter(regos_catalog_status=Product.REGOS_STATUS_DRAFT).update(
+            regos_catalog_status=Product.REGOS_STATUS_PUBLISHED,
+        )
+        self.message_user(request, 'Опубликовано черновиков REGOS: {}'.format(updated))
 
 
 @admin.register(ProductImage, site=bodysteel_admin_site)

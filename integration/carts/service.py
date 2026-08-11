@@ -96,7 +96,7 @@ def _assert_sellable(items):
 
 def _products_for_items(items, lock):
     product_ids = [int(item['productId']) for item in items]
-    queryset = Product.objects.filter(pk__in=product_ids)
+    queryset = Product.objects.visible_on_storefront().filter(pk__in=product_ids)
     if lock:
         queryset = queryset.select_for_update(of=('self',))
     else:

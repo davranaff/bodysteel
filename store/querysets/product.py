@@ -6,6 +6,10 @@ from store.querysets.base_queryset import BaseQuerySet
 
 class ProductQueryset(BaseQuerySet):
 
+    def visible_on_storefront(self):
+        """Products that may be shown and sold through the website."""
+        return self.filter(regos_catalog_status__in=('manual', 'published'))
+
     def with_rating(self):
         query = self
 

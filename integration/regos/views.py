@@ -10,7 +10,13 @@ from django.views import View
 from django.views.decorators.csrf import csrf_exempt
 
 from integration.regos.config import RegosSyncError
-from integration.regos.sync import apply_records, records_from_to_server, sync_from_regos
+from integration.regos.sync import (
+    apply_records,
+    archive_regos_item,
+    records_from_to_server,
+    sync_from_regos,
+    sync_item_from_regos,
+)
 
 
 MAX_BODY_BYTES = 1 * 1024 * 1024
@@ -99,7 +105,17 @@ class RegosWebhookView(View):
         ):
             return _error(None, -32600, 'Invalid Request', status=401)
         try:
-            result = sync_from_regos()
+            event = payload['data'].get('action')
+            event_data = payload['data'].get('data')
+            item_id = event_data.get('id') if isinstance(event_data, dict) else None
+            if event == 'ItemAdded' and item_id is not None:
+                result = sync_item_from_regos(item_id, create_draft=True)
+            elif event == 'ItemEdited' and item_id is not None:
+                result = sync_item_from_regos(item_id)
+            elif event in {'ItemDeleted', 'ItemDeleteMarked'} and item_id is not None:
+                result = archive_regos_item(item_id)
+            else:
+                result = sync_from_regos()
         except RegosSyncError:
             # A non-2xx response lets REGOS retry a transient failed callback.
             return JsonResponse({'ok': False, 'error': 'Inventory synchronization failed'}, status=503)
@@ -108,6 +124,8 @@ class RegosWebhookView(View):
             'result': {
                 'received': result.received,
                 'updated': result.updated,
+                'created': result.created,
+                'archived': result.archived,
                 'unmatched': result.unmatched,
                 'invalid': result.invalid,
             },

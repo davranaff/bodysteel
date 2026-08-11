@@ -73,7 +73,7 @@ def _aggregate_quantities(items):
 def _lock_products(quantities):
     products = {
         product.pk: product
-        for product in Product.objects.select_for_update().filter(pk__in=quantities).order_by('pk')
+        for product in Product.objects.visible_on_storefront().select_for_update().filter(pk__in=quantities).order_by('pk')
     }
     if len(products) != len(quantities):
         raise OrderUnavailable('One or more products are unavailable')

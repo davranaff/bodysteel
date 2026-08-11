@@ -68,7 +68,7 @@ def serialize_product(product, language):
 
 
 def _product_queryset():
-    return Product.objects.select_related('brand').prefetch_related(
+    return Product.objects.visible_on_storefront().select_related('brand').prefetch_related(
         Prefetch('category', queryset=Category.objects.order_by('pk')),
         Prefetch('product_images', queryset=ProductImage.objects.order_by('pk')),
     )

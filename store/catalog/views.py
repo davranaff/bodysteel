@@ -20,7 +20,7 @@ class ProductViewSet(viewsets.ViewSet):
         fetch_all = request.query_params.get('all')
 
         products = (
-            Product.objects.with_flags(
+            Product.objects.visible_on_storefront().with_flags(
                 is_leader,
                 is_sale,
                 is_new,
@@ -42,13 +42,13 @@ class ProductViewSet(viewsets.ViewSet):
 
     def retrieve(self, request, slug):
         product = get_object_or_404(
-            Product.objects.with_favorite(request.auth).with_rating(),
+            Product.objects.visible_on_storefront().with_favorite(request.auth).with_rating(),
             slug=slug,
         )
         product.view_count += 1
         product.save()
 
-        related_products = Product.objects.filter(
+        related_products = Product.objects.visible_on_storefront().filter(
             category__in=product.category.all(),
         ).order_by_stock()[:4]
         return Response(
@@ -70,7 +70,7 @@ class CategoryViewSet(viewsets.ViewSet):
     def retrieve(self, request, slug):
         category = get_object_or_404(Category, slug=slug)
         products = (
-            Product.objects.with_favorite(request.auth)
+            Product.objects.visible_on_storefront().with_favorite(request.auth)
             .with_rating()
             .filter(category=category)
             .order_by_stock()

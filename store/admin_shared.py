@@ -35,6 +35,8 @@ class ProductStateFilter(admin.SimpleListFilter):
             ('new', 'Новинки'),
             ('regos', 'Связаны с REGOS'),
             ('unlinked', 'Без связи с REGOS'),
+            ('regos_drafts', 'Черновики REGOS'),
+            ('regos_archived', 'Архив REGOS'),
         )
 
     def queryset(self, request, queryset):
@@ -46,6 +48,10 @@ class ProductStateFilter(admin.SimpleListFilter):
             return queryset.filter(regos_item_id__isnull=False)
         if self.value() == 'unlinked':
             return queryset.filter(regos_item_id__isnull=True)
+        if self.value() == 'regos_drafts':
+            return queryset.filter(regos_catalog_status='draft')
+        if self.value() == 'regos_archived':
+            return queryset.filter(regos_catalog_status='archived')
         return queryset
 
 

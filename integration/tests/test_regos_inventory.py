@@ -3,7 +3,13 @@ from unittest.mock import Mock, patch
 
 from django.test import override_settings
 
-from integration.regos.sync import SyncResult, apply_records, record_from_regos, sync_from_regos
+from integration.regos.sync import (
+    SyncResult,
+    apply_records,
+    archive_regos_item,
+    record_from_regos,
+    sync_from_regos,
+)
 from integration.tests.fixtures import IntegrationAPITestCase
 from store.models import Product
 
@@ -66,6 +72,32 @@ class RegosInventoryTests(IntegrationAPITestCase):
         self.assertEqual(result.unmatched, 1)
         self.assertEqual(result.invalid, 1)
         self.assertEqual(Product.objects.get(pk=self.products[1].pk).quantity, 2)
+
+    def test_item_added_creates_hidden_regos_draft_only_when_requested(self):
+        record = record_from_regos({
+            'item': {'id': 9010, 'code': '010230', 'articul': 'ARG-1', 'name': 'REGOS arginine', 'price': 350000},
+            'quantity': {'allowed': 2},
+        })
+
+        result = apply_records([record], source='item-added', create_drafts=True, update_catalog=True)
+
+        product = Product.objects.get(regos_item_id=9010)
+        self.assertEqual(result.created, 1)
+        self.assertEqual(product.regos_catalog_status, Product.REGOS_STATUS_DRAFT)
+        self.assertEqual(product.price, 350000)
+        self.assertEqual(product.quantity, 2)
+        self.assertFalse(Product.objects.visible_on_storefront().filter(pk=product.pk).exists())
+
+    def test_deleted_regos_item_is_archived_not_physically_deleted(self):
+        Product.objects.filter(pk=self.products[0].pk).update(regos_item_id=9001, quantity=8)
+
+        result = archive_regos_item(9001)
+
+        product = Product.objects.get(pk=self.products[0].pk)
+        self.assertEqual(result.archived, 1)
+        self.assertEqual(product.regos_catalog_status, Product.REGOS_STATUS_ARCHIVED)
+        self.assertEqual(product.quantity, 0)
+        self.assertFalse(Product.objects.visible_on_storefront().filter(pk=product.pk).exists())
 
     def test_to_server_receiver_updates_matching_item_with_basic_auth(self):
         credentials = base64.b64encode(b'regos-to-server-user:regos-to-server-password').decode('ascii')
@@ -181,6 +213,46 @@ class RegosInventoryTests(IntegrationAPITestCase):
         self.assertEqual(response.status_code, 200)
         self.assertEqual(response.json()['result']['updated'], 1)
         sync.assert_called_once_with()
+
+    def test_item_added_webhook_uses_targeted_draft_sync(self):
+        with patch(
+            'integration.regos.views.sync_item_from_regos',
+            return_value=SyncResult(received=1, created=1),
+        ) as sync:
+            response = self.client.post(
+                '/integration/v1/regos/webhook',
+                data={
+                    'action': 'HandleWebhook',
+                    'event_id': 'item-added-12',
+                    'connected_integration_id': 'connected-integration-id-example',
+                    'data': {'action': 'ItemAdded', 'data': {'id': 9010}},
+                },
+                content_type='application/json',
+            )
+
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(response.json()['result']['created'], 1)
+        sync.assert_called_once_with(9010, create_draft=True)
+
+    def test_item_deleted_webhook_archives_linked_product(self):
+        with patch(
+            'integration.regos.views.archive_regos_item',
+            return_value=SyncResult(received=1, archived=1),
+        ) as archive:
+            response = self.client.post(
+                '/integration/v1/regos/webhook',
+                data={
+                    'action': 'HandleWebhook',
+                    'event_id': 'item-deleted-13',
+                    'connected_integration_id': 'connected-integration-id-example',
+                    'data': {'action': 'ItemDeleted', 'data': {'id': 9010}},
+                },
+                content_type='application/json',
+            )
+
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(response.json()['result']['archived'], 1)
+        archive.assert_called_once_with(9010)
 
     def test_local_webhook_rejects_unknown_integration(self):
         response = self.client.post(

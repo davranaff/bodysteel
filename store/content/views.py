@@ -27,20 +27,20 @@ class HomePageAPIView(APIView):
                 many=True,
             ).data,
             'leader_products': ProductSerializer(
-                Product.objects.with_rating()
+                Product.objects.visible_on_storefront().with_rating()
                 .with_favorite(request.auth)
                 .order_by_stock('-view_count')[:5],
                 many=True,
             ).data,
             'sale_products': ProductSerializer(
-                Product.objects.with_rating()
+                Product.objects.visible_on_storefront().with_rating()
                 .with_favorite(request.auth)
                 .filter(discounted_price__gt=0)
                 .order_by_stock()[:10],
                 many=True,
             ).data,
             'latest_products': ProductSerializer(
-                Product.objects.with_rating().with_favorite(request.auth).order_by_stock()[:10],
+                Product.objects.visible_on_storefront().with_rating().with_favorite(request.auth).order_by_stock()[:10],
                 many=True,
             ).data,
             'brands': BrandSerializer(Brand.objects.all()[:6], many=True).data,
@@ -106,7 +106,7 @@ class SetOfProductViewSet(viewsets.ViewSet):
 
     def retrieve(self, request, slug):
         products = (
-            Product.objects.with_rating()
+            Product.objects.visible_on_storefront().with_rating()
             .with_favorite(request.auth)
             .filter(set_of_products__slug=slug)
             .order_by_stock()
