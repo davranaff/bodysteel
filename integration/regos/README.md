@@ -4,8 +4,8 @@ REGOS is the source of truth for the `Product.quantity` shown by the BodySteel
 site. The integration has three compatible routes:
 
 1. **Recommended for the current REGOS screen — local integration webhook.**
-   A REGOS sale or return event asks BodySteel to immediately read the current
-   authoritative balance through `Item/GetExt`.
+   BodySteel acknowledges each callback immediately, saves it in a durable
+   queue, then reads the authoritative balance through `Item/GetExt`.
 2. **Alternative — REGOS To Server.** REGOS pushes the complete selected stock
    list to BodySteel at the period configured in REGOS.
 3. **Repair/reconciliation — direct REGOS API.** The `sync_regos_inventory`
@@ -58,15 +58,28 @@ This corresponds to the **Local integrations → Create** screen in
 | --- | --- |
 | Name | `BodySteel — синхронизация остатков` |
 | URL handler | `https://api.bodysteel.uz/integration/v1/regos/webhook` |
-| Webhooks | `DocChequeClosed`, `DocOrderDeliveryPerformed`, `DocOrderDeliveryReturned`, `DocOrderDeliveryPerformCanceled` |
+| Webhooks | `DocChequeClosed`, `DocOrderDeliveryPerformed`, `DocOrderDeliveryReturned`, `DocOrderDeliveryPerformCanceled`, `ItemAdded`, `ItemEdited`, `ItemDeleted`, `ItemDeleteMarked` |
 
 After saving, copy the displayed full **Endpoint** into
 `REGOS_API_ENDPOINT`, and copy the integration ID REGOS delivers as
 `connected_integration_id` into `REGOS_CONNECTED_INTEGRATION_ID`. Do not
-publish that URL or ID. Each selected sale or return calls the
-handler, which re-reads `allowed` inventory and updates the site. Keep the
-direct reconciliation command scheduled nightly as a repair path in case REGOS
-retries are exhausted.
+publish that URL or ID. The production `bodysteel-regos-sync.timer` processes
+the queue every minute and retries an unavailable REGOS API with exponential
+backoff. Keep the direct reconciliation command scheduled nightly as a repair
+path.
+
+### Product lifecycle events
+
+| REGOS event | BodySteel result |
+| --- | --- |
+| `ItemAdded` | creates a **hidden REGOS draft**; it cannot be sold before review |
+| `ItemEdited` | refreshes stock, code/article and price; a published card keeps its editorial name |
+| `ItemDeleted`, `ItemDeleteMarked` | archives the linked site card and sets its available quantity to `0` without deleting its history or images |
+
+In Django Admin open **Products**, filter **"Черновики REGOS"**, fill in the
+photo/category/content, select the required cards, then use **"Опубликовать
+выбранные черновики REGOS"**. Published REGOS cards are shown on the website;
+draft and archived cards are excluded from catalog APIs, carts and orders.
 
 ## REGOS To Server setup
 
