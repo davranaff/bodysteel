@@ -3,6 +3,9 @@ from unittest.mock import Mock, patch
 
 from django.test import override_settings
 
+from integration.models import RegosWebhookEvent
+from integration.regos.config import RegosSyncError
+from integration.regos.queue import process_pending_events
 from integration.regos.sync import (
     SyncResult,
     apply_records,
@@ -198,61 +201,79 @@ class RegosInventoryTests(IntegrationAPITestCase):
         self.assertEqual(response.status_code, 401)
 
     def test_local_webhook_refreshes_inventory_after_offline_event(self):
-        with patch('integration.regos.views.sync_from_regos', return_value=SyncResult(received=2, updated=1)) as sync:
-            response = self.client.post(
-                '/integration/v1/regos/webhook',
-                data={
-                    'action': 'HandleWebhook',
-                    'event_id': 'event-10',
-                    'connected_integration_id': 'connected-integration-id-example',
-                    'data': {'action': 'DocChequeClosed', 'data': {'uuid': 'cheque-10'}},
-                },
-                content_type='application/json',
-            )
+        response = self.client.post(
+            '/integration/v1/regos/webhook',
+            data={
+                'action': 'HandleWebhook',
+                'event_id': 'event-10',
+                'connected_integration_id': 'connected-integration-id-example',
+                'data': {'action': 'DocChequeClosed', 'data': {'uuid': 'cheque-10'}},
+            },
+            content_type='application/json',
+        )
 
         self.assertEqual(response.status_code, 200)
-        self.assertEqual(response.json()['result']['updated'], 1)
-        sync.assert_called_once_with()
+        self.assertTrue(response.json()['result']['accepted'])
+        event = RegosWebhookEvent.objects.get(event_id='event-10')
+        self.assertEqual(event.status, RegosWebhookEvent.STATUS_PENDING)
+        self.assertEqual(event.event_type, 'DocChequeClosed')
 
     def test_item_added_webhook_uses_targeted_draft_sync(self):
-        with patch(
-            'integration.regos.views.sync_item_from_regos',
-            return_value=SyncResult(received=1, created=1),
-        ) as sync:
-            response = self.client.post(
-                '/integration/v1/regos/webhook',
-                data={
-                    'action': 'HandleWebhook',
-                    'event_id': 'item-added-12',
-                    'connected_integration_id': 'connected-integration-id-example',
-                    'data': {'action': 'ItemAdded', 'data': {'id': 9010}},
-                },
-                content_type='application/json',
-            )
+        response = self.client.post(
+            '/integration/v1/regos/webhook',
+            data={
+                'action': 'HandleWebhook',
+                'event_id': 'item-added-12',
+                'connected_integration_id': 'connected-integration-id-example',
+                'data': {'action': 'ItemAdded', 'data': {'id': 9010}},
+            },
+            content_type='application/json',
+        )
 
         self.assertEqual(response.status_code, 200)
-        self.assertEqual(response.json()['result']['created'], 1)
+        with patch('integration.regos.queue.sync_item_from_regos') as sync:
+            processed, retried = process_pending_events()
+        self.assertEqual((processed, retried), (1, 0))
         sync.assert_called_once_with(9010, create_draft=True)
+        self.assertEqual(
+            RegosWebhookEvent.objects.get(event_id='item-added-12').status,
+            RegosWebhookEvent.STATUS_DONE,
+        )
 
     def test_item_deleted_webhook_archives_linked_product(self):
-        with patch(
-            'integration.regos.views.archive_regos_item',
-            return_value=SyncResult(received=1, archived=1),
-        ) as archive:
-            response = self.client.post(
-                '/integration/v1/regos/webhook',
-                data={
-                    'action': 'HandleWebhook',
-                    'event_id': 'item-deleted-13',
-                    'connected_integration_id': 'connected-integration-id-example',
-                    'data': {'action': 'ItemDeleted', 'data': {'id': 9010}},
-                },
-                content_type='application/json',
-            )
+        response = self.client.post(
+            '/integration/v1/regos/webhook',
+            data={
+                'action': 'HandleWebhook',
+                'event_id': 'item-deleted-13',
+                'connected_integration_id': 'connected-integration-id-example',
+                'data': {'action': 'ItemDeleted', 'data': {'id': 9010}},
+            },
+            content_type='application/json',
+        )
 
         self.assertEqual(response.status_code, 200)
-        self.assertEqual(response.json()['result']['archived'], 1)
+        with patch('integration.regos.queue.archive_regos_item') as archive:
+            processed, retried = process_pending_events()
+        self.assertEqual((processed, retried), (1, 0))
         archive.assert_called_once_with(9010)
+
+    def test_regos_queue_retries_a_temporary_api_failure(self):
+        RegosWebhookEvent.objects.create(
+            event_id='retry-14',
+            event_type='ItemEdited',
+            item_id=9010,
+            payload={},
+        )
+        with patch(
+            'integration.regos.queue.sync_item_from_regos',
+            side_effect=RegosSyncError('REGOS item request failed'),
+        ):
+            processed, retried = process_pending_events()
+        event = RegosWebhookEvent.objects.get(event_id='retry-14')
+        self.assertEqual((processed, retried), (0, 1))
+        self.assertEqual(event.status, RegosWebhookEvent.STATUS_RETRY)
+        self.assertEqual(event.attempt_count, 1)
 
     def test_local_webhook_rejects_unknown_integration(self):
         response = self.client.post(

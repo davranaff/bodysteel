@@ -85,3 +85,38 @@ class IntegrationWebhookEvent(models.Model):
 
     def __str__(self):
         return self.event_id
+
+
+class RegosWebhookEvent(models.Model):
+    """Durable inbound queue for callbacks sent by a REGOS local integration."""
+
+    STATUS_PENDING = 'pending'
+    STATUS_PROCESSING = 'processing'
+    STATUS_RETRY = 'retry'
+    STATUS_DONE = 'done'
+    STATUS_CHOICES = (
+        (STATUS_PENDING, 'Pending'),
+        (STATUS_PROCESSING, 'Processing'),
+        (STATUS_RETRY, 'Retry'),
+        (STATUS_DONE, 'Done'),
+    )
+
+    event_id = models.CharField(max_length=128, unique=True, editable=False)
+    event_type = models.CharField(max_length=64, editable=False)
+    item_id = models.PositiveBigIntegerField(null=True, blank=True, editable=False)
+    payload = models.JSONField(editable=False)
+    status = models.CharField(max_length=16, choices=STATUS_CHOICES, default=STATUS_PENDING, db_index=True)
+    attempt_count = models.PositiveSmallIntegerField(default=0)
+    next_attempt_at = models.DateTimeField(default=timezone.now, db_index=True)
+    last_error = models.CharField(max_length=255, blank=True, default='')
+    processed_at = models.DateTimeField(null=True, blank=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        ordering = ('next_attempt_at', 'created_at')
+        indexes = [
+            models.Index(fields=('status', 'next_attempt_at'), name='regos_webhook_due_idx'),
+        ]
+
+    def __str__(self):
+        return self.event_id

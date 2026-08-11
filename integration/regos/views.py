@@ -9,14 +9,8 @@ from django.utils.decorators import method_decorator
 from django.views import View
 from django.views.decorators.csrf import csrf_exempt
 
-from integration.regos.config import RegosSyncError
-from integration.regos.sync import (
-    apply_records,
-    archive_regos_item,
-    records_from_to_server,
-    sync_from_regos,
-    sync_item_from_regos,
-)
+from integration.regos.queue import enqueue_webhook
+from integration.regos.sync import apply_records, records_from_to_server
 
 
 MAX_BODY_BYTES = 1 * 1024 * 1024
@@ -73,9 +67,9 @@ class RegosToServerView(View):
 class RegosWebhookView(View):
     """Receiver for REGOS local-integration ``HandleWebhook`` callbacks.
 
-    REGOS webhook data describes the changed document, not the authoritative
-    available balance.  Therefore every accepted callback performs a fresh
-    Item/GetExt read and applies its ``allowed`` quantity.
+    REGOS only gives the receiver a few seconds to acknowledge.  The request
+    is therefore stored in a durable queue; the worker later reads the
+    authoritative ``allowed`` balance from Item/GetExt.
     """
 
     http_method_names = ['post']
@@ -104,30 +98,28 @@ class RegosWebhookView(View):
             or not _is_connected_integration(connected_integration_id)
         ):
             return _error(None, -32600, 'Invalid Request', status=401)
+        event = payload['data'].get('action', '')
+        event_data = payload['data'].get('data')
+        item_id = event_data.get('id') if isinstance(event_data, dict) else None
+        if not isinstance(event, str) or len(event) > 64:
+            return _error(None, -32600, 'Invalid Request')
         try:
-            event = payload['data'].get('action')
-            event_data = payload['data'].get('data')
-            item_id = event_data.get('id') if isinstance(event_data, dict) else None
-            if event == 'ItemAdded' and item_id is not None:
-                result = sync_item_from_regos(item_id, create_draft=True)
-            elif event == 'ItemEdited' and item_id is not None:
-                result = sync_item_from_regos(item_id)
-            elif event in {'ItemDeleted', 'ItemDeleteMarked'} and item_id is not None:
-                result = archive_regos_item(item_id)
-            else:
-                result = sync_from_regos()
-        except RegosSyncError:
-            # A non-2xx response lets REGOS retry a transient failed callback.
-            return JsonResponse({'ok': False, 'error': 'Inventory synchronization failed'}, status=503)
+            item_id = int(item_id) if item_id not in (None, '') else None
+        except (TypeError, ValueError):
+            return _error(None, -32600, 'Invalid Request')
+        if item_id is not None and item_id < 1:
+            return _error(None, -32600, 'Invalid Request')
+        _, created = enqueue_webhook(
+            event_id=payload['event_id'],
+            event_type=event,
+            item_id=item_id,
+            payload=payload['data'],
+        )
         return JsonResponse({
             'ok': True,
             'result': {
-                'received': result.received,
-                'updated': result.updated,
-                'created': result.created,
-                'archived': result.archived,
-                'unmatched': result.unmatched,
-                'invalid': result.invalid,
+                'accepted': True,
+                'duplicate': not created,
             },
         })
 
