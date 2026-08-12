@@ -318,12 +318,20 @@ def _record(item_id, code, articul, name, quantity, price=None):
         return None
     return InventoryRecord(
         item_id=item_id,
-        code=clean(code, 100),
+        code=_code(code),
         articul=clean(articul, 255),
         name=clean(name, 500),
         quantity=int(parsed_quantity),
         price=_price(price),
     )
+
+
+def _code(value):
+    """Keep REGOS numeric nomenclature codes in their six-character form."""
+    code = clean(value, 100)
+    if code.isascii() and code.isdecimal() and len(code) < 6:
+        return code.zfill(6)
+    return code
 
 
 def _price(value):

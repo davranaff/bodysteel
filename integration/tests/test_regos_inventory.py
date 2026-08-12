@@ -54,7 +54,7 @@ class RegosInventoryTests(IntegrationAPITestCase):
         self.assertEqual(result.linked, 1)
         self.assertEqual(product.quantity, 9)
         self.assertEqual(product.regos_item_id, 9001)
-        self.assertEqual(product.regos_item_code, '101')
+        self.assertEqual(product.regos_item_code, '000101')
         self.assertEqual(product.regos_item_articul, 'CRE-1')
         url = session.post.call_args.args[0]
         self.assertEqual(url, 'https://integration.regos.uz/gateway/out/regos-integration-key-example/v1/item/getext')
@@ -127,7 +127,7 @@ class RegosInventoryTests(IntegrationAPITestCase):
         self.assertEqual(response.json()['result']['updated'], 1)
         product = Product.objects.get(pk=self.products[0].pk)
         self.assertEqual(product.quantity, 7)
-        self.assertEqual(product.regos_item_code, '101')
+        self.assertEqual(product.regos_item_code, '000101')
         self.assertEqual(product.regos_item_articul, 'CRE-1')
 
     def test_offline_regos_sale_decreases_site_stock(self):
