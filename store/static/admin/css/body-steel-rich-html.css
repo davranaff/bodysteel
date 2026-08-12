@@ -1,0 +1,42 @@
+/* Safe HTML source fields used by content editors in the admin. */
+.bs-rich-html-source {
+  background: #fbfcfa !important;
+  border: 1px solid #d9ded9 !important;
+  border-radius: 10px !important;
+  box-sizing: border-box;
+  color: #343735 !important;
+  font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", monospace !important;
+  font-size: 13px !important;
+  line-height: 1.6 !important;
+  min-height: 280px;
+  padding: 14px 16px !important;
+  resize: vertical;
+  tab-size: 2;
+  width: 100% !important;
+}
+
+.bs-rich-html-source:hover {
+  background: #fff !important;
+  border-color: #bfc9c1 !important;
+}
+
+.bs-rich-html-source:focus {
+  background: #fff !important;
+  border-color: #b52020 !important;
+  box-shadow: 0 0 0 3px rgba(181, 32, 32, .11) !important;
+  outline: 0;
+}
+
+.form-row .help,
+.form-row p.help {
+  color: #657068;
+  font-size: 11px;
+  line-height: 1.5;
+  max-width: 760px;
+}
+
+@media (max-width: 767px) {
+  .bs-rich-html-source {
+    min-height: 220px;
+  }
+}

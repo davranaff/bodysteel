@@ -58,9 +58,10 @@ BODYSTEEL_PUBLIC_ORIGIN=https://bodysteel.uz
 - `discounted_price` is interpreted as discount amount, so `salePrice = price - discounted_price`.
 - `updated_at` plus related category/brand/image signals drives strict delta sync.
 - Catalog descriptions and composition are exported as plain text, not raw HTML.
-- Store-authored HTML is sanitized at persistence and again at serializer output with a versioned
-  allowlist before any storefront `dangerouslySetInnerHTML` sink can receive it. Admin editing uses
-  Django's built-in `Textarea` and no executable third-party editor bundle.
+- Store-authored HTML is sanitized at persistence and again at serializer output with the versioned
+  v2 allowlist before any storefront `dangerouslySetInnerHTML` sink can receive it. Admin editing
+  uses a readable HTML source widget: formatting tags, classes, safe inline styles and local media
+  URLs are preserved, while scripts, event handlers, iframe/embed content and unsafe URLs are removed.
 - Inventory is read live; cart creation locks product rows and rechecks requested quantity.
 
 Hard product deletions are emitted through the signed `product.deleted` outbox event. Keep SAVDOQ

@@ -11,8 +11,10 @@ from django.test import SimpleTestCase, TestCase
 
 from store.admin import ProductsAdmin
 from store.content.html import sanitize_html
+from store.content.policies.v2 import sanitize_html_v2
 from store.models import Product
 from store.serializers.products import ProductSerializer
+from store.widgets import RichHtmlWidget
 
 
 MALICIOUS_HTML = (
@@ -44,8 +46,22 @@ class HtmlSanitizerTests(SimpleTestCase):
             '<a href="/internal">relative</a><img src="//tracker.test/pixel">'
         )
 
-        self.assertNotIn('href=', sanitized)
+        self.assertIn('href="/internal"', sanitized)
         self.assertNotIn('src=', sanitized)
+
+    def test_rich_policy_preserves_editor_formatting_and_local_media(self):
+        sanitized = sanitize_html_v2(
+            '<p class="lead" style="text-align:center;color:#b52020">'
+            '<strong>Текст</strong></p><img src="/files/blog/cover.jpg" width="640">'
+            '<script>alert(1)</script><a href="//evil.test">bad</a>'
+        )
+
+        self.assertIn('class="lead"', sanitized)
+        self.assertIn('style="text-align:center;color:#b52020"', sanitized)
+        self.assertIn('src="/files/blog/cover.jpg"', sanitized)
+        self.assertIn('width="640"', sanitized)
+        self.assertNotIn('<script', sanitized)
+        self.assertNotIn('//evil.test', sanitized)
 
 
 class SanitizedHtmlFieldTests(TestCase):
@@ -103,12 +119,15 @@ class SanitizedHtmlFieldTests(TestCase):
 
         self.assertEqual(serialized['description_ru'], sanitize_html(MALICIOUS_HTML))
 
-    def test_admin_uses_builtin_textarea_without_ckeditor_media(self):
+    def test_admin_uses_safe_rich_html_source_widget_without_editor_script(self):
         form = ProductsAdmin(Product, AdminSite()).get_form(request=None)
         widget = form.base_fields['description_ru'].widget
 
         self.assertIsInstance(widget, Textarea)
-        self.assertNotIn('ckeditor', ' '.join(widget.media._js).lower())
+        self.assertIsInstance(widget, RichHtmlWidget)
+        self.assertIn('bs-rich-html-source', widget.attrs['class'])
+        self.assertIn('body-steel-rich-html.css', ' '.join(widget.media._css['all']))
+        self.assertEqual(widget.media._js, [])
 
     def test_audit_command_reports_counts_without_content(self):
         product = Product.objects.create(
