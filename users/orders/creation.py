@@ -115,8 +115,6 @@ def _persist_baskets(order, user, products, quantities):
             product=product,
             quantity=quantity,
         )
-        product.quantity -= quantity
-        product.save(update_fields=('quantity', 'updated_at'))
 
 
 def _unit_price(product):

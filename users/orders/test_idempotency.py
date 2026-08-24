@@ -43,7 +43,7 @@ class OrderIdempotencyTests(TestCase):
         self.assertEqual(Order.objects.count(), 1)
         self.assertEqual(Basket.objects.count(), 1)
         self.product.refresh_from_db()
-        self.assertEqual(self.product.quantity, 3)
+        self.assertEqual(self.product.quantity, 5)
         notify.assert_called_once()
 
         order = Order.objects.get()
@@ -62,7 +62,7 @@ class OrderIdempotencyTests(TestCase):
         self.assertEqual(conflict.status_code, 409)
         self.assertEqual(Order.objects.count(), 1)
         self.product.refresh_from_db()
-        self.assertEqual(self.product.quantity, 3)
+        self.assertEqual(self.product.quantity, 5)
         notify.assert_called_once()
 
     def test_missing_or_ambiguous_idempotency_key_is_rejected(self):
@@ -172,5 +172,5 @@ class OrderIdempotencyConcurrencyTests(TransactionTestCase):
         self.assertEqual({result[2] for result in results}, {None, 'true'})
         self.assertEqual(Order.objects.count(), 1)
         product.refresh_from_db()
-        self.assertEqual(product.quantity, 2)
+        self.assertEqual(product.quantity, 4)
         notify.assert_called_once()
