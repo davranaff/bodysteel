@@ -11,7 +11,8 @@ class SanitizedHtmlField(models.TextField):
         kwargs['widget'] = RichHtmlWidget
         form_field = super().formfield(**kwargs)
         guidance = (
-            'Поддерживаются HTML-теги форматирования, ссылки, изображения, таблицы и списки. '
+            'Поддерживаются форматирование, ссылки, изображения, таблицы и списки. '
+            'Изображение можно вставить из буфера обмена или загрузить кнопкой редактора. '
             'Скрипты, iframe и обработчики событий удаляются при сохранении.'
         )
         form_field.help_text = '{} {}'.format(form_field.help_text or '', guidance).strip()

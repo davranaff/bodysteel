@@ -2,8 +2,10 @@ from datetime import timedelta
 
 from django.contrib import admin
 from django.db.models import Count, Q, Sum
-from django.urls import NoReverseMatch, reverse
+from django.urls import NoReverseMatch, path, reverse
 from django.utils import timezone
+
+from store.admin_rich_html import rich_html_image_upload
 
 
 def format_uzs(value):
@@ -26,6 +28,16 @@ class BodySteelAdminSite(admin.AdminSite):
     site_title = 'BodySteel Admin'
     index_title = 'Командный центр'
     index_template = 'admin/index.html'
+
+    def get_urls(self):
+        custom_urls = [
+            path(
+                'rich-html/upload/',
+                self.admin_view(rich_html_image_upload),
+                name='rich-html-upload',
+            ),
+        ]
+        return custom_urls + super().get_urls()
 
     def each_context(self, request):
         context = super().each_context(request)
