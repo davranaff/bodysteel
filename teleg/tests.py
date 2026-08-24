@@ -22,6 +22,8 @@ class OrderNotificationFormatTests(TestCase):
         self.assertIn('🛒 <b>НОВЫЙ ЗАКАЗ</b>', text)
         self.assertIn('<b>№ 0439278651</b>', text)
         self.assertIn('Xakim &amp; Co', text)
+        self.assertIn('📞 +998946833883\n', text)
+        self.assertNotIn('<code>+998946833883</code>', text)
         self.assertIn('Dymatize &lt;ISO100&gt;', text)
         self.assertIn('2 шт. × 185 000 = 370 000 UZS', text)
         self.assertIn('💰 <b>ИТОГО: 1 520 000 UZS</b>', text)

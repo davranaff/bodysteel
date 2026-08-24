@@ -45,7 +45,7 @@ def format_order_notification(order, baskets, coupon=None):
         f'<b>№ {escape(str(order.order_code))}</b>  ·  {created_at}\n\n'
         '👤 <b>Покупатель</b>\n'
         f'{escape(order.full_name or "—")}\n'
-        f'📞 <code>{escape(order.phone or "—")}</code>\n\n'
+        f'📞 {escape(order.phone or "—")}\n\n'
         '🚚 <b>Доставка</b>\n'
         f'{escape(str(delivery))}\n'
         f'📍 {escape(order.address or "—")}\n\n'
