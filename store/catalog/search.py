@@ -1,6 +1,6 @@
 import re
 import unicodedata
-from collections import defaultdict
+from collections import Counter, defaultdict
 from functools import lru_cache
 
 
@@ -21,13 +21,13 @@ _WHITESPACE = re.compile(r'\s+')
 
 def smart_product_ids(queryset, query):
     """Return matching product IDs ordered by forgiving search relevance."""
-    fields_by_product = defaultdict(list)
+    fields_by_product = defaultdict(set)
     rows = queryset.values(
         'pk', 'name_ru', 'name_uz', 'brand__name',
         'category__name_ru', 'category__name_uz',
     )
     for row in rows:
-        fields_by_product[row['pk']].extend((
+        fields_by_product[row['pk']].update((
             row['name_ru'], row['name_uz'], row['brand__name'],
             row['category__name_ru'], row['category__name_uz'],
         ))
@@ -46,13 +46,17 @@ def smart_search_score(query, fields):
     if not query_keys:
         return 0
 
+    candidates = {
+        candidate
+        for field in fields
+        for candidate in _search_keys(field)
+    }
     best = 0
-    for field in fields:
-        for candidate in _search_keys(field):
-            for query_key in query_keys:
-                best = max(best, _pair_score(query_key, candidate))
-                if best >= 108:
-                    return best
+    for candidate in candidates:
+        for query_key in query_keys:
+            best = max(best, _pair_score(query_key, candidate))
+            if best >= 108:
+                return best
     return best
 
 
@@ -130,6 +134,9 @@ def _edit_ratio(left, right):
 
     maximum_distance = max(1, round(longest * .36))
     if abs(len(left) - len(right)) > maximum_distance:
+        return 0
+    shared_characters = sum((Counter(left) & Counter(right)).values())
+    if shared_characters < min(len(left), len(right)) - maximum_distance:
         return 0
 
     previous_previous = None
