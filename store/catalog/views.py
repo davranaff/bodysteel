@@ -1,8 +1,10 @@
+from django.db.models import Case, IntegerField, When
 from rest_framework import status, viewsets
 from rest_framework.generics import get_object_or_404
 from rest_framework.response import Response
 
 from store.models import Category, Product
+from store.catalog.search import smart_product_ids
 from store.serializers.category import CategorySerializer
 from store.serializers.products import ProductSerializer
 
@@ -25,13 +27,22 @@ class ProductViewSet(viewsets.ViewSet):
                 is_sale,
                 is_new,
                 is_accessories,
-                search,
+                None,
                 brand,
             )
-            .with_favorite(request.auth)
-            .with_rating()
-            .order_by_stock()
         )
+        order_fields = ('-created_at',)
+        if search:
+            ranked_ids = smart_product_ids(products, search)
+            products = products.filter(pk__in=ranked_ids)
+            if ranked_ids:
+                products = products.annotate(search_rank=Case(
+                    *(When(pk=product_id, then=position) for position, product_id in enumerate(ranked_ids)),
+                    default=len(ranked_ids),
+                    output_field=IntegerField(),
+                ))
+                order_fields = ('search_rank', '-created_at')
+        products = products.with_favorite(request.auth).with_rating().order_by_stock(*order_fields)
         if not fetch_all:
             products = products[int(offset):int(limit)]
 
