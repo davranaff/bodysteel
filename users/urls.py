@@ -3,6 +3,7 @@ from users import views
 from users.auth import views as auth_views
 from users.orders import views as order_views
 from users.profile import views as profile_views
+from customer_telegram import api_views as customer_telegram_views
 
 
 urlpatterns = [
@@ -15,6 +16,32 @@ urlpatterns = [
     path('create_baskets/', views.CreateBasketsView.as_view(), name='create_baskets'),
 
     path('phone_verification/', auth_views.PhoneVerificationView.as_view(), name='phone_verification'),
+    path('password/forgot/', auth_views.PasswordResetRequestView.as_view(), name='password-forgot'),
+    path('password/reset/', auth_views.PasswordResetCompleteView.as_view(), name='password-reset'),
+    path(
+        'telegram/registration/start/',
+        customer_telegram_views.TelegramRegistrationStartView.as_view(),
+        name='telegram-registration-start',
+    ),
+    path(
+        'telegram/password/forgot/',
+        customer_telegram_views.TelegramPasswordResetStartView.as_view(),
+        name='telegram-password-forgot',
+    ),
+    path(
+        'telegram/account/', customer_telegram_views.TelegramAccountView.as_view(),
+        name='telegram-account',
+    ),
+    path(
+        'telegram/account/link/start/',
+        customer_telegram_views.TelegramAccountLinkStartView.as_view(),
+        name='telegram-account-link-start',
+    ),
+    path(
+        'telegram/account/unlink/',
+        customer_telegram_views.TelegramAccountUnlinkView.as_view(),
+        name='telegram-account-unlink',
+    ),
     path('basket/', views.BasketAPIView.as_view(), name='basket'),
     path('orders/', order_views.OrderAPIView.as_view(), name='histories'),
     path('reviews/', views.ReviewAPIView.as_view(), name='reviews'),

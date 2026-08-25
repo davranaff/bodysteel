@@ -22,6 +22,11 @@ REGISTRATION_EMAIL = RateLimitPolicy('registration_email', 3, 600)
 REGISTRATION_IP = RateLimitPolicy('registration_ip', 10, 600)
 SIGNIN_PHONE = RateLimitPolicy('signin_phone', 5, 900)
 SIGNIN_IP = RateLimitPolicy('signin_ip', 30, 900)
+PASSWORD_RESET_IDENTIFIER = RateLimitPolicy('password_reset_identifier', 5, 900)
+PASSWORD_RESET_IP = RateLimitPolicy('password_reset_ip', 20, 900)
+CUSTOMER_TELEGRAM_USER = RateLimitPolicy('customer_telegram_user', 60, 60)
+CUSTOMER_TELEGRAM_UPDATE = RateLimitPolicy('customer_telegram_update', 1, 86_400)
+CUSTOMER_TELEGRAM_LINK = RateLimitPolicy('customer_telegram_link', 10, 300)
 
 
 def consume(policy, subject, now=None):

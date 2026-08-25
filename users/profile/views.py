@@ -1,3 +1,7 @@
+import uuid
+
+from django.db import transaction
+from django.utils import timezone
 from drf_yasg.utils import swagger_auto_schema
 from rest_framework import status
 from rest_framework.authtoken.models import Token
@@ -29,9 +33,29 @@ class MeView(APIView):
 
     @swagger_auto_schema(responses={status.HTTP_204_NO_CONTENT: 'null'})
     def delete(self, request):
-        user = get_object_or_404(User, phone=request.user.phone)
-        Token.objects.filter(user=user).delete()
-        user.delete()
+        with transaction.atomic():
+            user = User.objects.select_for_update().get(pk=request.user.pk)
+            from customer_telegram.links import unlink_user
+            unlink_user(user)
+            suffix = uuid.uuid4().hex
+            user.username = 'deleted_{}_{}'.format(user.pk, suffix[:16])[:100]
+            user.email = 'deleted.{}.{}@invalid.bodysteel.local'.format(user.pk, suffix)
+            user.phone = '+998{:09d}'.format((int(suffix[:12], 16) + user.pk) % 1_000_000_000)
+            user.first_name = ''
+            user.last_name = ''
+            user.is_active = False
+            user.is_staff = False
+            user.is_superuser = False
+            user.deleted_at = timezone.now()
+            user.phone_verified_at = None
+            user.email_verified_at = None
+            user.set_unusable_password()
+            user.save(update_fields=(
+                'username', 'email', 'phone', 'first_name', 'last_name', 'is_active',
+                'is_staff', 'is_superuser',
+                'deleted_at', 'phone_verified_at', 'email_verified_at', 'password',
+            ))
+            Token.objects.filter(user=user).delete()
         return Response(status=status.HTTP_204_NO_CONTENT)
 
 

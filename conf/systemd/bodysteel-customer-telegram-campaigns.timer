@@ -1,0 +1,11 @@
+[Unit]
+Description=Run BodySteel customer Telegram campaign worker
+
+[Timer]
+OnBootSec=1min
+OnUnitActiveSec=10s
+AccuracySec=1s
+Unit=bodysteel-customer-telegram-campaigns.service
+
+[Install]
+WantedBy=timers.target

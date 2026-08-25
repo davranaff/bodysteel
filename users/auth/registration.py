@@ -11,6 +11,7 @@ from django.utils import timezone
 from rest_framework.authtoken.models import Token
 
 from users.auth.configuration import verification_configuration
+from users.auth.audit import record
 from users.auth.errors import AuthProblem
 from users.auth.models import PhoneVerificationChallenge
 from users.auth.ports import SmsDeliveryResult
@@ -40,7 +41,7 @@ class RegistrationService:
         self.clock = clock
         self.code_generator = code_generator
 
-    def start(self, email, phone, remote_address):
+    def start(self, email, phone, remote_address, username='', first_name='', last_name=''):
         now = self.clock()
         self._consume_start_limits(email, phone, remote_address, now)
         configuration = verification_configuration()
@@ -48,7 +49,7 @@ class RegistrationService:
         if not isinstance(code, str) or len(code) != 6 or not code.isdigit():
             raise AuthProblem(503, 'service_unavailable', 'Authentication service unavailable')
         challenge, delivery_id = self._prepare_challenge(
-            email, phone, code, configuration, now,
+            email, phone, username, first_name, last_name, code, configuration, now,
         )
         delivery = self.sms_gateway.send_otp(phone, code)
         if not self._record_delivery(challenge.id, delivery_id, delivery, now):
@@ -71,7 +72,10 @@ class RegistrationService:
                 ).first()
                 problem = self._challenge_problem(challenge, code, now)
                 if problem is None:
-                    user = self._create_user(challenge, password)
+                    user = self._create_user(challenge, password, now)
+                    if challenge.delivery_channel == PhoneVerificationChallenge.DeliveryChannel.TELEGRAM:
+                        from customer_telegram.links import attach_registration_chat
+                        attach_registration_chat(challenge, user, now)
                     token, _ = Token.objects.get_or_create(user=user)
                     challenge.status = PhoneVerificationChallenge.Status.CONSUMED
                     challenge.consumed_at = now
@@ -80,18 +84,27 @@ class RegistrationService:
             raise AuthProblem(409, 'account_exists', 'Account already exists') from None
         if problem:
             raise problem
+        record(
+            'registration_complete', 'success', user_id=user.pk,
+            channel=challenge.delivery_channel,
+        )
         return user_payload(user, token)
 
-    def _prepare_challenge(self, email, phone, code, configuration, now):
+    def _prepare_challenge(
+        self, email, phone, username, first_name, last_name, code, configuration, now,
+    ):
         delivery_id = uuid.uuid4()
         expires_at = now + timedelta(seconds=configuration.ttl_seconds)
         resend_after = now + timedelta(seconds=configuration.resend_seconds)
         with transaction.atomic():
-            self._reject_existing_account(email, phone)
+            self._reject_existing_account(email, phone, username)
             challenge, created = PhoneVerificationChallenge.objects.select_for_update().get_or_create(
                 phone=phone,
                 defaults={
                     'email': email,
+                    'username': username,
+                    'first_name': first_name,
+                    'last_name': last_name,
                     'delivery_id': delivery_id,
                     'code_digest': '',
                     'expires_at': expires_at,
@@ -102,8 +115,12 @@ class RegistrationService:
                 seconds = max(1, math.ceil((challenge.resend_after - now).total_seconds()))
                 raise AuthProblem(429, 'resend_too_soon', 'Verification code was sent recently', seconds)
             challenge.email = email
+            challenge.username = username
+            challenge.first_name = first_name
+            challenge.last_name = last_name
             challenge.delivery_id = delivery_id
             challenge.code_digest = otp_digest(challenge.id, delivery_id, code)
+            challenge.delivery_channel = PhoneVerificationChallenge.DeliveryChannel.SMS
             challenge.status = PhoneVerificationChallenge.Status.PENDING
             challenge.attempts_remaining = configuration.maximum_attempts
             challenge.expires_at = expires_at
@@ -111,7 +128,51 @@ class RegistrationService:
             challenge.sent_at = None
             challenge.consumed_at = None
             challenge.save()
+            from customer_telegram.links import expire_registration_link
+            expire_registration_link(challenge)
         return challenge, delivery_id
+
+    def start_telegram(self, email, phone, remote_address, username='', first_name='', last_name=''):
+        now = self.clock()
+        self._consume_start_limits(email, phone, remote_address, now)
+        configuration = verification_configuration()
+        delivery_id = uuid.uuid4()
+        expires_at = now + timedelta(seconds=configuration.ttl_seconds)
+        resend_after = now + timedelta(seconds=configuration.resend_seconds)
+        with transaction.atomic():
+            self._reject_existing_account(email, phone, username)
+            challenge, created = PhoneVerificationChallenge.objects.select_for_update().get_or_create(
+                phone=phone,
+                defaults={
+                    'email': email, 'username': username, 'first_name': first_name,
+                    'last_name': last_name, 'delivery_id': delivery_id, 'code_digest': '',
+                    'delivery_channel': PhoneVerificationChallenge.DeliveryChannel.TELEGRAM,
+                    'status': PhoneVerificationChallenge.Status.AWAITING,
+                    'expires_at': expires_at, 'resend_after': resend_after,
+                },
+            )
+            if not created and now < challenge.resend_after:
+                seconds = max(1, math.ceil((challenge.resend_after - now).total_seconds()))
+                raise AuthProblem(429, 'resend_too_soon', 'Verification code was sent recently', seconds)
+            challenge.email = email
+            challenge.username = username
+            challenge.first_name = first_name
+            challenge.last_name = last_name
+            challenge.delivery_id = delivery_id
+            challenge.code_digest = ''
+            challenge.delivery_channel = PhoneVerificationChallenge.DeliveryChannel.TELEGRAM
+            challenge.status = PhoneVerificationChallenge.Status.AWAITING
+            challenge.attempts_remaining = configuration.maximum_attempts
+            challenge.expires_at = expires_at
+            challenge.resend_after = resend_after
+            challenge.sent_at = None
+            challenge.consumed_at = None
+            challenge.save()
+        return VerificationReceipt(
+            challenge.id,
+            max(1, math.ceil((expires_at - now).total_seconds())),
+            max(1, math.ceil((resend_after - now).total_seconds())),
+        )
 
     def _record_delivery(self, challenge_id, delivery_id, delivery, now):
         status = {
@@ -149,8 +210,15 @@ class RegistrationService:
         return AuthProblem(400, 'verification_failed', 'Verification failed')
 
     @staticmethod
-    def _create_user(challenge, password):
-        candidate = User(email=challenge.email, phone=challenge.phone, username=random_username())
+    def _create_user(challenge, password, verified_at):
+        candidate = User(
+            email=challenge.email,
+            phone=challenge.phone,
+            username=challenge.username or random_username(),
+            first_name=challenge.first_name,
+            last_name=challenge.last_name,
+            phone_verified_at=verified_at,
+        )
         try:
             validate_password(password, user=candidate)
         except ValidationError:
@@ -160,8 +228,11 @@ class RegistrationService:
         return candidate
 
     @staticmethod
-    def _reject_existing_account(email, phone):
-        if User.objects.filter(Q(phone=phone) | Q(email__iexact=email)).exists():
+    def _reject_existing_account(email, phone, username=''):
+        query = Q(phone=phone) | Q(email__iexact=email)
+        if username:
+            query |= Q(username__iexact=username)
+        if User.objects.filter(query).exists():
             raise AuthProblem(409, 'account_exists', 'Account already exists')
 
     @staticmethod

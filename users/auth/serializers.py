@@ -1,4 +1,6 @@
 from rest_framework import serializers
+from django.core.validators import EmailValidator
+from django.core.exceptions import ValidationError as DjangoValidationError
 
 from users.validators.phone import validate_phone
 
@@ -13,6 +15,24 @@ class StrictSerializer(serializers.Serializer):
 class StartRegistrationSerializer(StrictSerializer):
     email = serializers.EmailField(max_length=254, trim_whitespace=False)
     phone = serializers.CharField(max_length=13, trim_whitespace=False, validators=[validate_phone])
+    username = serializers.CharField(max_length=100, required=False, allow_blank=True, trim_whitespace=False)
+    first_name = serializers.CharField(max_length=150, required=False, allow_blank=True, trim_whitespace=False)
+    last_name = serializers.CharField(max_length=150, required=False, allow_blank=True, trim_whitespace=False)
+
+    def to_internal_value(self, data):
+        if not isinstance(data, dict):
+            raise serializers.ValidationError('Unexpected or missing fields')
+        basic = {'email', 'phone'}
+        extended = basic | {'username', 'first_name', 'last_name'}
+        if set(data) not in (basic, extended):
+            raise serializers.ValidationError('Unexpected or missing fields')
+        values = serializers.Serializer.to_internal_value(self, data)
+        if set(data) == extended:
+            for field in ('username', 'first_name', 'last_name'):
+                values[field] = values[field].strip()
+                if not values[field]:
+                    raise serializers.ValidationError('{} is required'.format(field))
+        return values
 
 
 class CompleteRegistrationSerializer(StrictSerializer):
@@ -30,3 +50,32 @@ class CompleteRegistrationSerializer(StrictSerializer):
 class SignInSerializer(StrictSerializer):
     phone = serializers.CharField(max_length=13, trim_whitespace=False, validators=[validate_phone])
     password = serializers.CharField(min_length=8, max_length=128, trim_whitespace=False)
+
+
+class PasswordResetRequestSerializer(StrictSerializer):
+    identifier = serializers.CharField(max_length=254, trim_whitespace=False)
+
+    def validate_identifier(self, value):
+        if value.startswith('+'):
+            try:
+                validate_phone(value)
+            except DjangoValidationError:
+                raise serializers.ValidationError('Invalid identifier') from None
+            return value
+        try:
+            EmailValidator()(value)
+        except DjangoValidationError:
+            raise serializers.ValidationError('Invalid identifier') from None
+        return value.lower()
+
+
+class PasswordResetCompleteSerializer(StrictSerializer):
+    challenge_id = serializers.UUIDField()
+    code = serializers.RegexField(r'^\d{6}$', trim_whitespace=False)
+    password = serializers.CharField(min_length=8, max_length=128, trim_whitespace=False)
+    password_confirm = serializers.CharField(min_length=8, max_length=128, trim_whitespace=False)
+
+    def validate(self, attrs):
+        if attrs['password'] != attrs['password_confirm']:
+            raise serializers.ValidationError('Passwords do not match')
+        return attrs

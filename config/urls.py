@@ -29,6 +29,10 @@ urlpatterns = [
         path('users/', include(('users.urls', 'users'), namespace='users')),
     ])),
     path('telegram/', include(('teleg.urls', 'teleg'), namespace='telegram')),
+    path(
+        'telegram/customer/',
+        include(('customer_telegram.urls', 'customer_telegram'), namespace='customer_telegram'),
+    ),
 ]
 
 urlpatterns += static(settings.STATIC_URL, document_root=settings.STATIC_ROOT)

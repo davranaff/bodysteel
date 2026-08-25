@@ -4,6 +4,8 @@ from users.auth.client_ip import client_ip
 from users.auth.composition import (
     registration_completion_service,
     registration_start_service,
+    password_reset_completion_service,
+    password_reset_service,
     sign_in_service,
 )
 from users.auth.errors import AuthProblem
@@ -12,6 +14,8 @@ from users.auth.language import require_language
 from users.auth.responses import problem_response, success_response
 from users.auth.serializers import (
     CompleteRegistrationSerializer,
+    PasswordResetCompleteSerializer,
+    PasswordResetRequestSerializer,
     SignInSerializer,
     StartRegistrationSerializer,
 )
@@ -45,6 +49,7 @@ class PhoneVerificationView(StorefrontAuthView):
             values = self.validated(StartRegistrationSerializer, request.data)
             receipt = registration_start_service().start(
                 values['email'], values['phone'], client_ip(request),
+                values.get('username', ''), values.get('first_name', ''), values.get('last_name', ''),
             )
             return success_response({
                 'challenge_id': str(receipt.challenge_id),
@@ -76,4 +81,28 @@ class SignInView(StorefrontAuthView):
             )
             return success_response(user, 200, language)
 
+        return self.execute(request, operation)
+
+
+class PasswordResetRequestView(StorefrontAuthView):
+    def post(self, request):
+        def operation(language):
+            values = self.validated(PasswordResetRequestSerializer, request.data)
+            receipt = password_reset_service().start(values['identifier'], client_ip(request))
+            return success_response({
+                'challenge_id': str(receipt.challenge_id),
+                'expires_in': receipt.expires_in,
+                'resend_after': receipt.resend_after,
+            }, 202, language)
+        return self.execute(request, operation)
+
+
+class PasswordResetCompleteView(StorefrontAuthView):
+    def post(self, request):
+        def operation(language):
+            values = self.validated(PasswordResetCompleteSerializer, request.data)
+            user = password_reset_completion_service().complete(
+                values['challenge_id'], values['code'], values['password'],
+            )
+            return success_response(user, 200, language)
         return self.execute(request, operation)

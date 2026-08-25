@@ -16,6 +16,15 @@ class VerificationConfiguration:
 
 
 @dataclass(frozen=True)
+class ChallengeConfiguration:
+    code_hash_key: bytes
+    rate_hash_key: bytes
+    ttl_seconds: int
+    resend_seconds: int
+    maximum_attempts: int
+
+
+@dataclass(frozen=True)
 class EskizConfiguration:
     email: str
     password: str
@@ -35,6 +44,20 @@ def verification_configuration():
     if code_key == rate_key:
         raise configuration_problem()
     return VerificationConfiguration(code_key, rate_key, ttl, resend, attempts)
+
+
+def password_reset_configuration():
+    try:
+        code_key = _secret('AUTH_CHALLENGE_HASH_KEY')
+        rate_key = _secret('AUTH_RATE_LIMIT_HASH_KEY')
+        ttl = _integer('PASSWORD_RESET_TTL_SECONDS', 120, 3600)
+        resend = _integer('PASSWORD_RESET_RESEND_SECONDS', 30, 600)
+        attempts = _integer('PASSWORD_RESET_MAX_ATTEMPTS', 3, 10)
+    except (TypeError, ValueError):
+        raise configuration_problem() from None
+    if code_key == rate_key:
+        raise configuration_problem()
+    return ChallengeConfiguration(code_key, rate_key, ttl, resend, attempts)
 
 
 def storefront_proxy_token():

@@ -29,4 +29,24 @@ AUTH_RATE_LIMIT_HASH_KEY = os.getenv(
     'AUTH_RATE_LIMIT_HASH_KEY',
     'unsafe-local-auth-rate-limit-hash-key-change-me',
 )
-SMS_BACKEND = os.getenv('SMS_BACKEND', 'disabled')
+AUTH_CHALLENGE_HASH_KEY = os.getenv(
+    'AUTH_CHALLENGE_HASH_KEY',
+    'unsafe-local-auth-challenge-hash-key-change-me',
+)
+SMS_BACKEND = os.getenv('SMS_BACKEND', 'local')
+AUTH_EMAIL_BACKEND = os.getenv('AUTH_EMAIL_BACKEND', 'local')
+
+CUSTOMER_TELEGRAM_ENABLED = False
+CUSTOMER_TELEGRAM_CAMPAIGNS_ENABLED = False
+CUSTOMER_TELEGRAM_BOT_TOKEN = os.getenv('CUSTOMER_TELEGRAM_BOT_TOKEN', '')
+CUSTOMER_TELEGRAM_BOT_USERNAME = os.getenv('CUSTOMER_TELEGRAM_BOT_USERNAME', '')
+CUSTOMER_TELEGRAM_WEBHOOK_SECRET = os.getenv('CUSTOMER_TELEGRAM_WEBHOOK_SECRET', '')
+CUSTOMER_TELEGRAM_LINK_HASH_KEY = os.getenv(
+    'CUSTOMER_TELEGRAM_LINK_HASH_KEY',
+    'unsafe-local-customer-telegram-link-key-change-me',
+)
+CUSTOMER_TELEGRAM_PUBLIC_ORIGIN = 'https://api.bodysteel.uz'
+CUSTOMER_TELEGRAM_WEBHOOK_URL = 'https://api.bodysteel.uz/telegram/customer/webhook/'
+CUSTOMER_TELEGRAM_STORE_ORIGIN = 'https://bodysteel.uz'
+CUSTOMER_TELEGRAM_LINK_TTL_SECONDS = '300'
+CUSTOMER_TELEGRAM_CONTACT_MAX_ATTEMPTS = '3'

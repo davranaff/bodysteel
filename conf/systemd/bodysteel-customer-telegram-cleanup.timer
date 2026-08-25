@@ -1,0 +1,10 @@
+[Unit]
+Description=Daily cleanup for BodySteel customer Telegram records
+
+[Timer]
+OnCalendar=*-*-* 03:30:00
+Persistent=true
+Unit=bodysteel-customer-telegram-cleanup.service
+
+[Install]
+WantedBy=timers.target

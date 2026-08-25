@@ -16,6 +16,9 @@ class User(AbstractUser):
         validators=[phone.validate_phone]
     )
     bonus_used = models.BooleanField(default=False)
+    phone_verified_at = models.DateTimeField(null=True, blank=True)
+    email_verified_at = models.DateTimeField(null=True, blank=True)
+    deleted_at = models.DateTimeField(null=True, blank=True)
 
     def save(self, *args, **kwargs):
         if not self.username:
@@ -31,4 +34,8 @@ class User(AbstractUser):
 
 
 # Django discovers models through this module. Implementations stay in the auth feature.
-from users.auth.models import AuthRateLimit, PhoneVerificationChallenge  # noqa: E402,F401
+from users.auth.models import (  # noqa: E402,F401
+    AuthChallenge,
+    AuthRateLimit,
+    PhoneVerificationChallenge,
+)
