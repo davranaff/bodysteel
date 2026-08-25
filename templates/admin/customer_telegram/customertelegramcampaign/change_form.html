@@ -1,0 +1,8 @@
+{% extends "admin/change_form.html" %}
+
+{% block object-tools-items %}
+  {% if campaign_publish_url %}
+    <li><a href="{{ campaign_publish_url }}" class="addlink">Запустить рассылку</a></li>
+  {% endif %}
+  {{ block.super }}
+{% endblock %}

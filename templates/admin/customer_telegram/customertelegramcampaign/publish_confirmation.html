@@ -1,0 +1,19 @@
+{% extends "admin/base_site.html" %}
+
+{% block content %}
+  <p>
+    Кампания «{{ campaign }}» будет поставлена в очередь. Уведомления получат только активные
+    пользователи, которые включили рассылку в Telegram-боте.
+  </p>
+  {% if campaign.scheduled_at %}
+    <p><strong>Запланированное время:</strong> {{ campaign.scheduled_at }}</p>
+  {% else %}
+    <p><strong>Отправка:</strong> сразу после подтверждения.</p>
+  {% endif %}
+  <form method="post">
+    {% csrf_token %}
+    <input type="hidden" name="confirm_publish" value="yes">
+    <input type="submit" value="Подтвердить и запустить">
+    <a href="{{ change_url }}">Отмена</a>
+  </form>
+{% endblock %}

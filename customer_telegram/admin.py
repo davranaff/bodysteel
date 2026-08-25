@@ -1,7 +1,11 @@
 from django.contrib import admin, messages
 from django.contrib.admin import helpers
+from django.contrib.admin.utils import unquote
+from django.core.exceptions import PermissionDenied
 from django.db.models import Count, Q
+from django.http import Http404, HttpResponseRedirect
 from django.template.response import TemplateResponse
+from django.urls import path, reverse
 from django.utils import timezone
 from django.utils.html import format_html
 
@@ -40,6 +44,7 @@ class CustomerTelegramChatAdmin(admin.ModelAdmin):
 
 @admin.register(CustomerTelegramCampaign, site=bodysteel_admin_site)
 class CustomerTelegramCampaignAdmin(admin.ModelAdmin):
+    change_form_template = 'admin/customer_telegram/customertelegramcampaign/change_form.html'
     list_display = (
         'name', 'status', 'scheduled_at', 'recipient_count', 'delivered_count',
         'retry_count', 'failed_count', 'blocked_count', 'created_by', 'created_at',
@@ -62,6 +67,69 @@ class CustomerTelegramCampaignAdmin(admin.ModelAdmin):
             'audience_built_at', 'started_at', 'completed_at', 'created_at', 'updated_at',
         )}),
     )
+
+    def get_urls(self):
+        info = self.model._meta.app_label, self.model._meta.model_name
+        custom_urls = [
+            path(
+                '<path:object_id>/publish/',
+                self.admin_site.admin_view(self.publish_campaign_view),
+                name='{}_{}_publish'.format(*info),
+            ),
+        ]
+        return custom_urls + super().get_urls()
+
+    def changeform_view(self, request, object_id=None, form_url='', extra_context=None):
+        context = dict(extra_context or {})
+        campaign = self.get_object(request, unquote(object_id)) if object_id else None
+        if (
+            campaign
+            and campaign.status == CustomerTelegramCampaign.DRAFT
+            and request.user.has_perm('customer_telegram.publish_customertelegramcampaign')
+        ):
+            info = self.model._meta.app_label, self.model._meta.model_name
+            context['campaign_publish_url'] = reverse(
+                '{}:{}_{}_publish'.format(self.admin_site.name, *info),
+                args=(campaign.pk,),
+            )
+        return super().changeform_view(request, object_id, form_url, context)
+
+    def publish_campaign_view(self, request, object_id):
+        campaign = self.get_object(request, unquote(object_id))
+        if campaign is None:
+            raise Http404
+        if (
+            not self.has_change_permission(request, campaign)
+            or not request.user.has_perm('customer_telegram.publish_customertelegramcampaign')
+        ):
+            raise PermissionDenied
+        info = self.model._meta.app_label, self.model._meta.model_name
+        change_url = reverse(
+            '{}:{}_{}_change'.format(self.admin_site.name, *info),
+            args=(campaign.pk,),
+        )
+        if campaign.status != CustomerTelegramCampaign.DRAFT:
+            self.message_user(
+                request,
+                'Запустить можно только кампанию со статусом Draft.',
+                level=messages.WARNING,
+            )
+            return HttpResponseRedirect(change_url)
+        if request.method == 'POST' and request.POST.get('confirm_publish') == 'yes':
+            self._publish_campaign(campaign)
+            self.message_user(request, 'Кампания поставлена в очередь на отправку.')
+            return HttpResponseRedirect(change_url)
+        return TemplateResponse(
+            request,
+            'admin/customer_telegram/customertelegramcampaign/publish_confirmation.html',
+            {
+                **self.admin_site.each_context(request),
+                'title': 'Подтвердите запуск рассылки',
+                'campaign': campaign,
+                'opts': self.model._meta,
+                'change_url': change_url,
+            },
+        )
 
     def get_readonly_fields(self, request, obj=None):
         fields = list(super().get_readonly_fields(request, obj))
@@ -117,15 +185,19 @@ class CustomerTelegramCampaignAdmin(admin.ModelAdmin):
         for campaign in queryset:
             if campaign.status != CustomerTelegramCampaign.DRAFT:
                 continue
-            campaign.full_clean()
-            campaign.status = (
-                CustomerTelegramCampaign.SCHEDULED
-                if campaign.scheduled_at and campaign.scheduled_at > timezone.now()
-                else CustomerTelegramCampaign.QUEUEING
-            )
-            campaign.save(update_fields=('status', 'updated_at'))
+            self._publish_campaign(campaign)
             published += 1
         self.message_user(request, 'Кампаний поставлено в очередь: {}'.format(published))
+
+    @staticmethod
+    def _publish_campaign(campaign):
+        campaign.full_clean()
+        campaign.status = (
+            CustomerTelegramCampaign.SCHEDULED
+            if campaign.scheduled_at and campaign.scheduled_at > timezone.now()
+            else CustomerTelegramCampaign.QUEUEING
+        )
+        campaign.save(update_fields=('status', 'updated_at'))
 
     @admin.action(description='Отправить тест выбранных кампаний')
     def test_campaigns(self, request, queryset):
