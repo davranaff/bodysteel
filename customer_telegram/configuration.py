@@ -72,7 +72,15 @@ def require_configuration():
     if len(populated) != len(set(populated)):
         raise CustomerTelegramConfigurationError('Customer Telegram secrets must be independent.')
     if not settings.DEBUG:
-        protected = [token.encode(), *populated]
+        protected = [
+            token.encode(),
+            link_key,
+            webhook_secret.encode(),
+            str(getattr(settings, 'PHONE_VERIFICATION_HASH_KEY', '')).encode(),
+            str(getattr(settings, 'AUTH_RATE_LIMIT_HASH_KEY', '')).encode(),
+            str(getattr(settings, 'AUTH_CHALLENGE_HASH_KEY', '')).encode(),
+            str(getattr(settings, 'BODYSTEEL_STOREFRONT_PROXY_TOKEN', '')).encode(),
+        ]
         if any(
             marker.encode() in value.lower()
             for value in protected

@@ -30,6 +30,14 @@ class ConfigurationTests(SimpleTestCase):
     @override_settings(**{
         **TELEGRAM_SETTINGS,
         'DEBUG': False,
+        'SECRET_KEY': 'django-insecure-legacy-key-kept-outside-customer-bot-validation',
+    })
+    def test_legacy_django_secret_marker_does_not_block_isolated_bot(self):
+        self.assertEqual(require_configuration().username, 'BodySteelClientBot')
+
+    @override_settings(**{
+        **TELEGRAM_SETTINGS,
+        'DEBUG': False,
         'CUSTOMER_TELEGRAM_LINK_HASH_KEY': 'unsafe-local-only-key-000000000000001',
     })
     def test_unsafe_development_secret_is_rejected_in_production(self):
