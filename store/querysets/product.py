@@ -10,6 +10,10 @@ class ProductQueryset(BaseQuerySet):
         """Products that may be shown and sold through the website."""
         return self.filter(regos_catalog_status__in=('manual', 'published'))
 
+    def sports_catalog(self):
+        """Products belonging to the sports-nutrition storefront channel."""
+        return self.filter(product_type='supplement')
+
     def with_rating(self):
         query = self
 

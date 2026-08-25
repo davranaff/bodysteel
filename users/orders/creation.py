@@ -1,9 +1,12 @@
 from dataclasses import dataclass
 
 from django.db import IntegrityError, transaction
+from django.db.models import F
 
 from integration.orders.attribution import attach_order_attribution
-from store.models import Basket, Coupon, Menu, Order, Product
+from nutrition.checkout import CheckoutUnavailable, build_quote
+from payments.models import Payment
+from store.models import Basket, Coupon, Order, Product
 from users.models import User
 from users.orders.errors import OrderUnavailable
 from users.orders.idempotency import find_replay, idempotency_digest, request_fingerprint
@@ -34,14 +37,30 @@ def create_order(command, actor, idempotency_key):
 
 def _create_order(command, actor, digest, fingerprint):
     with transaction.atomic():
-        quantities = _aggregate_quantities(command['baskets'])
-        products = _lock_products(quantities)
-        subtotal = sum(_unit_price(products[product_id]) * quantity for product_id, quantity in quantities.items())
+        try:
+            quote = build_quote(command, lock=True)
+        except CheckoutUnavailable as error:
+            raise OrderUnavailable(str(error)) from error
+        quantities = quote.quantities
+        products = quote.products
+        subtotal = quote.subtotal
         user, subtotal = _apply_bonus(actor, subtotal)
         coupon, subtotal = _apply_coupon(command.get('coupon_code'), subtotal)
+        total = max(0, subtotal) + quote.delivery_fee
         order = Order.objects.create(
             user=user,
-            total_price=max(0, subtotal),
+            total_price=total,
+            subtotal_price=quote.subtotal,
+            discount_price=max(0, quote.subtotal - subtotal),
+            delivery_fee=quote.delivery_fee,
+            delivery_method_code=quote.delivery_method_code,
+            delivery_zone_code=quote.delivery_zone_code,
+            delivery_slot_date=quote.delivery_slot.delivery_date if quote.delivery_slot else None,
+            delivery_slot_label=(
+                '{}-{}'.format(quote.delivery_slot.starts_at.strftime('%H:%M'), quote.delivery_slot.ends_at.strftime('%H:%M'))
+                if quote.delivery_slot else ''
+            ),
+            customer_note=command.get('customer_note', ''),
             type=command['type'],
             full_name=command['full_name'],
             phone=command['phone'],
@@ -52,6 +71,18 @@ def _create_order(command, actor, digest, fingerprint):
             request_fingerprint=fingerprint,
         )
         _persist_baskets(order, user, products, quantities)
+        if quote.delivery_slot:
+            quote.delivery_slot.reserved_count = F('reserved_count') + 1
+            quote.delivery_slot.save(update_fields=('reserved_count',))
+        Payment.objects.create(
+            order=order,
+            provider='manual',
+            amount=total,
+            currency='UZS',
+            status=Payment.CREATED,
+            idempotency_digest=digest,
+            metadata={'purpose': 'physical_order', 'order_id': order.pk},
+        )
         attach_order_attribution(
             order,
             command.get('integration_cart_token'),
@@ -68,18 +99,6 @@ def _aggregate_quantities(items):
         if quantities[product_id] > 100:
             raise OrderUnavailable('Requested product quantity is unavailable')
     return quantities
-
-
-def _lock_products(quantities):
-    products = {
-        product.pk: product
-        for product in Product.objects.visible_on_storefront().select_for_update().filter(pk__in=quantities).order_by('pk')
-    }
-    if len(products) != len(quantities):
-        raise OrderUnavailable('One or more products are unavailable')
-    if any(products[product_id].quantity < quantity for product_id, quantity in quantities.items()):
-        raise OrderUnavailable('Requested product quantity is unavailable')
-    return products
 
 
 def _apply_bonus(actor, subtotal):

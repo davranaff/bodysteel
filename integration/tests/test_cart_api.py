@@ -11,6 +11,14 @@ from integration.tests.fixtures import READ_TOKEN, IntegrationAPITestCase
 
 
 class CartIntegrationAPITests(IntegrationAPITestCase):
+    def test_idempotency_key_uses_the_documented_safe_ascii_boundary(self):
+        payload = self.cart_payload(str(self.products[0].pk))
+        for key in ('short-1', 'x' * 129, 'unsafe key', 'ключ-0001'):
+            self.assertEqual(self.post_cart(key, payload).status_code, 422)
+
+        accepted = self.post_cart('safe-key_01:.-', payload)
+        self.assertEqual(accepted.status_code, 201)
+
     def test_exact_replay_returns_one_durable_cart_and_conflict_is_rejected(self):
         payload = self.cart_payload(str(self.products[0].pk))
         first = self.post_cart('cart-replay-0001', payload)

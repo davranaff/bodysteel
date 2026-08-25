@@ -1,0 +1,22 @@
+{% extends "admin/base_site.html" %}
+
+{% block breadcrumbs %}
+  <div class="breadcrumbs">
+    <a href="{% url 'admin:index' %}">Главная</a>
+    &rsaquo; <a href="{{ changelist_url }}">Материалы уроков</a>
+    &rsaquo; Загрузить несколько файлов
+  </div>
+{% endblock %}
+
+{% block content %}
+  <div id="content-main">
+    <form method="post" enctype="multipart/form-data">
+      {% csrf_token %}
+      {{ form.as_p }}
+      <div class="submit-row">
+        <input type="submit" value="Загрузить файлы" class="default">
+        <a href="{{ changelist_url }}" class="closelink">Отмена</a>
+      </div>
+    </form>
+  </div>
+{% endblock %}

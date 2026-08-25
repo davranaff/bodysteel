@@ -131,15 +131,31 @@ def _media_url(path):
         candidate_port = parsed.port
     except (TypeError, ValueError):
         raise _unsafe_media_url() from None
+    candidate_origin = _candidate_origin(parsed)
     if (
-        '{}://{}'.format(parsed.scheme, parsed.hostname) != expected_origin
-        or candidate_port not in {None, 443}
+        candidate_origin != expected_origin
+        or (candidate_port not in {None, 443} and not _local_media_origin(expected_origin))
         or parsed.username
         or parsed.password
         or parsed.fragment
     ):
         raise _unsafe_media_url()
     return candidate
+
+
+def _candidate_origin(parsed):
+    hostname = parsed.hostname
+    if ':' in hostname:
+        hostname = '[{}]'.format(hostname)
+    port = ':{}'.format(parsed.port) if parsed.port is not None else ''
+    return '{}://{}{}'.format(parsed.scheme, hostname, port)
+
+
+def _local_media_origin(origin):
+    return origin.startswith('http://') and any(
+        origin.startswith('http://{}:'.format(hostname))
+        for hostname in ('localhost', '127.0.0.1', '::1', 'host.docker.internal', 'gateway.docker.internal')
+    )
 
 
 def _unsafe_media_url():

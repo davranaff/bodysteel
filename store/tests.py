@@ -4,7 +4,7 @@ from django.urls import reverse
 from rest_framework import status
 from rest_framework.test import APITestCase
 
-from store.models import Filial, FilialPhoto
+from store.models import Filial, FilialPhoto, Product
 
 
 class FilialApiTests(APITestCase):
@@ -71,3 +71,47 @@ class FilialApiTests(APITestCase):
         response = self.client.post(reverse('store:filiales'), payload, format='multipart')
 
         self.assertIn(response.status_code, [status.HTTP_401_UNAUTHORIZED, status.HTTP_403_FORBIDDEN])
+
+
+class StorefrontChannelApiTests(APITestCase):
+    def setUp(self):
+        self.supplement = Product.objects.create(
+            name_ru='Тестовый протеин для каталога',
+            name_uz='Katalog uchun sinov proteini',
+            slug='test-supplement-channel',
+            description_ru='<p>Спортивное питание</p>',
+            description_uz='<p>Sport ovqatlanishi</p>',
+            price=100000,
+            country_ru='Uzbekistan',
+            country_uz='O‘zbekiston',
+            product_type=Product.TYPE_SUPPLEMENT,
+            quantity=5,
+        )
+        self.meal = Product.objects.create(
+            name_ru='Тестовый обед ПП для каталога',
+            name_uz='Katalog uchun sinov PP taomi',
+            slug='test-meal-channel',
+            description_ru='<p>Правильное питание</p>',
+            description_uz='<p>To‘g‘ri ovqatlanish</p>',
+            price=65000,
+            country_ru='Uzbekistan',
+            country_uz='O‘zbekiston',
+            product_type=Product.TYPE_MEAL,
+            quantity=5,
+        )
+
+    def test_sports_storefront_does_not_include_pp_products(self):
+        response = self.client.get('/api/v1/store/products/?all=true')
+
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        product_ids = [item['id'] for item in response.data['data']]
+        self.assertIn(self.supplement.pk, product_ids)
+        self.assertNotIn(self.meal.pk, product_ids)
+
+    def test_pp_has_a_separate_catalog_endpoint(self):
+        response = self.client.get('/api/v1/nutrition/')
+
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        product_ids = [item['id'] for item in response.data['data']]
+        self.assertIn(self.meal.pk, product_ids)
+        self.assertNotIn(self.supplement.pk, product_ids)

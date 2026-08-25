@@ -5,6 +5,7 @@ from store.serializers.brand import BrandSerializer
 from store.serializers.category import CategorySerializer
 from store.serializers.review import ReviewSerializer
 from store.serializers.sanitized_model import SanitizedModelSerializer
+from nutrition.serializers import NutritionProfileSerializer
 
 
 class ProductImageSerializer(serializers.ModelSerializer):
@@ -28,6 +29,15 @@ class ProductSerializer(SanitizedModelSerializer):
     reviews = ReviewSerializer(many=True, read_only=True)
     category = serializers.PrimaryKeyRelatedField(many=True, queryset=Category.objects.all())
     brand = BrandSerializer()
+    nutrition_profile = serializers.SerializerMethodField()
+
+    def get_nutrition_profile(self, instance):
+        profile = getattr(instance, 'nutrition_profile', None)
+        if not profile:
+            return None
+        language = self.context.get('request').headers.get('Accept-Language', 'ru') if self.context.get('request') else 'ru'
+        language = 'uz' if language.lower().startswith('uz') else 'ru'
+        return NutritionProfileSerializer(profile, context={'language': language}).data
 
     class Meta:
         model = Product

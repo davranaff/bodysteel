@@ -9,6 +9,7 @@ from integration.errors import IntegrationProblem, invalid_request
 
 
 PRODUCT_ID = re.compile(r'^[^\s,/?#]{1,255}$')
+IDEMPOTENCY_KEY = re.compile(r'^[A-Za-z0-9._:-]{8,128}$')
 MAXIMUM_JSON_BYTES = 64 * 1_024
 
 
@@ -39,8 +40,8 @@ def parse_inventory_ids(request):
 
 def require_idempotency_key(request):
     value = request.headers.get('Idempotency-Key')
-    if not value or not 8 <= len(value) <= 255 or _has_control(value):
-        raise invalid_request('Idempotency-Key must contain 8 to 255 visible characters')
+    if not value or not IDEMPOTENCY_KEY.fullmatch(value):
+        raise invalid_request('Idempotency-Key must contain 8 to 128 safe ASCII characters')
     return value
 
 

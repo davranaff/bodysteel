@@ -26,8 +26,15 @@ urlpatterns = [
     path('api/v1/', include([
         path('documentation/', schema_view.with_ui('redoc', cache_timeout=0), name='schema-redoc'),
         path('store/', include(('store.urls', 'store'), namespace='store')),
+        path('nutrition/', include(('nutrition.urls', 'nutrition'), namespace='nutrition')),
+        path('courses/', include(('courses.urls', 'courses'), namespace='courses')),
+        path('payments/', include(('payments.urls', 'payments'), namespace='payments')),
         path('users/', include(('users.urls', 'users'), namespace='users')),
     ])),
+    path(
+        'telegram/customer/',
+        include(('customer_telegram.urls', 'customer_telegram'), namespace='customer_telegram'),
+    ),
     path('telegram/', include(('teleg.urls', 'teleg'), namespace='telegram')),
 ]
 

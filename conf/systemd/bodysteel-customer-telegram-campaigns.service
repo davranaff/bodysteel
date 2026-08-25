@@ -1,0 +1,13 @@
+[Unit]
+Description=BodySteel customer Telegram campaign worker
+After=network-online.target
+
+[Service]
+Type=oneshot
+User=root
+Group=www-data
+WorkingDirectory=/home/body/releases/RELEASE_ID
+EnvironmentFile=/etc/bodysteel/gunicorn-release.env
+ExecStart=/home/body/releases/RELEASE_ID/venv/bin/python manage.py send_customer_telegram_campaigns --limit 100
+NoNewPrivileges=true
+PrivateTmp=true

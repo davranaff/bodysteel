@@ -26,8 +26,8 @@ class ProductAdmin(admin.ModelAdmin):
     inlines = (ProductImageInline, Product360ImageInline)
     actions = ('mark_new', 'publish_regos_drafts')
     fieldsets = (
-        ('Основное', {
-            'fields': (('name_ru', 'name_uz'), ('brand', 'category'), 'set_of_products', ('slug', 'is_new')),
+            ('Основное', {
+            'fields': (('name_ru', 'name_uz'), ('brand', 'category'), 'set_of_products', ('slug', 'is_new'), 'product_type'),
         }),
         ('Цена и остаток', {'fields': (('price', 'discounted_price'), 'quantity')}),
         ('Описание и состав', {

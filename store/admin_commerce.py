@@ -18,11 +18,12 @@ class OrderAdmin(admin.ModelAdmin):
     list_select_related = ('user', 'coupon')
     list_per_page = 30
     readonly_fields = (
-        'order_code', 'full_name', 'phone', 'type', 'total_price', 'address', 'fix_check',
+        'order_code', 'full_name', 'phone', 'type', 'total_price', 'subtotal_price', 'discount_price',
+        'delivery_fee', 'payment_status', 'fulfillment_status', 'address', 'fix_check',
         'user', 'coupon', 'idempotency_digest', 'request_fingerprint', 'created_at',
     )
     fieldsets = (
-        ('Заказ', {'fields': (('order_code', 'status'), ('total_price', 'type'))}),
+        ('Заказ', {'fields': (('order_code', 'status'), ('total_price', 'payment_status', 'fulfillment_status'), ('type', 'subtotal_price', 'discount_price', 'delivery_fee'))}),
         ('Получатель', {'fields': (('full_name', 'phone'), 'address', 'user')}),
         ('Оплата и доставка', {'fields': ('coupon', 'fix_check')}),
         ('Служебные данные', {'classes': ('collapse',), 'fields': ('idempotency_digest', 'request_fingerprint', 'created_at')}),

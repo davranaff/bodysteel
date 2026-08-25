@@ -61,7 +61,8 @@ class WebhookEventTests(IntegrationAPITestCase):
         self.assertEqual(order.status, 'moderation')
         self.assertTrue(IntegrationOrderAttribution.objects.filter(order=order).exists())
         self.products[0].refresh_from_db()
-        self.assertEqual(self.products[0].quantity, initial_quantity - 2)
+        # REGOS owns inventory synchronization; checkout only validates the current snapshot.
+        self.assertEqual(self.products[0].quantity, initial_quantity)
 
         attribution = IntegrationOrderAttribution.objects.get(order=order)
         IntegrationCart.objects.filter(pk=attribution.cart_id).update(

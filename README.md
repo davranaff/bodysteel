@@ -27,6 +27,8 @@ users/management/       Auth retention commands
 
 Auth deployment and API contracts are documented in [`users/auth/README.md`](users/auth/README.md).
 The store connector contract and rollout are documented in [`integration/README.md`](integration/README.md).
+The isolated customer bot, campaigns and rollout are documented in
+[`customer_telegram/README.md`](customer_telegram/README.md).
 
 ## Verification
 

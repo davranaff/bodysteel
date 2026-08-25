@@ -39,6 +39,33 @@ The transaction locks the challenge, allows at most five guesses, applies Django
 creates the user/token once and consumes the challenge. Concurrent verification cannot create two
 accounts. Error bodies contain a stable `error.code`; `429` also returns bounded `retry_after` and
 `Retry-After`.
+The extended registration payload also accepts `username`, `first_name` and `last_name`; the
+storefront requires all three identity fields. The registration OTP confirms the phone. Email is
+verified separately through the authenticated email-change flow.
+
+## Account security routes
+
+The same fixed boundary exposes the following flows:
+
+```text
+POST /api/v1/users/password/forgot/
+POST /api/v1/users/password/reset/
+PUT  /api/v1/users/password/change/
+POST /api/v1/users/delete/
+GET  /api/v1/users/sessions/
+POST /api/v1/users/sessions/revoke-all/
+POST /api/v1/users/email/change/start/
+POST /api/v1/users/phone/change/start/
+POST /api/v1/users/contact/verify/
+POST /api/v1/users/signout/
+```
+
+Forgot-password always returns a neutral `202` receipt, stores only the keyed challenge digest,
+limits attempts and invalidates the old authentication token after a successful reset. Account
+deletion requires the current password plus the literal `DELETE`, keeps order/course history,
+anonymizes the customer identity, marks the account inactive and revokes the token. The current
+compatibility session store is one DRF token per account; `revoke-all` therefore invalidates the
+active account token and the response explicitly clears the browser cookie.
 
 ## SMS delivery
 
@@ -60,13 +87,22 @@ ESKIZ_OTP_TEMPLATE=BodySteel verification code: {code}
 BODYSTEEL_STOREFRONT_PROXY_TOKEN=...
 PHONE_VERIFICATION_HASH_KEY=...
 AUTH_RATE_LIMIT_HASH_KEY=...
+AUTH_CHALLENGE_HASH_KEY=...
+PASSWORD_RESET_TTL_SECONDS=600
+PASSWORD_RESET_RESEND_SECONDS=60
+PASSWORD_RESET_MAX_ATTEMPTS=5
+AUTH_EMAIL_BACKEND=smtp
+DEFAULT_FROM_EMAIL=no-reply@bodysteel.uz
 AUTH_TRUSTED_PROXY_NETWORKS=10.0.0.0/8,192.0.2.10/32
 ```
 
-The three auth secrets must be independently generated and stored. The Eskiz message template must
+The four auth secrets must be independently generated and stored. The Eskiz message template must
 be approved by the provider before rollout, as required in the
 [provider moderation notice](https://www.eskiz.uz/news/vazhnaya-informaciya-po-usluge-sms-informirovaniya-ucell).
 `SMS_BACKEND=disabled` is the safe local default and causes code delivery to fail closed.
+For local development use `DEBUG=1`, `SMS_BACKEND=local` and `AUTH_EMAIL_BACKEND=local`. Codes are
+kept only in bounded process memory and are exposed only through the dev-only OTP endpoint used by
+the local storefront; no code is written to the database or logs.
 
 ## Abuse controls and operations
 
@@ -74,7 +110,8 @@ PostgreSQL persists fixed-window limits for registration phone/email/IP and sign
 resolved only through explicitly trusted proxy networks and stored as keyed HMAC, never raw. These
 application limits are defense in depth; the edge proxy must also rate-limit the three auth routes.
 
-Apply append-only migration `users.0005_auth_security`, then schedule cleanup:
+Apply append-only migrations `users.0005_auth_security` and
+`users.0006_phoneverificationchallenge_first_name_and_more`, then schedule cleanup:
 
 ```bash
 python manage.py purge_auth_security_records

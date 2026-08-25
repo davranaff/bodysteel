@@ -1,4 +1,4 @@
-from django.db.models import Count
+from django.db.models import Count, Q
 from rest_framework import status, viewsets
 from rest_framework.generics import get_object_or_404
 from rest_framework.response import Response
@@ -17,33 +17,50 @@ class HomePageAPIView(APIView):
     allowed_methods = ['get']
 
     def get(self, request):
+        sports_products = Product.objects.visible_on_storefront().sports_catalog()
+        sports_set_filter = Q(
+            products__product_type=Product.TYPE_SUPPLEMENT,
+            products__regos_catalog_status__in=('manual', 'published'),
+        )
+        sports_brand_filter = Q(
+            products__product_type=Product.TYPE_SUPPLEMENT,
+            products__regos_catalog_status__in=('manual', 'published'),
+        )
         payload = {
             'set_of_products': SetOfProductsSerializerWithCount(
-                SetOfProduct.objects.annotate(products_count=Count('products')).all(),
+                SetOfProduct.objects.filter(sports_set_filter)
+                .annotate(products_count=Count('products', filter=sports_set_filter))
+                .distinct(),
                 many=True,
             ).data,
             'categories': CategorySerializer(
-                Category.objects.order_by('sort')[:9],
+                Category.objects.filter(
+                    products__product_type=Product.TYPE_SUPPLEMENT,
+                    products__regos_catalog_status__in=('manual', 'published'),
+                ).distinct().order_by('sort')[:9],
                 many=True,
             ).data,
             'leader_products': ProductSerializer(
-                Product.objects.visible_on_storefront().with_rating()
+                sports_products.with_rating()
                 .with_favorite(request.auth)
                 .order_by_stock('-view_count')[:5],
                 many=True,
             ).data,
             'sale_products': ProductSerializer(
-                Product.objects.visible_on_storefront().with_rating()
+                sports_products.with_rating()
                 .with_favorite(request.auth)
                 .filter(discounted_price__gt=0)
                 .order_by_stock()[:10],
                 many=True,
             ).data,
             'latest_products': ProductSerializer(
-                Product.objects.visible_on_storefront().with_rating().with_favorite(request.auth).order_by_stock()[:10],
+                sports_products.with_rating().with_favorite(request.auth).order_by_stock()[:10],
                 many=True,
             ).data,
-            'brands': BrandSerializer(Brand.objects.all()[:6], many=True).data,
+            'brands': BrandSerializer(
+                Brand.objects.filter(sports_brand_filter).distinct()[:6],
+                many=True,
+            ).data,
             'blogs': BlogSerializer(Blog.objects.all()[:6], many=True).data,
         }
         return Response({'data': payload}, status=status.HTTP_200_OK)
@@ -92,7 +109,13 @@ class BlogViewSet(viewsets.ViewSet):
 
 class SetOfProductViewSet(viewsets.ViewSet):
     def list(self, request):
-        sets = SetOfProduct.objects.annotate(products_count=Count('products')).all()
+        sports_set_filter = Q(
+            products__product_type=Product.TYPE_SUPPLEMENT,
+            products__regos_catalog_status__in=('manual', 'published'),
+        )
+        sets = SetOfProduct.objects.filter(sports_set_filter).annotate(
+            products_count=Count('products', filter=sports_set_filter),
+        ).distinct()
         menu = Menu.objects.filter(is_active=True).first()
         return Response(
             {
@@ -106,7 +129,7 @@ class SetOfProductViewSet(viewsets.ViewSet):
 
     def retrieve(self, request, slug):
         products = (
-            Product.objects.visible_on_storefront().with_rating()
+            Product.objects.visible_on_storefront().sports_catalog().with_rating()
             .with_favorite(request.auth)
             .filter(set_of_products__slug=slug)
             .order_by_stock()
@@ -128,8 +151,13 @@ class BrandAPIView(APIView):
     allowed_methods = ['get']
 
     def get(self, request):
+        sports_brand_filter = Q(
+            products__product_type=Product.TYPE_SUPPLEMENT,
+            products__regos_catalog_status__in=('manual', 'published'),
+        )
+        brands = Brand.objects.filter(sports_brand_filter).distinct()
         return Response(
-            {'data': BrandSerializer(Brand.objects.all(), many=True).data},
+            {'data': BrandSerializer(brands, many=True).data},
             status=status.HTTP_200_OK,
         )
 

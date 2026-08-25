@@ -33,10 +33,18 @@ class Basket(BaseModel):
         null=True,
         default=None,
     )
+    unit_price = models.PositiveBigIntegerField(default=0, verbose_name='Цена за единицу на момент заказа')
+    product_name_ru = models.CharField(max_length=500, blank=True, default='')
+    product_name_uz = models.CharField(max_length=500, blank=True, default='')
+    product_type = models.CharField(max_length=20, blank=True, default='')
 
     def save(self, *args, **kwargs):
-        unit_price = self.product.price - self.product.discounted_price
-        self.price = self.quantity * unit_price
+        if self.product and self._state.adding:
+            self.unit_price = self.product.price - self.product.discounted_price
+            self.product_name_ru = self.product.name_ru
+            self.product_name_uz = self.product.name_uz
+            self.product_type = self.product.product_type
+        self.price = self.quantity * self.unit_price
         return super().save(*args, **kwargs)
 
     def __str__(self):
@@ -84,6 +92,22 @@ class Order(BaseModel):
         ('purchased', 'Куплен'),
         ('moderation', 'На модерации'),
     )
+    PAYMENT_STATUS_CHOICES = (
+        ('unpaid', 'Не оплачен'),
+        ('pending', 'Ожидает оплаты'),
+        ('paid', 'Оплачен'),
+        ('failed', 'Ошибка оплаты'),
+        ('refunded', 'Возвращён'),
+    )
+    FULFILLMENT_STATUS_CHOICES = (
+        ('new', 'Новый'),
+        ('confirmed', 'Подтверждён'),
+        ('preparing', 'Готовится'),
+        ('ready', 'Готов к выдаче'),
+        ('delivering', 'В доставке'),
+        ('delivered', 'Доставлен'),
+        ('cancelled', 'Отменён'),
+    )
 
     user = models.ForeignKey(
         User,
@@ -100,6 +124,26 @@ class Order(BaseModel):
     fix_check = models.FileField(upload_to=check_path, null=True)
     address = models.CharField(max_length=255, blank=True, null=True, default='')
     status = models.CharField(max_length=50, choices=STATUS_CHOICES, default='moderation')
+    payment_status = models.CharField(
+        max_length=20,
+        choices=PAYMENT_STATUS_CHOICES,
+        default='unpaid',
+        db_index=True,
+    )
+    fulfillment_status = models.CharField(
+        max_length=20,
+        choices=FULFILLMENT_STATUS_CHOICES,
+        default='new',
+        db_index=True,
+    )
+    subtotal_price = models.PositiveBigIntegerField(default=0)
+    discount_price = models.PositiveBigIntegerField(default=0)
+    delivery_fee = models.PositiveBigIntegerField(default=0)
+    delivery_method_code = models.CharField(max_length=50, blank=True, default='')
+    delivery_zone_code = models.CharField(max_length=100, blank=True, default='')
+    delivery_slot_date = models.DateField(null=True, blank=True)
+    delivery_slot_label = models.CharField(max_length=100, blank=True, default='')
+    customer_note = models.CharField(max_length=1000, blank=True, default='')
     order_code = models.CharField(max_length=10, unique=True)
     idempotency_digest = models.CharField(max_length=64, unique=True, null=True, editable=False)
     request_fingerprint = models.CharField(max_length=64, null=True, editable=False)
@@ -119,8 +163,9 @@ class Order(BaseModel):
         adding = self._state.adding
         if not self.order_code:
             self.order_code = random_code(length=10)
-        if adding and self.type in {'dtu', 'Доставка по всему Узбекистану'}:
-            self.total_price += Menu.objects.get(is_active=True).delivery_price
+        if adding and self.type in {'dtu', 'Доставка по всему Узбекистану'} and not self.subtotal_price:
+            self.delivery_fee = Menu.objects.get(is_active=True).delivery_price
+            self.total_price += self.delivery_fee
         return super().save(*args, **kwargs)
 
     class Meta:

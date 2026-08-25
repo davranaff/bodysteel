@@ -1,10 +1,29 @@
 from django.test import SimpleTestCase, override_settings
 
 from integration.checks import integration_configuration_checks
+from integration.configuration import https_origin
+from integration.errors import IntegrationProblem
 from integration.tests.fixtures import INTEGRATION_SETTINGS
 
 
 class IntegrationConfigurationChecksTests(SimpleTestCase):
+    @override_settings(
+        DEBUG=True,
+        SAVDOQ_ALLOW_LOCAL_ORIGINS=True,
+        SAVDOQ_STOREFRONT_ORIGIN='http://host.docker.internal:3000',
+    )
+    def test_local_development_origin_keeps_its_explicit_port(self):
+        self.assertEqual(https_origin('SAVDOQ_STOREFRONT_ORIGIN'), 'http://host.docker.internal:3000')
+
+    @override_settings(
+        DEBUG=False,
+        SAVDOQ_ALLOW_LOCAL_ORIGINS=True,
+        SAVDOQ_STOREFRONT_ORIGIN='http://host.docker.internal:3000',
+    )
+    def test_local_origin_is_still_rejected_outside_debug(self):
+        with self.assertRaisesMessage(IntegrationProblem, 'Integration origin is misconfigured'):
+            https_origin('SAVDOQ_STOREFRONT_ORIGIN')
+
     @override_settings(
         DEBUG=False,
         SAVDOQ_INTEGRATION_CHECK_ENABLED=True,

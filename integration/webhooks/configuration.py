@@ -3,6 +3,8 @@ from urllib.parse import urlparse
 
 from django.conf import settings
 
+from integration.configuration import LOCAL_DEVELOPMENT_HOSTNAMES
+
 
 class WebhookConfigurationError(Exception):
     pass
@@ -31,13 +33,21 @@ def require_webhook_configuration():
         valid_port = parsed.port in {None, 443}
     except ValueError:
         raise WebhookConfigurationError('Webhook configuration is invalid') from None
+    local_http = (
+        getattr(settings, 'DEBUG', False)
+        and getattr(settings, 'SAVDOQ_ALLOW_LOCAL_ORIGINS', False)
+        and parsed.scheme == 'http'
+        and parsed.hostname
+        and parsed.hostname.lower() in LOCAL_DEVELOPMENT_HOSTNAMES
+        and parsed.port is not None
+    )
     if (
         not 1 <= len(url) <= 2_048
-        or parsed.scheme != 'https'
+        or (parsed.scheme != 'https' and not local_http)
         or not parsed.hostname
         or parsed.username
         or parsed.password
-        or not valid_port
+        or (not valid_port and not local_http)
         or not parsed.path.startswith('/')
         or parsed.query
         or parsed.fragment

@@ -22,6 +22,16 @@ class OrderSerializer(serializers.ModelSerializer):
             'status',
             'order_code',
             'coupon',
+            'payment_status',
+            'fulfillment_status',
+            'subtotal_price',
+            'discount_price',
+            'delivery_fee',
+            'delivery_method_code',
+            'delivery_zone_code',
+            'delivery_slot_date',
+            'delivery_slot_label',
+            'customer_note',
             'baskets',
         )
 
@@ -58,6 +68,10 @@ class OrderCreateSerializer(StrictInputSerializer):
         allow_null=True,
         required=False,
     )
+    delivery_method_code = serializers.RegexField(r'^[a-z0-9_-]{1,50}$', required=False, allow_blank=True)
+    delivery_zone_code = serializers.RegexField(r'^[a-z0-9_-]{1,100}$', required=False, allow_blank=True)
+    delivery_slot_id = serializers.IntegerField(min_value=1, required=False, allow_null=True)
+    customer_note = serializers.CharField(max_length=1000, required=False, allow_blank=True, trim_whitespace=True)
 
     def validate_phone(self, value):
         formatted = format_phone_number(value)

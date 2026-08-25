@@ -42,6 +42,15 @@ class Category(BaseModel):
 
 
 class Product(BaseModel):
+    TYPE_SUPPLEMENT = 'supplement'
+    TYPE_MEAL = 'meal'
+    TYPE_MEAL_KIT = 'meal_kit'
+    PRODUCT_TYPE_CHOICES = (
+        (TYPE_SUPPLEMENT, 'Спортивное питание'),
+        (TYPE_MEAL, 'Готовое блюдо'),
+        (TYPE_MEAL_KIT, 'Набор правильного питания'),
+    )
+
     REGOS_STATUS_MANUAL = 'manual'
     REGOS_STATUS_DRAFT = 'draft'
     REGOS_STATUS_PUBLISHED = 'published'
@@ -54,6 +63,13 @@ class Product(BaseModel):
     )
 
     updated_at = models.DateTimeField(auto_now=True)
+    product_type = models.CharField(
+        max_length=20,
+        choices=PRODUCT_TYPE_CHOICES,
+        default=TYPE_SUPPLEMENT,
+        db_index=True,
+        verbose_name='Тип физического товара',
+    )
     regos_item_id = models.PositiveBigIntegerField(
         null=True,
         blank=True,

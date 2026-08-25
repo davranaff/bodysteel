@@ -20,7 +20,7 @@ class ProductViewSet(viewsets.ViewSet):
         fetch_all = request.query_params.get('all')
 
         products = (
-            Product.objects.visible_on_storefront().with_flags(
+            Product.objects.visible_on_storefront().sports_catalog().with_flags(
                 is_leader,
                 is_sale,
                 is_new,
@@ -50,7 +50,14 @@ class ProductViewSet(viewsets.ViewSet):
 
         related_products = Product.objects.visible_on_storefront().filter(
             category__in=product.category.all(),
-        ).order_by_stock()[:4]
+        ).exclude(pk=product.pk)
+        if product.product_type in (Product.TYPE_MEAL, Product.TYPE_MEAL_KIT):
+            related_products = related_products.filter(
+                product_type__in=(Product.TYPE_MEAL, Product.TYPE_MEAL_KIT),
+            )
+        else:
+            related_products = related_products.sports_catalog()
+        related_products = related_products.distinct().order_by_stock()[:4]
         return Response(
             {
                 'data': ProductSerializer(product, many=False).data,
@@ -61,7 +68,10 @@ class ProductViewSet(viewsets.ViewSet):
 
 class CategoryViewSet(viewsets.ViewSet):
     def list(self, request):
-        categories = Category.objects.order_by('sort')
+        categories = Category.objects.filter(
+            products__product_type=Product.TYPE_SUPPLEMENT,
+            products__regos_catalog_status__in=('manual', 'published'),
+        ).distinct().order_by('sort')
         return Response(
             {'data': CategorySerializer(categories, many=True).data},
             status=status.HTTP_200_OK,
@@ -70,7 +80,7 @@ class CategoryViewSet(viewsets.ViewSet):
     def retrieve(self, request, slug):
         category = get_object_or_404(Category, slug=slug)
         products = (
-            Product.objects.visible_on_storefront().with_favorite(request.auth)
+            Product.objects.visible_on_storefront().sports_catalog().with_favorite(request.auth)
             .with_rating()
             .filter(category=category)
             .order_by_stock()
