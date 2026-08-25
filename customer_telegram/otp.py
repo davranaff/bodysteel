@@ -46,7 +46,7 @@ def _prepare_and_send(link_id, sender_id, chat_id, contact, require_contact, api
             return _contact_failure(link_id, sender_id, chat_id)
     now = timezone.now()
     with transaction.atomic():
-        link = CustomerTelegramLink.objects.select_for_update().select_related(
+        link = CustomerTelegramLink.objects.select_for_update(of=('self',)).select_related(
             'chat', 'registration_challenge', 'auth_challenge__user', 'user',
         ).filter(pk=link_id).first()
         if not _valid_open_link(link, sender_id, chat_id, now):
@@ -98,7 +98,9 @@ def _record_delivery(link_id, delivery_id, status, now):
     delivered = status in {DeliveryStatus.SENT, DeliveryStatus.UNKNOWN}
     challenge_status = 'sent' if status is DeliveryStatus.SENT else 'unknown' if delivered else 'failed'
     with transaction.atomic():
-        link = CustomerTelegramLink.objects.select_for_update().select_related('chat').get(pk=link_id)
+        link = CustomerTelegramLink.objects.select_for_update(of=('self',)).select_related(
+            'chat',
+        ).get(pk=link_id)
         challenge = link.registration_challenge or link.auth_challenge
         if link.state != CustomerTelegramLink.DELIVERING:
             return False
@@ -140,7 +142,7 @@ def _valid_open_link(link, sender_id, chat_id, now):
 def _contact_failure(link_id, sender_id, chat_id):
     now = timezone.now()
     with transaction.atomic():
-        link = CustomerTelegramLink.objects.select_for_update().select_related('chat').filter(
+        link = CustomerTelegramLink.objects.select_for_update(of=('self',)).select_related('chat').filter(
             pk=link_id,
         ).first()
         if not _valid_open_link(link, sender_id, chat_id, now):

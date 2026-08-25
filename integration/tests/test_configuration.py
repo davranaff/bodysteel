@@ -36,6 +36,14 @@ class IntegrationConfigurationChecksTests(SimpleTestCase):
 
     @override_settings(
         DEBUG=False,
+        SAVDOQ_INTEGRATION_CHECK_ENABLED=False,
+        SAVDOQ_INTEGRATION_CREDENTIALS=(),
+    )
+    def test_disabled_integration_fails_closed_without_fake_credentials(self):
+        self.assertEqual(integration_configuration_checks(None), [])
+
+    @override_settings(
+        DEBUG=False,
         SAVDOQ_INTEGRATION_CHECK_ENABLED=True,
         **INTEGRATION_SETTINGS,
     )

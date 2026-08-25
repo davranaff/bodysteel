@@ -71,7 +71,6 @@ class SignInSerializer(StrictSerializer):
         values.pop('phone', None)
         return values
 
-
 class PasswordResetRequestSerializer(StrictSerializer):
     identifier = serializers.CharField(max_length=254, trim_whitespace=False)
 
@@ -99,8 +98,6 @@ class PasswordResetCompleteSerializer(StrictSerializer):
         if attrs['password'] != attrs['password_confirm']:
             raise serializers.ValidationError('Passwords do not match')
         return attrs
-
-
 class ChangePasswordSerializer(StrictSerializer):
     current_password = serializers.CharField(min_length=8, max_length=128, trim_whitespace=False)
     new_password = serializers.CharField(min_length=8, max_length=128, trim_whitespace=False)

@@ -37,6 +37,13 @@ class CustomerTelegramHandlerTests(TestCase):
         self.assertFalse(CustomerTelegramChat.objects.get(chat_id=5001).marketing_opt_in)
         self.assertEqual(api.callbacks, [('callback-1', None)])
 
+    def test_malformed_callback_sender_is_rejected_without_side_effects(self):
+        api = FakeTelegramApi()
+        payload = self.callback('notify:on')
+        payload['callback_query']['from'] = 'invalid'
+        self.assertEqual(handle_update(payload, api), 'denied')
+        self.assertFalse(CustomerTelegramChat.objects.exists())
+
     def test_stop_only_disables_marketing_and_unlink_is_visible(self):
         chat = CustomerTelegramChat.objects.create(
             telegram_user_id=5001, chat_id=5001, language='ru', marketing_opt_in=True,

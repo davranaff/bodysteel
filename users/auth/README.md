@@ -100,6 +100,8 @@ The four auth secrets must be independently generated and stored. The Eskiz mess
 be approved by the provider before rollout, as required in the
 [provider moderation notice](https://www.eskiz.uz/news/vazhnaya-informaciya-po-usluge-sms-informirovaniya-ucell).
 `SMS_BACKEND=disabled` is the safe local default and causes code delivery to fail closed.
+It is also a valid production fallback while Telegram-only OTP is enabled; no placeholder Eskiz
+credentials are required. Set `SMS_BACKEND=eskiz` only together with real provider credentials.
 For local development use `DEBUG=1`, `SMS_BACKEND=local` and `AUTH_EMAIL_BACKEND=local`. Codes are
 kept only in bounded process memory and are exposed only through the dev-only OTP endpoint used by
 the local storefront; no code is written to the database or logs.

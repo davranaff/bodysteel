@@ -27,10 +27,6 @@ urlpatterns = [
     path('password/forgot/', auth_views.PasswordResetRequestView.as_view(), name='password-forgot'),
     path('password/reset/', auth_views.PasswordResetCompleteView.as_view(), name='password-reset'),
     path('dev/otp/<uuid:challenge_id>/', auth_views.DevOtpView.as_view(), name='dev-otp'),
-    path('basket/', views.BasketAPIView.as_view(), name='basket'),
-    path('orders/', order_views.OrderAPIView.as_view(), name='histories'),
-    path('reviews/', views.ReviewAPIView.as_view(), name='reviews'),
-    path('coupons/', views.CouponAPIView.as_view(), name='coupons'),
     path(
         'telegram/registration/start/',
         customer_telegram_views.TelegramRegistrationStartView.as_view(),
@@ -42,8 +38,7 @@ urlpatterns = [
         name='telegram-password-forgot',
     ),
     path(
-        'telegram/account/',
-        customer_telegram_views.TelegramAccountView.as_view(),
+        'telegram/account/', customer_telegram_views.TelegramAccountView.as_view(),
         name='telegram-account',
     ),
     path(
@@ -56,4 +51,8 @@ urlpatterns = [
         customer_telegram_views.TelegramAccountUnlinkView.as_view(),
         name='telegram-account-unlink',
     ),
+    path('basket/', views.BasketAPIView.as_view(), name='basket'),
+    path('orders/', order_views.OrderAPIView.as_view(), name='histories'),
+    path('reviews/', views.ReviewAPIView.as_view(), name='reviews'),
+    path('coupons/', views.CouponAPIView.as_view(), name='coupons'),
 ]

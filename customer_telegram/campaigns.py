@@ -101,7 +101,10 @@ def deliver_campaign_batch(limit=100, api=None, now=None):
 
 
 def send_test_campaign(campaign, chat, api=None):
-    if not chat or not chat.is_active or chat.blocked_at is not None:
+    if not require_configuration().campaigns_enabled:
+        return False
+    if (not chat or not chat.is_active or not chat.marketing_opt_in
+            or chat.blocked_at is not None):
         return False
     campaign.full_clean()
     if reserve_marketing_slot(chat.pk, timezone.now()).status != 'ready':
@@ -125,9 +128,9 @@ def _claim_recipient(now):
         queryset = CustomerTelegramCampaignRecipient.objects.filter(
             due, campaign__status=CustomerTelegramCampaign.SENDING,
         ).select_related('chat', 'campaign').order_by('next_attempt_at', 'created_at')
-        queryset = queryset.select_for_update(skip_locked=True) if (
+        queryset = queryset.select_for_update(of=('self',), skip_locked=True) if (
             connection.features.has_select_for_update_skip_locked
-        ) else queryset.select_for_update()
+        ) else queryset.select_for_update(of=('self',))
         recipient = queryset.first()
         if not recipient:
             return None
@@ -228,12 +231,8 @@ def _recipient(campaign, chat, language, now):
         rendered_button_text=getattr(campaign, 'button_text_{}'.format(suffix)),
         rendered_button_url=campaign.button_url, next_attempt_at=now,
     )
-
-
 def _message_text(recipient):
     return '<b>{}</b>\n\n{}'.format(escape(recipient.rendered_title), escape(recipient.rendered_body))
-
-
 def _button_markup(recipient):
     if not recipient.rendered_button_text:
         return None
@@ -241,10 +240,8 @@ def _button_markup(recipient):
         'text': recipient.rendered_button_text,
         'url': recipient.rendered_button_url,
     }]]}
-
-
 def _block_chat(recipient, now):
     CustomerTelegramChat.objects.filter(pk=recipient.chat_id).update(
-        is_active=False, blocked_at=now, marketing_opt_in=False, marketing_opted_out_at=now,
-        updated_at=now,
+        is_active=False, blocked_at=now, marketing_opt_in=False,
+        marketing_opted_out_at=now, updated_at=now,
     )

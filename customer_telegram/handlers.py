@@ -150,7 +150,8 @@ def _handle_callback(payload, api):
     callback_id = payload.get('id')
     data = payload.get('data')
     message_payload = payload.get('message')
-    sender_id = payload.get('from', {}).get('id')
+    sender = payload.get('from')
+    sender_id = sender.get('id') if isinstance(sender, dict) else None
     identity = _private_identity({
         'from': payload.get('from'),
         'chat': message_payload.get('chat') if isinstance(message_payload, dict) else None,

@@ -8,6 +8,7 @@ django-modeltranslation==0.18.11
 djangorestframework==3.17.1
 drf-yasg==1.21.15
 Faker==25.2.0
+gunicorn==23.0.0
 h11==0.16.0
 httpcore==1.0.9
 httpx==0.27.0

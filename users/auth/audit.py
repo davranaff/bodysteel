@@ -11,5 +11,5 @@ def record(event, outcome, user_id=None, channel=None):
         event,
         outcome,
         user_id if isinstance(user_id, int) else 'unknown',
-        channel if channel in {'sms', 'email'} else 'unknown',
+        channel if channel in {'sms', 'email', 'telegram'} else 'unknown',
     )

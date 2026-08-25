@@ -99,7 +99,6 @@ class PasswordResetRequestView(StorefrontAuthView):
                 'expires_in': receipt.expires_in,
                 'resend_after': receipt.resend_after,
             }, 202, language)
-
         return self.execute(request, operation)
 
 
@@ -111,7 +110,6 @@ class PasswordResetCompleteView(StorefrontAuthView):
                 values['challenge_id'], values['code'], values['password'],
             )
             return success_response(user, 200, language)
-
         return self.execute(request, operation)
 
 
@@ -134,5 +132,4 @@ class DevOtpView(StorefrontAuthView):
             if not code:
                 raise AuthProblem(404, 'not_found', 'Not found')
             return success_response({'code': code}, 200, language)
-
         return self.execute(request, operation)

@@ -64,7 +64,7 @@ def open_link(start_parameter, telegram_user_id, chat_id):
     except AuthProblem:
         return StartedLink(None)
     with transaction.atomic():
-        link = CustomerTelegramLink.objects.select_for_update().filter(
+        link = CustomerTelegramLink.objects.select_for_update(of=('self',)).filter(
             token_digest=link_digest(start_parameter),
         ).select_related('registration_challenge', 'auth_challenge__user', 'user').first()
         if not link or link.state not in {
@@ -143,7 +143,7 @@ def bind_chat_to_user(chat, user, now=None):
 
 
 def attach_registration_chat(challenge, user, now):
-    link = CustomerTelegramLink.objects.select_for_update().filter(
+    link = CustomerTelegramLink.objects.select_for_update(of=('self',)).filter(
         registration_challenge=challenge,
         state=CustomerTelegramLink.DELIVERED,
         chat__isnull=False,

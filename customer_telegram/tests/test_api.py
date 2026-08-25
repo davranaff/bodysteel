@@ -94,3 +94,21 @@ class CustomerTelegramApiTests(TestCase):
         self.assertFalse(CustomerTelegramLink.objects.filter(
             user=user, state=CustomerTelegramLink.AWAITING_START,
         ).exists())
+
+    def test_account_soft_delete_unlinks_chat_and_disables_marketing(self):
+        user = User.objects.create_user(
+            username='delete-link', email='delete-link@example.test',
+            phone='+998901234583', password='safe-password',
+        )
+        chat = CustomerTelegramChat.objects.create(
+            user=user, telegram_user_id=9102, chat_id=9102, language='ru',
+            marketing_opt_in=True,
+        )
+        self.client.force_authenticate(user)
+        self.assertEqual(self.client.delete('/api/v1/users/me/').status_code, 204)
+        user.refresh_from_db()
+        chat.refresh_from_db()
+        self.assertFalse(user.is_active)
+        self.assertIsNotNone(user.deleted_at)
+        self.assertIsNone(chat.user_id)
+        self.assertFalse(chat.marketing_opt_in)

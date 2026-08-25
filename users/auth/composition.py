@@ -44,7 +44,5 @@ def password_reset_telegram_service():
 
 def password_reset_completion_service():
     return PasswordResetService(None)
-
-
 def contact_verification_service():
     return ContactVerificationService(sms_gateway())

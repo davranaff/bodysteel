@@ -32,12 +32,16 @@ DATABASE_PASSWORD=<server-only database password>
 BOT_TOKEN=<rotated token when the legacy bot is enabled>
 SAVDOQ_INTEGRATION_FULL_TOKEN=<random token, at least 32 characters>
 SAVDOQ_INTEGRATION_READ_TOKEN=<different random token, at least 32 characters>
+SAVDOQ_INTEGRATION_CHECK_ENABLED=true
 SAVDOQ_STOREFRONT_ORIGIN=https://bodysteel.uz
 SAVDOQ_MEDIA_ORIGIN=https://api.bodysteel.uz
 SAVDOQ_CART_TTL_SECONDS=3600
 SAVDOQ_WEBHOOK_URL=https://<savdoq-host>/api/v1/webhooks/connections/<connection-id>
 SAVDOQ_WEBHOOK_SECRET=<different random HMAC secret, 32-512 characters>
 ```
+
+Until SAVDOQ credentials are issued, keep `SAVDOQ_INTEGRATION_CHECK_ENABLED=false`. The boundary
+then remains fail-closed because no bearer token is accepted; do not create placeholder tokens.
 
 Full token получает `products:read`, `inventory:read`, `carts:write`; read token — только два read
 scope. Tokens нельзя хранить в Git, передавать в query string или логировать. При rotation временно

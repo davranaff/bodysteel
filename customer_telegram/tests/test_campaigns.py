@@ -131,6 +131,19 @@ class CampaignDeliveryTests(TestCase):
         self.assertIn('&lt;b&gt;plain&lt;/b&gt;', api.messages[0][1])
         self.assertEqual(self.campaign.recipients.count(), 0)
 
+    @override_settings(CUSTOMER_TELEGRAM_CAMPAIGNS_ENABLED=False)
+    def test_campaign_feature_flag_blocks_test_send(self):
+        api = FakeTelegramApi()
+        self.assertFalse(send_test_campaign(self.campaign, self.ru, api))
+        self.assertEqual(api.messages, [])
+
+    def test_test_send_respects_marketing_opt_out(self):
+        self.ru.marketing_opt_in = False
+        self.ru.save(update_fields=('marketing_opt_in', 'updated_at'))
+        api = FakeTelegramApi()
+        self.assertFalse(send_test_campaign(self.campaign, self.ru, api))
+        self.assertEqual(api.messages, [])
+
     def test_campaign_button_rejects_external_url(self):
         self.campaign.button_text_ru = 'Открыть'
         self.campaign.button_text_uz = 'Ochish'

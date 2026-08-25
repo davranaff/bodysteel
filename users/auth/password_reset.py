@@ -46,46 +46,13 @@ class PasswordResetService:
     def start(self, identifier, remote_address):
         now = self.clock()
         identifier = identifier.lower() if '@' in identifier else identifier
-        consume(PASSWORD_RESET_IDENTIFIER, identifier, now)
-        consume(PASSWORD_RESET_IP, remote_address, now)
         configuration = password_reset_configuration()
-        previous = AuthChallenge.objects.filter(
-            kind=AuthChallenge.Kind.PASSWORD_RESET,
-            identifier=identifier,
-            status__in=(
-                AuthChallenge.Status.AWAITING,
-                AuthChallenge.Status.PENDING,
-                AuthChallenge.Status.SENT,
-                AuthChallenge.Status.UNKNOWN,
-            ),
-        ).order_by('-created_at').first()
-        if previous and now < previous.resend_after:
-            seconds = max(1, math.ceil((previous.resend_after - now).total_seconds()))
-            raise AuthProblem(429, 'resend_too_soon', 'Verification code was sent recently', seconds)
-        if previous:
-            previous.status = AuthChallenge.Status.FAILED
-            previous.save(update_fields=('status', 'updated_at'))
-
         code = self.code_generator(6)
         if not isinstance(code, str) or len(code) != 6 or not code.isdigit():
             raise AuthProblem(503, 'service_unavailable', 'Authentication service unavailable')
-        user, channel = self._find_target(identifier)
-        delivery_id = uuid.uuid4()
-        challenge = AuthChallenge.objects.create(
-            delivery_id=delivery_id,
-            user=user,
-            kind=AuthChallenge.Kind.PASSWORD_RESET,
-            channel=channel,
-            identifier=identifier,
-            code_digest='',
-            status=AuthChallenge.Status.PENDING,
-            attempts_remaining=configuration.maximum_attempts,
-            expires_at=now + timedelta(seconds=configuration.ttl_seconds),
-            resend_after=now + timedelta(seconds=configuration.resend_seconds),
+        challenge, user, channel = self._prepare(
+            identifier, remote_address, configuration, now, code=code,
         )
-        # The digest must bind to the persisted challenge id, never to an external value.
-        challenge.code_digest = auth_challenge_digest(challenge.id, delivery_id, code)
-        challenge.save(update_fields=['code_digest', 'updated_at'])
 
         delivery = SmsDeliveryResult.SENT
         if user is not None:
@@ -98,7 +65,9 @@ class PasswordResetService:
         updates = {'status': status, 'updated_at': now}
         if delivery is SmsDeliveryResult.SENT:
             updates['sent_at'] = now
-        AuthChallenge.objects.filter(id=challenge.id, delivery_id=delivery_id).update(**updates)
+        AuthChallenge.objects.filter(
+            id=challenge.id, delivery_id=challenge.delivery_id,
+        ).update(**updates)
         # Keep the forgot-password response neutral even if delivery fails for a real account.
         # Operators can inspect the delivery provider metrics without exposing account existence.
         record('password_reset_start', 'accepted', user_id=user.pk if user else None, channel=channel)
@@ -111,37 +80,9 @@ class PasswordResetService:
     def start_telegram(self, identifier, remote_address):
         now = self.clock()
         identifier = identifier.lower() if '@' in identifier else identifier
-        consume(PASSWORD_RESET_IDENTIFIER, identifier, now)
-        consume(PASSWORD_RESET_IP, remote_address, now)
         configuration = password_reset_configuration()
-        previous = AuthChallenge.objects.filter(
-            kind=AuthChallenge.Kind.PASSWORD_RESET,
-            identifier=identifier,
-            status__in=(
-                AuthChallenge.Status.AWAITING,
-                AuthChallenge.Status.PENDING,
-                AuthChallenge.Status.SENT,
-                AuthChallenge.Status.UNKNOWN,
-            ),
-        ).order_by('-created_at').first()
-        if previous and now < previous.resend_after:
-            seconds = max(1, math.ceil((previous.resend_after - now).total_seconds()))
-            raise AuthProblem(429, 'resend_too_soon', 'Verification code was sent recently', seconds)
-        if previous:
-            previous.status = AuthChallenge.Status.FAILED
-            previous.save(update_fields=('status', 'updated_at'))
-        user, _ = self._find_target(identifier)
-        challenge = AuthChallenge.objects.create(
-            delivery_id=uuid.uuid4(),
-            user=user,
-            kind=AuthChallenge.Kind.PASSWORD_RESET,
-            channel=AuthChallenge.Channel.TELEGRAM,
-            identifier=identifier,
-            code_digest='',
-            status=AuthChallenge.Status.AWAITING,
-            attempts_remaining=configuration.maximum_attempts,
-            expires_at=now + timedelta(seconds=configuration.ttl_seconds),
-            resend_after=now + timedelta(seconds=configuration.resend_seconds),
+        challenge, user, _ = self._prepare(
+            identifier, remote_address, configuration, now, telegram=True,
         )
         record(
             'password_reset_start', 'accepted',
@@ -152,6 +93,51 @@ class PasswordResetService:
             max(1, math.ceil((challenge.expires_at - now).total_seconds())),
             max(1, math.ceil((challenge.resend_after - now).total_seconds())),
         )
+
+    def _prepare(self, identifier, remote_address, configuration, now, code=None, telegram=False):
+        problem = None
+        challenge = user = channel = None
+        with transaction.atomic():
+            # The identifier rate-limit row is also the per-flow serialization lock.
+            consume(PASSWORD_RESET_IDENTIFIER, identifier, now)
+            consume(PASSWORD_RESET_IP, remote_address, now)
+            previous = AuthChallenge.objects.select_for_update().filter(
+                kind=AuthChallenge.Kind.PASSWORD_RESET,
+                identifier=identifier,
+                status__in=(
+                    AuthChallenge.Status.AWAITING,
+                    AuthChallenge.Status.PENDING,
+                    AuthChallenge.Status.SENT,
+                    AuthChallenge.Status.UNKNOWN,
+                ),
+            ).order_by('-created_at').first()
+            if previous and now < previous.resend_after:
+                seconds = max(1, math.ceil((previous.resend_after - now).total_seconds()))
+                problem = AuthProblem(
+                    429, 'resend_too_soon', 'Verification code was sent recently', seconds,
+                )
+            else:
+                if previous:
+                    previous.status = AuthChallenge.Status.FAILED
+                    previous.save(update_fields=('status', 'updated_at'))
+                user, default_channel = self._find_target(identifier)
+                channel = AuthChallenge.Channel.TELEGRAM if telegram else default_channel
+                delivery_id = uuid.uuid4()
+                challenge = AuthChallenge.objects.create(
+                    delivery_id=delivery_id, user=user,
+                    kind=AuthChallenge.Kind.PASSWORD_RESET, channel=channel,
+                    identifier=identifier, code_digest='',
+                    status=(AuthChallenge.Status.AWAITING if telegram else AuthChallenge.Status.PENDING),
+                    attempts_remaining=configuration.maximum_attempts,
+                    expires_at=now + timedelta(seconds=configuration.ttl_seconds),
+                    resend_after=now + timedelta(seconds=configuration.resend_seconds),
+                )
+                if code is not None:
+                    challenge.code_digest = auth_challenge_digest(challenge.id, delivery_id, code)
+                    challenge.save(update_fields=('code_digest', 'updated_at'))
+        if problem:
+            raise problem
+        return challenge, user, channel
 
     def complete(self, challenge_id, code, password):
         now = self.clock()

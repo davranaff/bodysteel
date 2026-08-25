@@ -15,10 +15,12 @@ BODYSTEEL_STOREFRONT_PROXY_TOKEN = os.getenv('BODYSTEEL_STOREFRONT_PROXY_TOKEN',
 PHONE_VERIFICATION_HASH_KEY = os.getenv('PHONE_VERIFICATION_HASH_KEY', '')
 AUTH_RATE_LIMIT_HASH_KEY = os.getenv('AUTH_RATE_LIMIT_HASH_KEY', '')
 AUTH_CHALLENGE_HASH_KEY = os.getenv('AUTH_CHALLENGE_HASH_KEY', '')
-SMS_BACKEND = os.getenv('SMS_BACKEND', '')
+SMS_BACKEND = os.getenv('SMS_BACKEND', 'disabled')
 AUTH_EMAIL_BACKEND = os.getenv('AUTH_EMAIL_BACKEND', 'smtp')
 DEFAULT_FROM_EMAIL = os.getenv('DEFAULT_FROM_EMAIL', '')
-SAVDOQ_INTEGRATION_CHECK_ENABLED = True
+SAVDOQ_INTEGRATION_CHECK_ENABLED = os.getenv(
+    'SAVDOQ_INTEGRATION_CHECK_ENABLED', '',
+).strip().lower() in {'1', 'true', 'yes'}
 CUSTOMER_TELEGRAM_ENABLED = os.getenv(
     'CUSTOMER_TELEGRAM_ENABLED', '',
 ).strip().lower() in {'1', 'true', 'yes'}
@@ -57,10 +59,10 @@ if (
     or not DATABASE_PASSWORD
     or any(len(value.encode('utf-8')) < 32 for value in AUTH_SECRETS)
     or len(set(AUTH_SECRETS)) != len(AUTH_SECRETS)
-    or SMS_BACKEND != 'eskiz'
+    or SMS_BACKEND not in {'disabled', 'eskiz'}
 ):
     raise ImproperlyConfigured(
-        'Database, independent auth secrets and SMS_BACKEND=eskiz are required in production'
+        'Database, independent auth secrets and a supported SMS_BACKEND are required in production'
     )
 
 DATABASES = {

@@ -5,7 +5,8 @@ from django.db import close_old_connections
 from django.test import TransactionTestCase, override_settings, skipUnlessDBFeature
 
 from users.auth.errors import AuthProblem
-from users.auth.models import AuthRateLimit
+from users.auth.models import AuthChallenge, AuthRateLimit
+from users.auth.password_reset import PasswordResetService
 from users.auth.rate_limits import RateLimitPolicy, consume
 from users.auth.registration import RegistrationService
 from users.auth.test_registration import (
@@ -100,3 +101,47 @@ class RateLimitConcurrencyTests(TransactionTestCase):
 
         self.assertCountEqual(results, ['accepted', 'verification_failed'])
         self.assertEqual(User.objects.filter(phone='+998901234581').count(), 1)
+
+    @skipUnlessDBFeature('has_select_for_update')
+    @override_settings(
+        AUTH_CHALLENGE_HASH_KEY='a' * 48,
+        PASSWORD_RESET_TTL_SECONDS='300',
+        PASSWORD_RESET_RESEND_SECONDS='60',
+        PASSWORD_RESET_MAX_ATTEMPTS='5',
+    )
+    def test_concurrent_password_reset_start_sends_only_one_code(self):
+        User.objects.create_user(
+            username='reset-race', email='reset-race@example.test',
+            phone='+998901234582', password=STRONG_PASSWORD,
+        )
+        gateway = FakeSmsGateway()
+        barrier = Barrier(2)
+
+        def start():
+            close_old_connections()
+            try:
+                barrier.wait(timeout=5)
+                try:
+                    PasswordResetService(
+                        gateway, code_generator=lambda length: '482901',
+                    ).start('+998901234582', '192.0.2.22')
+                    return 'accepted'
+                except AuthProblem as problem:
+                    return problem.code
+            finally:
+                close_old_connections()
+
+        with ThreadPoolExecutor(max_workers=2) as executor:
+            results = [future.result(timeout=10) for future in [
+                executor.submit(start), executor.submit(start),
+            ]]
+
+        self.assertCountEqual(results, ['accepted', 'resend_too_soon'])
+        self.assertEqual(len(gateway.messages), 1)
+        self.assertEqual(
+            AuthChallenge.objects.filter(
+                identifier='+998901234582',
+                status=AuthChallenge.Status.SENT,
+            ).count(),
+            1,
+        )

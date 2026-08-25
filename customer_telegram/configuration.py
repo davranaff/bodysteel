@@ -5,7 +5,7 @@ from urllib.parse import urlsplit
 from django.conf import settings
 
 
-USERNAME = re.compile(r'^[A-Za-z][A-Za-z0-9_]{3,30}[Bb][Oo][Tt]$')
+USERNAME = re.compile(r'^(?=.{5,32}$)[A-Za-z][A-Za-z0-9_]*[Bb][Oo][Tt]$')
 BOT_TOKEN = re.compile(r'^\d{5,20}:[A-Za-z0-9_-]{30,128}$')
 WEBHOOK_SECRET = re.compile(r'^[A-Za-z0-9_-]{32,256}$')
 WEBHOOK_PATH = '/telegram/customer/webhook/'
@@ -72,7 +72,15 @@ def require_configuration():
     if len(populated) != len(set(populated)):
         raise CustomerTelegramConfigurationError('Customer Telegram secrets must be independent.')
     if not settings.DEBUG:
-        protected = [token.encode(), *populated]
+        protected = [
+            token.encode(),
+            link_key,
+            webhook_secret.encode(),
+            str(getattr(settings, 'PHONE_VERIFICATION_HASH_KEY', '')).encode(),
+            str(getattr(settings, 'AUTH_RATE_LIMIT_HASH_KEY', '')).encode(),
+            str(getattr(settings, 'AUTH_CHALLENGE_HASH_KEY', '')).encode(),
+            str(getattr(settings, 'BODYSTEEL_STOREFRONT_PROXY_TOKEN', '')).encode(),
+        ]
         if any(
             marker.encode() in value.lower()
             for value in protected

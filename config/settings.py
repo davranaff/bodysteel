@@ -225,7 +225,9 @@ SAVDOQ_INTEGRATION_CREDENTIALS = tuple(
     )
     if credential['token']
 )
-SAVDOQ_INTEGRATION_CHECK_ENABLED = not DEBUG
+SAVDOQ_INTEGRATION_CHECK_ENABLED = os.getenv(
+    'SAVDOQ_INTEGRATION_CHECK_ENABLED', '',
+).strip().lower() in {'1', 'true', 'yes'}
 SAVDOQ_STOREFRONT_ORIGIN = os.getenv('SAVDOQ_STOREFRONT_ORIGIN', 'https://bodysteel.uz')
 SAVDOQ_MEDIA_ORIGIN = os.getenv('SAVDOQ_MEDIA_ORIGIN', 'https://api.bodysteel.uz')
 SAVDOQ_ALLOW_LOCAL_ORIGINS = (
