@@ -1,7 +1,7 @@
 import re
 import unicodedata
 from collections import defaultdict
-from difflib import SequenceMatcher
+from functools import lru_cache
 
 
 _ENGLISH_KEYS = "qwertyuiop[]asdfghjkl;'zxcvbnm,."
@@ -51,13 +51,16 @@ def smart_search_score(query, fields):
         for candidate in _search_keys(field):
             for query_key in query_keys:
                 best = max(best, _pair_score(query_key, candidate))
+                if best >= 108:
+                    return best
     return best
 
 
+@lru_cache(maxsize=32768)
 def _search_keys(value, keyboard_variants=False):
     normalized = _normalize(value)
     if len(normalized) < 2:
-        return set()
+        return frozenset()
 
     variants = {normalized, _transliterate(normalized)}
     if keyboard_variants:
@@ -67,7 +70,7 @@ def _search_keys(value, keyboard_variants=False):
         elif re.search(r'[а-яё]', normalized) and not re.search(r'[a-z]', normalized):
             corrected = _normalize(normalized.translate(_RUSSIAN_TO_ENGLISH))
             variants.update((corrected, _transliterate(corrected)))
-    return {variant for variant in variants if len(variant) >= 2}
+    return frozenset(variant for variant in variants if len(variant) >= 2)
 
 
 def _normalize(value):
@@ -103,7 +106,7 @@ def _pair_score(query, candidate):
     if token_scores and min(token_scores) >= threshold:
         return round(70 + (sum(token_scores) / len(token_scores)) * 30)
 
-    whole_ratio = SequenceMatcher(None, query, candidate).ratio()
+    whole_ratio = _edit_ratio(query, candidate)
     return round(58 + whole_ratio * 30) if whole_ratio >= _fuzzy_threshold(len(query)) else 0
 
 
@@ -113,8 +116,47 @@ def _token_ratio(query, candidate):
     if candidate.startswith(query) or query.startswith(candidate):
         shorter = min(len(query), len(candidate))
         longer = max(len(query), len(candidate))
-        return max(SequenceMatcher(None, query, candidate).ratio(), shorter / longer)
-    return SequenceMatcher(None, query, candidate).ratio()
+        return max(_edit_ratio(query, candidate), shorter / longer)
+    return _edit_ratio(query, candidate)
+
+
+def _edit_ratio(left, right):
+    """Fast typo similarity with adjacent-letter transposition support."""
+    if left == right:
+        return 1
+    longest = max(len(left), len(right))
+    if not longest:
+        return 1
+
+    maximum_distance = max(1, round(longest * .36))
+    if abs(len(left) - len(right)) > maximum_distance:
+        return 0
+
+    previous_previous = None
+    previous = list(range(len(right) + 1))
+    for row, left_character in enumerate(left, start=1):
+        current = [row]
+        for column, right_character in enumerate(right, start=1):
+            substitution_cost = 0 if left_character == right_character else 1
+            distance = min(
+                current[column - 1] + 1,
+                previous[column] + 1,
+                previous[column - 1] + substitution_cost,
+            )
+            if (
+                previous_previous is not None
+                and column > 1
+                and left_character == right[column - 2]
+                and left[row - 2] == right_character
+            ):
+                distance = min(distance, previous_previous[column - 2] + 1)
+            current.append(distance)
+        if min(current) > maximum_distance:
+            return 0
+        previous_previous, previous = previous, current
+
+    distance = previous[-1]
+    return 0 if distance > maximum_distance else 1 - (distance / longest)
 
 
 def _fuzzy_threshold(length):

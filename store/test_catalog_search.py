@@ -8,6 +8,10 @@ class SmartCatalogSearchTests(SimpleTestCase):
         score = smart_search_score('протин', ('Сывороточный протеин Whey',))
         self.assertGreater(score, 0)
 
+    def test_accepts_transposed_letters(self):
+        score = smart_search_score('proetin', ('Whey Protein',))
+        self.assertGreater(score, 0)
+
     def test_accepts_cyrillic_product_searched_in_latin(self):
         score = smart_search_score('protein', ('Сывороточный протеин',))
         self.assertGreaterEqual(score, 100)
