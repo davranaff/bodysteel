@@ -65,6 +65,24 @@ class AdminPanelRenderTests(TestCase):
             {model['name'] for app in app_list for model in app['models']},
         )
 
+    def test_every_admin_model_and_field_has_a_russian_label(self):
+        for model in bodysteel_admin_site._registry:
+            with self.subTest(model=model._meta.label):
+                self.assertTrue(self._contains_cyrillic(str(model._meta.verbose_name)))
+                self.assertTrue(self._contains_cyrillic(str(model._meta.verbose_name_plural)))
+            fields = (*model._meta.fields, *model._meta.many_to_many)
+            for field in fields:
+                if field.name == 'id':
+                    continue
+                with self.subTest(model=model._meta.label, field=field.name):
+                    label = str(field.verbose_name)
+                    self.assertNotEqual(label, field.name.replace('_', ' '))
+                    self.assertTrue(self._contains_cyrillic(label), label)
+
+    @staticmethod
+    def _contains_cyrillic(value):
+        return any('\u0400' <= character <= '\u04ff' for character in value)
+
     def test_regos_mapping_fields_are_editable(self):
         readonly_fields = ProductAdmin.readonly_fields
 

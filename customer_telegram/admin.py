@@ -111,7 +111,7 @@ class CustomerTelegramCampaignAdmin(admin.ModelAdmin):
         if campaign.status != CustomerTelegramCampaign.DRAFT:
             self.message_user(
                 request,
-                'Запустить можно только кампанию со статусом Draft.',
+                'Запустить можно только кампанию со статусом «Черновик».',
                 level=messages.WARNING,
             )
             return HttpResponseRedirect(change_url)

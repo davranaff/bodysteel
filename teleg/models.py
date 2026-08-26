@@ -6,8 +6,8 @@ from store.models import BaseModel
 # Create your models here.
 
 class SecretPhrase(BaseModel):
-    phrase = models.CharField(max_length=20, unique=True)
-    expired_date = models.DateTimeField()
+    phrase = models.CharField(max_length=20, unique=True, verbose_name='Секретный ключ')
+    expired_date = models.DateTimeField(verbose_name='Действует до')
 
     def __str__(self):
         return self.phrase
@@ -18,10 +18,10 @@ class SecretPhrase(BaseModel):
 
 
 class Chat(BaseModel):
-    chat_id = models.CharField(max_length=255)
-    first_name = models.CharField(max_length=255)
-    last_name = models.CharField(max_length=255, null=True)
-    username = models.CharField(max_length=255, null=True)
+    chat_id = models.CharField(max_length=255, verbose_name='ID чата')
+    first_name = models.CharField(max_length=255, verbose_name='Имя')
+    last_name = models.CharField(max_length=255, null=True, verbose_name='Фамилия')
+    username = models.CharField(max_length=255, null=True, verbose_name='Имя пользователя Telegram')
 
     def __str__(self):
         return f"{self.chat_id}: {self.first_name}"

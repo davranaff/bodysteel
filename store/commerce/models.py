@@ -24,6 +24,7 @@ class Basket(BaseModel):
         related_query_name='baskets',
         null=True,
         on_delete=models.SET_NULL,
+        verbose_name='Товар',
     )
     order = models.ForeignKey(
         'Order',
@@ -32,11 +33,22 @@ class Basket(BaseModel):
         on_delete=models.SET_NULL,
         null=True,
         default=None,
+        verbose_name='Заказ',
     )
     unit_price = models.PositiveBigIntegerField(default=0, verbose_name='Цена за единицу на момент заказа')
-    product_name_ru = models.CharField(max_length=500, blank=True, default='')
-    product_name_uz = models.CharField(max_length=500, blank=True, default='')
-    product_type = models.CharField(max_length=20, blank=True, default='')
+    product_name_ru = models.CharField(
+        max_length=500,
+        blank=True,
+        default='',
+        verbose_name='Название товара на русском на момент заказа',
+    )
+    product_name_uz = models.CharField(
+        max_length=500,
+        blank=True,
+        default='',
+        verbose_name='Название товара на узбекском на момент заказа',
+    )
+    product_type = models.CharField(max_length=20, blank=True, default='', verbose_name='Тип товара')
 
     def save(self, *args, **kwargs):
         if self.product and self._state.adding:
@@ -117,36 +129,49 @@ class Order(BaseModel):
         null=True,
         blank=True,
     )
-    total_price = models.PositiveBigIntegerField(default=0)
-    type = models.CharField(max_length=100, choices=DELIVERY_CHOICES)
-    full_name = models.CharField(max_length=255)
-    phone = models.CharField(max_length=13)
-    fix_check = models.FileField(upload_to=check_path, null=True)
-    address = models.CharField(max_length=255, blank=True, null=True, default='')
-    status = models.CharField(max_length=50, choices=STATUS_CHOICES, default='moderation')
+    total_price = models.PositiveBigIntegerField(default=0, verbose_name='Итоговая сумма')
+    type = models.CharField(max_length=100, choices=DELIVERY_CHOICES, verbose_name='Способ доставки')
+    full_name = models.CharField(max_length=255, verbose_name='Имя получателя')
+    phone = models.CharField(max_length=13, verbose_name='Телефон')
+    fix_check = models.FileField(upload_to=check_path, null=True, verbose_name='Чек об оплате')
+    address = models.CharField(max_length=255, blank=True, null=True, default='', verbose_name='Адрес доставки')
+    status = models.CharField(max_length=50, choices=STATUS_CHOICES, default='moderation', verbose_name='Статус заказа')
     payment_status = models.CharField(
         max_length=20,
         choices=PAYMENT_STATUS_CHOICES,
         default='unpaid',
         db_index=True,
+        verbose_name='Статус оплаты',
     )
     fulfillment_status = models.CharField(
         max_length=20,
         choices=FULFILLMENT_STATUS_CHOICES,
         default='new',
         db_index=True,
+        verbose_name='Статус выполнения',
     )
-    subtotal_price = models.PositiveBigIntegerField(default=0)
-    discount_price = models.PositiveBigIntegerField(default=0)
-    delivery_fee = models.PositiveBigIntegerField(default=0)
-    delivery_method_code = models.CharField(max_length=50, blank=True, default='')
-    delivery_zone_code = models.CharField(max_length=100, blank=True, default='')
-    delivery_slot_date = models.DateField(null=True, blank=True)
-    delivery_slot_label = models.CharField(max_length=100, blank=True, default='')
-    customer_note = models.CharField(max_length=1000, blank=True, default='')
-    order_code = models.CharField(max_length=10, unique=True)
-    idempotency_digest = models.CharField(max_length=64, unique=True, null=True, editable=False)
-    request_fingerprint = models.CharField(max_length=64, null=True, editable=False)
+    subtotal_price = models.PositiveBigIntegerField(default=0, verbose_name='Сумма товаров без скидки')
+    discount_price = models.PositiveBigIntegerField(default=0, verbose_name='Сумма скидки')
+    delivery_fee = models.PositiveBigIntegerField(default=0, verbose_name='Стоимость доставки')
+    delivery_method_code = models.CharField(max_length=50, blank=True, default='', verbose_name='Код способа доставки')
+    delivery_zone_code = models.CharField(max_length=100, blank=True, default='', verbose_name='Код зоны доставки')
+    delivery_slot_date = models.DateField(null=True, blank=True, verbose_name='Дата доставки')
+    delivery_slot_label = models.CharField(max_length=100, blank=True, default='', verbose_name='Интервал доставки')
+    customer_note = models.CharField(max_length=1000, blank=True, default='', verbose_name='Комментарий покупателя')
+    order_code = models.CharField(max_length=10, unique=True, verbose_name='Номер заказа')
+    idempotency_digest = models.CharField(
+        max_length=64,
+        unique=True,
+        null=True,
+        editable=False,
+        verbose_name='Ключ защиты от дублирования',
+    )
+    request_fingerprint = models.CharField(
+        max_length=64,
+        null=True,
+        editable=False,
+        verbose_name='Отпечаток запроса',
+    )
     coupon = models.ForeignKey(
         'Coupon',
         on_delete=models.SET_NULL,

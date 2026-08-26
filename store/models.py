@@ -32,7 +32,7 @@ def filial_image_directory_path(instance, filename):
 
 
 class BaseModel(models.Model):
-    created_at = models.DateTimeField(auto_now_add=True)
+    created_at = models.DateTimeField(auto_now_add=True, verbose_name='Дата создания')
 
     class Meta:
         abstract = True

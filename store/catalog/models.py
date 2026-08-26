@@ -62,7 +62,7 @@ class Product(BaseModel):
         (REGOS_STATUS_ARCHIVED, 'Архивирован из REGOS'),
     )
 
-    updated_at = models.DateTimeField(auto_now=True)
+    updated_at = models.DateTimeField(auto_now=True, verbose_name='Дата обновления')
     product_type = models.CharField(
         max_length=20,
         choices=PRODUCT_TYPE_CHOICES,
