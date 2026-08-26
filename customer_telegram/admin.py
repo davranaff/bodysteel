@@ -151,7 +151,7 @@ class CustomerTelegramCampaignAdmin(admin.ModelAdmin):
             _retry_count=Count('recipients', filter=Q(recipients__status='retry')),
         )
 
-    @admin.display(description='Retry', ordering='_retry_count')
+    @admin.display(description='Повторные попытки', ordering='_retry_count')
     def retry_count(self, obj):
         return obj._retry_count
 

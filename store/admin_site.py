@@ -29,6 +29,54 @@ class BodySteelAdminSite(admin.AdminSite):
     index_title = 'Командный центр'
     index_template = 'admin/index.html'
 
+    menu_app_titles = {
+        'courses': 'Обучение',
+        'customer_telegram': 'Клиентский Telegram-бот',
+        'nutrition': 'Правильное питание',
+        'payments': 'Оплата',
+        'store': 'Магазин',
+        'teleg': 'Бот заказов',
+        'users': 'Пользователи',
+    }
+    menu_model_titles = {
+        'courses.course': 'Курсы',
+        'courses.courseaccess': 'Доступы к курсам',
+        'courses.coursemodule': 'Модули курсов',
+        'courses.coursepurchase': 'Покупки курсов',
+        'courses.lesson': 'Уроки',
+        'courses.lessonmaterial': 'Материалы уроков',
+        'courses.lessonprogress': 'Прогресс уроков',
+        'customer_telegram.customertelegramcampaign': 'Рассылки',
+        'customer_telegram.customertelegramcampaignrecipient': 'Получатели рассылок',
+        'customer_telegram.customertelegramchat': 'Клиенты Telegram',
+        'nutrition.allergen': 'Аллергены',
+        'nutrition.deliverymethod': 'Способы доставки',
+        'nutrition.deliveryslot': 'Интервалы доставки',
+        'nutrition.deliveryzone': 'Зоны доставки',
+        'nutrition.foodtag': 'Теги блюд',
+        'nutrition.mealproduct': 'Блюда правильного питания',
+        'nutrition.nutritionprofile': 'Профили питания',
+        'payments.payment': 'Платежи',
+        'payments.paymentevent': 'События платежей',
+        'store.basket': 'Корзины',
+        'store.blog': 'Блоги',
+        'store.brand': 'Бренды',
+        'store.category': 'Категории',
+        'store.coupon': 'Купоны',
+        'store.filial': 'Филиалы',
+        'store.filialphoto': 'Фото филиалов',
+        'store.menu': 'Меню сайта',
+        'store.order': 'Заказы',
+        'store.product': 'Товары',
+        'store.product360image': '360° изображения товаров',
+        'store.productimage': 'Изображения товаров',
+        'store.review': 'Отзывы',
+        'store.setofproduct': 'Комплекты товаров',
+        'teleg.chat': 'Чаты сотрудников',
+        'teleg.secretphrase': 'Секретные ключи',
+        'users.user': 'Пользователи',
+    }
+
     def get_urls(self):
         custom_urls = [
             path(
@@ -38,6 +86,15 @@ class BodySteelAdminSite(admin.AdminSite):
             ),
         ]
         return custom_urls + super().get_urls()
+
+    def get_app_list(self, request, app_label=None):
+        app_list = super().get_app_list(request, app_label)
+        for app in app_list:
+            app['name'] = self.menu_app_titles[app['app_label']]
+            for model in app['models']:
+                model['name'] = self.menu_model_titles[model['model']._meta.label_lower]
+            app['models'].sort(key=lambda model: model['name'].casefold())
+        return sorted(app_list, key=lambda app: app['name'].casefold())
 
     def each_context(self, request):
         context = super().each_context(request)
