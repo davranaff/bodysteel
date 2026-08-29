@@ -33,6 +33,8 @@ def merge_case_insensitive_duplicates(apps, schema_editor):
 
 
 class Migration(migrations.Migration):
+    atomic = False
+
     dependencies = [
         ('store', '0043_alter_basket_created_at_alter_basket_order_and_more'),
     ]
