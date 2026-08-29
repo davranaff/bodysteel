@@ -7,7 +7,8 @@ from django.db import close_old_connections
 from django.test import Client, TestCase, TransactionTestCase, skipUnlessDBFeature
 from rest_framework.authtoken.models import Token
 
-from store.models import Basket, Order, Product
+from payments.models import Payment
+from store.models import Basket, Coupon, Menu, Order, Product
 from users.models import User
 
 
@@ -78,6 +79,71 @@ class OrderIdempotencyTests(TestCase):
         self.assertEqual(Order.objects.count(), 0)
 
     @patch('users.orders.views.notify_message')
+    def test_guest_order_applies_coupon_without_requiring_registration(self, notify):
+        coupon = Coupon.objects.create(
+            code='GUEST10',
+            discount_percent=10,
+            max_uses=2,
+        )
+        payload = self.payload()
+        payload['coupon_code'] = coupon.code
+
+        response = self.post_order(payload, 'checkout-guest-coupon-0001')
+
+        self.assertEqual(response.status_code, 201)
+        order = Order.objects.get()
+        self.assertIsNone(order.user)
+        self.assertEqual(order.coupon, coupon)
+        self.assertEqual(order.subtotal_price, 380_000)
+        self.assertEqual(order.discount_price, 38_000)
+        self.assertEqual(order.total_price, 342_000)
+        coupon.refresh_from_db()
+        self.assertEqual(coupon.used_count, 1)
+        self.product.refresh_from_db()
+        self.assertEqual(self.product.quantity, 5)
+        notify.assert_called_once()
+
+    @patch('users.orders.views.notify_message')
+    def test_authenticated_order_applies_unused_bonus_and_coupon(self, notify):
+        self.create_menu(bonus=50_000)
+        coupon = Coupon.objects.create(
+            code='MEMBER10',
+            discount_percent=10,
+            max_uses=2,
+        )
+        user = User.objects.create_user(
+            username='bonus-order-user',
+            email='bonus-order@example.test',
+            phone='+998901112234',
+            password='safe-test-password',
+        )
+        authorization = 'Token {}'.format(Token.objects.create(user=user).key)
+        payload = self.payload()
+        payload['coupon_code'] = coupon.code
+
+        response = self.post_order(
+            payload,
+            'checkout-member-coupon-0001',
+            authorization=authorization,
+        )
+
+        self.assertEqual(response.status_code, 201)
+        order = Order.objects.get()
+        self.assertEqual(order.user, user)
+        self.assertEqual(order.coupon, coupon)
+        self.assertEqual(order.subtotal_price, 380_000)
+        self.assertEqual(order.discount_price, 83_000)
+        self.assertEqual(order.total_price, 297_000)
+        self.assertEqual(Payment.objects.get(order=order).amount, 297_000)
+        user.refresh_from_db()
+        coupon.refresh_from_db()
+        self.assertTrue(user.bonus_used)
+        self.assertEqual(coupon.used_count, 1)
+        self.product.refresh_from_db()
+        self.assertEqual(self.product.quantity, 5)
+        notify.assert_called_once()
+
+    @patch('users.orders.views.notify_message')
     def test_order_history_requires_auth_and_hides_idempotency_state(self, _notify):
         user = User.objects.create_user(
             username='order-history-user',
@@ -124,6 +190,26 @@ class OrderIdempotencyTests(TestCase):
                 'Idempotency-Key': idempotency_key,
                 **({'Authorization': authorization} if authorization else {}),
             },
+        )
+
+    @staticmethod
+    def create_menu(bonus):
+        return Menu.objects.create(
+            name='Test menu',
+            about_uz='Test',
+            about_ru='Test',
+            blog_uz='Test',
+            blog_ru='Test',
+            set_product_uz='Test',
+            set_product_ru='Test',
+            delivery_and_payment_uz='Test',
+            delivery_and_payment_ru='Test',
+            bank_card_number='0000000000000000',
+            uzbekistan_description_uz='Test',
+            bukhara_description_uz='Test',
+            uzbekistan_description_ru='Test',
+            bukhara_description_ru='Test',
+            bonus=bonus,
         )
 
 

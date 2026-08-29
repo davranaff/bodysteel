@@ -6,7 +6,7 @@ from django.db.models import F
 from integration.orders.attribution import attach_order_attribution
 from nutrition.checkout import CheckoutUnavailable, build_quote
 from payments.models import Payment
-from store.models import Basket, Coupon, Order, Product
+from store.models import Basket, Coupon, Menu, Order
 from users.models import User
 from users.orders.errors import OrderUnavailable
 from users.orders.idempotency import find_replay, idempotency_digest, request_fingerprint
