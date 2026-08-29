@@ -1,8 +1,6 @@
 from dataclasses import dataclass
 
-from django.db.models import Q
-
-from nutrition.models import DeliveryMethod, DeliverySlot, DeliveryZone, NutritionProfile
+from nutrition.models import DeliveryMethod, DeliverySlot, DeliveryZone
 from store.models import Menu, Product
 
 
@@ -39,7 +37,10 @@ def build_quote(command, lock=False):
     quantities = aggregate(command['baskets'])
     queryset = Product.objects.visible_on_storefront().filter(pk__in=quantities).select_related('nutrition_profile')
     if lock:
-        queryset = queryset.select_for_update()
+        # The optional reverse one-to-one profile is joined with LEFT OUTER JOIN.
+        # PostgreSQL cannot lock its nullable side, and checkout only needs the
+        # product row locked while availability is rechecked.
+        queryset = queryset.select_for_update(of=('self',))
     products = {product.pk: product for product in queryset}
     if len(products) != len(quantities):
         raise CheckoutUnavailable('One or more products are unavailable')
