@@ -1,5 +1,6 @@
 from django.core.validators import MaxValueValidator, MinValueValidator
 from django.db import models
+from django.db.models.functions import Lower
 
 from store.content.models import Menu
 from store.models import BaseModel, check_path
@@ -228,3 +229,6 @@ class Coupon(BaseModel):
         verbose_name = 'Купон'
         verbose_name_plural = 'Купоны'
         ordering = ['-created_at']
+        constraints = [
+            models.UniqueConstraint(Lower('code'), name='store_coupon_code_ci_uniq'),
+        ]

@@ -183,15 +183,10 @@ class CouponAPIView(APIView):
             return Response({'data': serializer}, status=status.HTTP_200_OK)
 
         # Если ключ указан, проверяем его и возвращаем процент скидки или null
-        try:
-            coupon = Coupon.objects.get(code=coupon_code, is_active=True)
-
-            if not coupon.can_use():
-                return Response({'discount_percent': None}, status=status.HTTP_200_OK)
-
-            return Response({'discount_percent': coupon.discount_percent}, status=status.HTTP_200_OK)
-        except Coupon.DoesNotExist:
+        coupon = Coupon.objects.filter(code__iexact=coupon_code, is_active=True).first()
+        if not coupon or not coupon.can_use():
             return Response({'discount_percent': None}, status=status.HTTP_200_OK)
+        return Response({'discount_percent': coupon.discount_percent}, status=status.HTTP_200_OK)
 
     # @swagger_auto_schema(manual_parameters=[],
     #                      request_body=CouponValidateSerializer,

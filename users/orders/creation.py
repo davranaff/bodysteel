@@ -116,7 +116,7 @@ def _apply_bonus(actor, subtotal):
 def _apply_coupon(code, subtotal):
     if not code:
         return None, subtotal
-    coupon = Coupon.objects.select_for_update().filter(code=code, is_active=True).first()
+    coupon = Coupon.objects.select_for_update().filter(code__iexact=code, is_active=True).first()
     if not coupon or not coupon.can_use():
         return None, subtotal
     discount = int(subtotal * (coupon.discount_percent / 100))

@@ -14,9 +14,9 @@ class CouponValidateSerializer(serializers.Serializer):
 
     def validate_code(self, value):
         try:
-            coupon = Coupon.objects.get(code=value, is_active=True)
+            coupon = Coupon.objects.get(code__iexact=value, is_active=True)
             if not coupon.can_use():
                 raise serializers.ValidationError("Купон больше не может быть использован")
             return value
         except Coupon.DoesNotExist:
-            raise serializers.ValidationError("Купон не найден или неактивен") 
+            raise serializers.ValidationError("Купон не найден или неактивен")

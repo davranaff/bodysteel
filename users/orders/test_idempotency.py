@@ -86,7 +86,7 @@ class OrderIdempotencyTests(TestCase):
             max_uses=2,
         )
         payload = self.payload()
-        payload['coupon_code'] = coupon.code
+        payload['coupon_code'] = coupon.code.lower()
 
         response = self.post_order(payload, 'checkout-guest-coupon-0001')
 
