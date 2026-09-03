@@ -111,6 +111,22 @@ class CatalogIntegrationAPITests(IntegrationAPITestCase):
         self.assertEqual(missing.status_code, 404)
         self.assertEqual(missing.json()['title'], 'Product not found')
 
+    def test_attribute_values_are_bounded_by_canonical_utf16_limit(self):
+        product = self.products[0]
+        product.composition_ru = '<p>{}🙂tail</p>'.format('a' * 998)
+        product.save(update_fields=('composition_ru', 'updated_at'))
+
+        response = self.client.get(
+            '/integration/v1/products/{}'.format(product.pk),
+            headers=self.auth_headers(language='ru'),
+        )
+
+        self.assertEqual(response.status_code, 200)
+        composition = response.json()['attributes']['composition']
+        self.assertEqual(len(composition.encode('utf-16-le')) // 2, 1_000)
+        self.assertTrue(composition.endswith('🙂'))
+        self.assertNotIn('tail', composition)
+
     def test_inventory_is_live_bounded_and_deduplicated(self):
         product_id = str(self.products[0].pk)
         response = self.client.get(

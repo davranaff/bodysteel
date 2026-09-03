@@ -12,6 +12,7 @@ from store.models import Category, Product, ProductImage
 
 
 WHITESPACE = re.compile(r'\s+')
+ATTRIBUTE_TEXT_MAX_UTF16_UNITS = 1_000
 
 
 def list_products(cursor, updated_after, limit, language):
@@ -45,7 +46,10 @@ def serialize_product(product, language):
     name = getattr(product, 'name_{}'.format(language))
     description = _plain_text(getattr(product, 'description_{}'.format(language)) or '')
     country = getattr(product, 'country_{}'.format(language))
-    composition = _plain_text(getattr(product, 'composition_{}'.format(language)) or '')
+    composition = _plain_text(
+        getattr(product, 'composition_{}'.format(language)) or '',
+        max_utf16_units=ATTRIBUTE_TEXT_MAX_UTF16_UNITS,
+    )
     price = int(product.price)
     discount = int(product.discounted_price)
     return {
@@ -119,8 +123,14 @@ def _stock(quantity):
     return {'status': 'in_stock' if quantity > 0 else 'out_of_stock', 'quantity': quantity}
 
 
-def _plain_text(value):
-    return WHITESPACE.sub(' ', html.unescape(strip_tags(value))).strip()
+def _plain_text(value, max_utf16_units=None):
+    text = WHITESPACE.sub(' ', html.unescape(strip_tags(value))).strip()
+    if max_utf16_units is None:
+        return text
+    encoded = text.encode('utf-16-le')
+    if len(encoded) <= max_utf16_units * 2:
+        return text
+    return encoded[: max_utf16_units * 2].decode('utf-16-le', errors='ignore').rstrip()
 
 
 def _media_url(path):
