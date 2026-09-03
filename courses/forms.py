@@ -14,7 +14,8 @@ class MultipleFileField(forms.FileField):
     def clean(self, data, initial=None):
         single = not isinstance(data, (list, tuple))
         values = [data] if single else data
-        cleaned = [super().clean(value, initial) for value in values if value]
+        clean_value = super().clean
+        cleaned = [clean_value(value, initial) for value in values if value]
         if not cleaned and self.required:
             raise forms.ValidationError(self.error_messages['required'], code='required')
         return cleaned

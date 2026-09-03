@@ -9,7 +9,11 @@ from payments.models import Payment
 
 @transaction.atomic
 def complete_payment(payment_id, provider_payment_id=None):
-    payment = Payment.objects.select_for_update().select_related('course_purchase__course', 'order').get(pk=payment_id)
+    payment = (
+        Payment.objects.select_for_update(of=('self',))
+        .select_related('course_purchase__course', 'order')
+        .get(pk=payment_id)
+    )
     if payment.status == Payment.SUCCEEDED:
         return payment
     if payment.status in {Payment.CANCELLED, Payment.REFUNDED}:
