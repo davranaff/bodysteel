@@ -11,6 +11,8 @@ SECRET_KEY = os.getenv('SECRET_KEY', DEVELOPMENT_SECRET_KEY)
 
 DEBUG = os.getenv('DEBUG', '').strip().lower() in {'1', 'true', 'yes'}
 
+from .security_settings import *  # noqa: E402,F403
+
 ALLOWED_HOSTS = [
     host.strip()
     for host in os.getenv('ALLOWED_HOSTS', 'localhost,127.0.0.1').split(',')
