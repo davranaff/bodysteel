@@ -3,6 +3,7 @@
 
   const BLOCKED_ELEMENTS = 'script,iframe,object,embed,style,svg,math,template';
   const BLOCKED_STYLE = /(?:@import|behavior\s*:|-moz-binding|expression\s*\(|javascript\s*:|url\s*\()/i;
+  const HTML_ENTITIES = {'&': '&amp;', '"': '&quot;', '<': '&lt;', '>': '&gt;'};
   const URL_ATTRIBUTES = new Set(['href', 'poster', 'src']);
   const commands = [
     ['Отменить', '↶', 'undo'],
@@ -37,7 +38,12 @@
     });
     return documentCopy.body.innerHTML;
   }
-
+  function escapeHtml(value) {
+    return String(value || '').replace(/[&"<>]/g, (character) => HTML_ENTITIES[character]);
+  }
+  function plainTextToHtml(value) {
+    return escapeHtml(value).replace(/\r\n?|\n/g, '<br>');
+  }
   function createButton(label, text, className) {
     const button = document.createElement('button');
     button.type = 'button';
@@ -125,7 +131,7 @@
       try {
         for (const file of files) {
           const url = await upload(file);
-          insertHtml(`<img src="${url.replace(/[&"<>]/g, (char) => ({'&': '&amp;', '"': '&quot;', '<': '&lt;', '>': '&gt;'}[char]))}" alt="">`);
+          insertHtml(`<img src="${escapeHtml(url)}" alt="">`);
         }
         status.textContent = files.length > 1 ? 'Изображения загружены' : 'Изображение загружено';
       } catch (error) {
@@ -214,10 +220,19 @@
         await insertFiles(files);
         return;
       }
+      const text = event.clipboardData?.getData('text/plain');
+      if (text) {
+        event.preventDefault();
+        insertHtml(plainTextToHtml(text));
+        status.textContent = 'Текст вставлен без исходного форматирования';
+        return;
+      }
       const html = event.clipboardData?.getData('text/html');
       if (html) {
         event.preventDefault();
-        insertHtml(sanitizeHtml(html));
+        const documentCopy = new DOMParser().parseFromString(html, 'text/html');
+        const fallbackText = documentCopy.body.textContent || '';
+        insertHtml(fallbackText.trim() ? plainTextToHtml(fallbackText) : sanitizeHtml(html));
       }
     });
     textarea.form?.addEventListener('submit', sync);

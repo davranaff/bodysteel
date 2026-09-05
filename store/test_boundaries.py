@@ -1,3 +1,5 @@
+from types import SimpleNamespace
+
 from django.test import SimpleTestCase
 
 import store.models as public_models
@@ -29,6 +31,22 @@ class StoreModelBoundaryTests(SimpleTestCase):
             public_models.product_image_directory_path,
         )
         self.assertTrue(all(callback.__module__ == 'store.models' for callback in callbacks))
+
+    def test_product_upload_path_removes_invisible_and_path_characters(self):
+        image = SimpleNamespace(
+            product=SimpleNamespace(name_ru='Kevin Levrone 3 \u200b\u200bкг / шоколад'),
+        )
+
+        path = public_models.product_image_directory_path(
+            image,
+            'front\u200b/cover.webp',
+        )
+
+        self.assertEqual(
+            path,
+            'product_images/Kevin Levrone 3 кг шоколад/front cover.webp',
+        )
+        self.assertNotIn('\u200b', path)
 
 
 class BasketDisplayTests(SimpleTestCase):

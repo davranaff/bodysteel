@@ -1,34 +1,54 @@
 """Stable Django model facade and historical migration callbacks."""
 
+import unicodedata
+
 from django.db import models
 
 
 def category_directory_path(instance, filename):
-    return 'categories/{0}/{1}'.format(instance.name_ru, filename)
+    return _upload_path('categories', instance.name_ru, filename)
 
 
 def blog_directory_path(instance, filename):
-    return 'blog/{0}/{1}'.format(instance.name_ru, filename)
+    return _upload_path('blog', instance.name_ru, filename)
 
 
 def brand_directory_path(instance, filename):
-    return 'brand/{0}/{1}'.format(instance.name, filename)
+    return _upload_path('brand', instance.name, filename)
 
 
 def product_image_directory_path(instance, filename):
-    return 'product_images/{0}/{1}'.format(instance.product.name_ru, filename)
+    return _upload_path('product_images', instance.product.name_ru, filename)
 
 
 def check_path(instance, filename):
-    return 'checks/{0}/{1}'.format(instance.order_code, filename)
+    return _upload_path('checks', instance.order_code, filename)
 
 
 def product_360_directory_path(instance, filename):
-    return 'product_360/{0}/{1}'.format(instance.product.name_ru, filename)
+    return _upload_path('product_360', instance.product.name_ru, filename)
 
 
 def filial_image_directory_path(instance, filename):
-    return 'filial/{0}/{1}'.format(instance.filial.name_ru, filename)
+    return _upload_path('filial', instance.filial.name_ru, filename)
+
+
+def _upload_path(prefix, directory, filename):
+    return '{0}/{1}/{2}'.format(
+        prefix,
+        _upload_component(directory, 'unnamed'),
+        _upload_component(filename, 'file'),
+    )
+
+
+def _upload_component(value, fallback):
+    normalized = unicodedata.normalize('NFKC', str(value or ''))
+    visible = ''.join(
+        character for character in normalized
+        if not unicodedata.category(character).startswith('C')
+    )
+    flattened = visible.replace('/', ' ').replace('\\', ' ')
+    return ' '.join(flattened.split()) or fallback
 
 
 class BaseModel(models.Model):
