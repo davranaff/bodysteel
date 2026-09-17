@@ -68,11 +68,22 @@ MIDDLEWARE = [
     'config.middleware.AuthMiddleware',
 ]
 
-# Temporary: allow browser clients on any origin to call the public API.
+# Browser access from third-party domains can be enabled temporarily through
+# the production environment, without a code deployment to disable it again.
 # Authentication and per-view permissions still apply to protected endpoints.
-# Switch this back to an explicit allow-list once third-party access is no
-# longer required.
-CORS_ALLOW_ALL_ORIGINS = True
+CORS_ALLOW_ALL_ORIGINS = os.getenv(
+    'CORS_ALLOW_ALL_ORIGINS', ''
+).strip().lower() in {'1', 'true', 'yes'}
+
+if not CORS_ALLOW_ALL_ORIGINS:
+    CORS_ALLOWED_ORIGINS = [
+        "http://localhost:8000",
+        "http://localhost:3000",
+        "http://localhost:3003",
+        "https://bodysteel.vercel.app",
+        "https://bodysteel.uz",
+        "https://api.bodysteel.uz",
+    ]
 
 CSRF_TRUSTED_ORIGINS = [
     "http://localhost:3000",
