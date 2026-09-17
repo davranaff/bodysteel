@@ -68,14 +68,11 @@ MIDDLEWARE = [
     'config.middleware.AuthMiddleware',
 ]
 
-CORS_ALLOWED_ORIGINS = [
-    "http://localhost:8000",
-    "http://localhost:3000",
-    "http://localhost:3003",
-    "https://bodysteel.vercel.app",
-    "https://bodysteel.uz",
-    "https://api.bodysteel.uz",
-]
+# Temporary: allow browser clients on any origin to call the public API.
+# Authentication and per-view permissions still apply to protected endpoints.
+# Switch this back to an explicit allow-list once third-party access is no
+# longer required.
+CORS_ALLOW_ALL_ORIGINS = True
 
 CSRF_TRUSTED_ORIGINS = [
     "http://localhost:3000",
