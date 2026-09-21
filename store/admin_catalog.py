@@ -3,6 +3,7 @@ from django.utils.html import format_html
 
 from store.admin_shared import Product360ImageInline, ProductImageInline, ProductStateFilter, StockFilter
 from store.admin_site import admin_url, bodysteel_admin_site, format_uzs
+from store.catalog.search import smart_product_ids
 from store.models import FilialPhoto, Product, Product360Image, ProductImage, Review
 
 
@@ -46,6 +47,11 @@ class ProductAdmin(admin.ModelAdmin):
             ),
         }),
     )
+
+    def get_search_results(self, request, queryset, search_term):
+        if not search_term.strip():
+            return queryset, False
+        return queryset.filter(pk__in=smart_product_ids(queryset, search_term)), False
 
     @admin.display(description='Товар', ordering='name_ru')
     def product_name(self, obj):

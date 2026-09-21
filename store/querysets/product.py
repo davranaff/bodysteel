@@ -7,8 +7,12 @@ from store.querysets.base_queryset import BaseQuerySet
 class ProductQueryset(BaseQuerySet):
 
     def visible_on_storefront(self):
-        """Products that may be shown and sold through the website."""
+        """Products eligible for purchase and external inventory integrations."""
         return self.filter(regos_catalog_status__in=('manual', 'published'))
+
+    def displayable_on_storefront(self):
+        """Public product cards, including non-purchasable REGOS drafts."""
+        return self.filter(regos_catalog_status__in=('manual', 'published', 'draft'))
 
     def sports_catalog(self):
         """Products belonging to the sports-nutrition storefront channel."""
@@ -74,7 +78,7 @@ class ProductQueryset(BaseQuerySet):
         """
         query = self.annotate(
             in_stock=Case(
-                When(quantity=0, then=1),
+                When(Q(quantity=0) | Q(regos_catalog_status='draft'), then=1),
                 default=0,
                 output_field=IntegerField()
             )

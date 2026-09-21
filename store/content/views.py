@@ -17,14 +17,14 @@ class HomePageAPIView(APIView):
     allowed_methods = ['get']
 
     def get(self, request):
-        sports_products = Product.objects.visible_on_storefront().sports_catalog()
+        sports_products = Product.objects.displayable_on_storefront().sports_catalog()
         sports_set_filter = Q(
             products__product_type=Product.TYPE_SUPPLEMENT,
-            products__regos_catalog_status__in=('manual', 'published'),
+            products__regos_catalog_status__in=('manual', 'published', 'draft'),
         )
         sports_brand_filter = Q(
             products__product_type=Product.TYPE_SUPPLEMENT,
-            products__regos_catalog_status__in=('manual', 'published'),
+            products__regos_catalog_status__in=('manual', 'published', 'draft'),
         )
         payload = {
             'set_of_products': SetOfProductsSerializerWithCount(
@@ -36,7 +36,7 @@ class HomePageAPIView(APIView):
             'categories': CategorySerializer(
                 Category.objects.filter(
                     products__product_type=Product.TYPE_SUPPLEMENT,
-                    products__regos_catalog_status__in=('manual', 'published'),
+                    products__regos_catalog_status__in=('manual', 'published', 'draft'),
                 ).distinct().order_by('sort')[:9],
                 many=True,
             ).data,
@@ -111,7 +111,7 @@ class SetOfProductViewSet(viewsets.ViewSet):
     def list(self, request):
         sports_set_filter = Q(
             products__product_type=Product.TYPE_SUPPLEMENT,
-            products__regos_catalog_status__in=('manual', 'published'),
+            products__regos_catalog_status__in=('manual', 'published', 'draft'),
         )
         sets = SetOfProduct.objects.filter(sports_set_filter).annotate(
             products_count=Count('products', filter=sports_set_filter),
@@ -129,7 +129,7 @@ class SetOfProductViewSet(viewsets.ViewSet):
 
     def retrieve(self, request, slug):
         products = (
-            Product.objects.visible_on_storefront().sports_catalog().with_rating()
+            Product.objects.displayable_on_storefront().sports_catalog().with_rating()
             .with_favorite(request.auth)
             .filter(set_of_products__slug=slug)
             .order_by_stock()
@@ -153,7 +153,7 @@ class BrandAPIView(APIView):
     def get(self, request):
         sports_brand_filter = Q(
             products__product_type=Product.TYPE_SUPPLEMENT,
-            products__regos_catalog_status__in=('manual', 'published'),
+            products__regos_catalog_status__in=('manual', 'published', 'draft'),
         )
         brands = Brand.objects.filter(sports_brand_filter).distinct()
         return Response(

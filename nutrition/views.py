@@ -13,7 +13,7 @@ from store.serializers.products import ProductSerializer
 
 
 def nutrition_queryset():
-    return Product.objects.visible_on_storefront().filter(
+    return Product.objects.displayable_on_storefront().filter(
         product_type__in=(Product.TYPE_MEAL, Product.TYPE_MEAL_KIT),
     ).select_related('brand', 'nutrition_profile').prefetch_related(
         'product_images', 'category', 'nutrition_profile__tags',

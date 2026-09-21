@@ -17,18 +17,21 @@ _CYRILLIC_TO_LATIN = str.maketrans({
     'қ': 'q', 'ғ': 'g', 'ҳ': 'h', 'ў': 'o',
 })
 _WHITESPACE = re.compile(r'\s+')
+_LATIN_LOOKALIKES = str.maketrans({'a': 'а', 'c': 'с', 'e': 'е', 'o': 'о', 'p': 'р', 'x': 'х', 'y': 'у'})
 
 
 def smart_product_ids(queryset, query):
     """Return matching product IDs ordered by forgiving search relevance."""
     fields_by_product = defaultdict(set)
     rows = queryset.values(
-        'pk', 'name_ru', 'name_uz', 'brand__name',
+        'pk', 'name_ru', 'name_uz', 'slug', 'regos_item_code',
+        'regos_item_articul', 'brand__name',
         'category__name_ru', 'category__name_uz',
     )
     for row in rows:
         fields_by_product[row['pk']].update((
-            row['name_ru'], row['name_uz'], row['brand__name'],
+            str(row['pk']), row['name_ru'], row['name_uz'], row['slug'],
+            row['regos_item_code'], row['regos_item_articul'], row['brand__name'],
             row['category__name_ru'], row['category__name_uz'],
         ))
 
@@ -46,9 +49,10 @@ def smart_search_score(query, fields):
     if not query_keys:
         return 0
 
+    values = tuple(sorted(field for field in fields if isinstance(field, str) and field.strip()))
     candidates = {
         candidate
-        for field in fields
+        for field in (*values, ' '.join(values))
         for candidate in _search_keys(field)
     }
     best = 0
@@ -74,6 +78,19 @@ def _search_keys(value, keyboard_variants=False):
         elif re.search(r'[а-яё]', normalized) and not re.search(r'[a-z]', normalized):
             corrected = _normalize(normalized.translate(_RUSSIAN_TO_ENGLISH))
             variants.update((corrected, _transliterate(corrected)))
+        # A single word may be typed with the wrong layout inside an otherwise
+        # correct query (for example "ghjntby Optimum").
+        words = normalized.split()
+        for index, word in enumerate(words):
+            if re.search(r'[a-z]', word) and not re.search(r'[а-яё]', word):
+                replacement = word.translate(_ENGLISH_TO_RUSSIAN)
+            elif re.search(r'[а-яё]', word) and not re.search(r'[a-z]', word):
+                replacement = word.translate(_RUSSIAN_TO_ENGLISH)
+            else:
+                replacement = word.translate(_LATIN_LOOKALIKES)
+            if replacement != word:
+                corrected = ' '.join((*words[:index], replacement, *words[index + 1:]))
+                variants.update((corrected, _transliterate(corrected)))
     return frozenset(variant for variant in variants if len(variant) >= 2)
 
 
@@ -106,8 +123,10 @@ def _pair_score(query, candidate):
         max((_token_ratio(token, candidate_token) for candidate_token in candidate_tokens), default=0)
         for token in query_tokens
     ]
-    threshold = _fuzzy_threshold(min(map(len, query_tokens)))
-    if token_scores and min(token_scores) >= threshold:
+    if token_scores and all(
+        score >= _fuzzy_threshold(len(token))
+        for token, score in zip(query_tokens, token_scores)
+    ):
         return round(70 + (sum(token_scores) / len(token_scores)) * 30)
 
     whole_ratio = _edit_ratio(query, candidate)

@@ -97,7 +97,7 @@ class Product(BaseModel):
         default=REGOS_STATUS_MANUAL,
         db_index=True,
         verbose_name='Статус карточки REGOS',
-        help_text='Черновики и архивированные позиции не показываются на витрине и недоступны для заказа.',
+        help_text='Черновики видны на витрине, но недоступны для заказа. Архивированные позиции скрыты.',
     )
     name_uz = models.CharField(max_length=500, verbose_name='Название Продукта uz', unique=True)
     name_ru = models.CharField(max_length=500, verbose_name='Название Продукта ru', unique=True)

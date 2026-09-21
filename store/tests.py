@@ -115,3 +115,20 @@ class StorefrontChannelApiTests(APITestCase):
         product_ids = [item['id'] for item in response.data['data']]
         self.assertIn(self.meal.pk, product_ids)
         self.assertNotIn(self.supplement.pk, product_ids)
+
+    def test_regos_draft_is_listed_but_not_purchasable_and_archive_is_hidden(self):
+        self.supplement.regos_catalog_status = Product.REGOS_STATUS_DRAFT
+        self.supplement.save(update_fields=['regos_catalog_status'])
+        self.meal.regos_catalog_status = Product.REGOS_STATUS_ARCHIVED
+        self.meal.save(update_fields=['regos_catalog_status'])
+
+        sports = self.client.get('/api/v1/store/products/?all=true')
+        detail = self.client.get('/api/v1/store/products/{}/'.format(self.supplement.slug))
+        nutrition = self.client.get('/api/v1/nutrition/')
+
+        self.assertEqual(sports.status_code, status.HTTP_200_OK)
+        self.assertIn(self.supplement.pk, [item['id'] for item in sports.data['data']])
+        self.assertEqual(detail.status_code, status.HTTP_200_OK)
+        self.assertEqual(detail.data['data']['regos_catalog_status'], Product.REGOS_STATUS_DRAFT)
+        self.assertNotIn(self.meal.pk, [item['id'] for item in nutrition.data['data']])
+        self.assertFalse(Product.objects.visible_on_storefront().filter(pk=self.supplement.pk).exists())
