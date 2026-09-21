@@ -22,6 +22,9 @@ _LATIN_LOOKALIKES = str.maketrans({'a': 'а', 'c': 'с', 'e': 'е', 'o': 'о', '
 
 def smart_product_ids(queryset, query):
     """Return matching product IDs ordered by forgiving search relevance."""
+    query_tokens = tuple(key.split() for key in _search_keys(query, keyboard_variants=True))
+    if not query_tokens:
+        return []
     fields_by_product = defaultdict(set)
     rows = queryset.values(
         'pk', 'name_ru', 'name_uz', 'slug', 'regos_item_code',
@@ -37,6 +40,8 @@ def smart_product_ids(queryset, query):
 
     ranked = []
     for product_id, fields in fields_by_product.items():
+        if not _likely_product_match(query_tokens, fields):
+            continue
         score = smart_search_score(query, fields)
         if score:
             ranked.append((score, product_id))
@@ -44,17 +49,56 @@ def smart_product_ids(queryset, query):
     return [product_id for _, product_id in ranked]
 
 
+def _likely_product_match(query_variants, fields):
+    """Cheap recall-friendly gate before edit-distance scoring every catalog row."""
+    searchable = ' '.join(sorted(field for field in fields if isinstance(field, str)))
+    candidate_tokens = {
+        token
+        for key in _search_keys(searchable)
+        for token in key.split()
+    }
+    for query_tokens in query_variants:
+        required = 1 if len(query_tokens) < 3 else max(2, (len(query_tokens) * 2 + 2) // 3)
+        matches = sum(
+            any(_plausible_token(token, candidate) for candidate in candidate_tokens)
+            for token in query_tokens
+        )
+        if matches >= required:
+            return True
+    return False
+
+
+def _plausible_token(query, candidate):
+    if query == candidate or candidate.startswith(query) or query.startswith(candidate):
+        return True
+    return (
+        len(query) >= 4
+        and abs(len(query) - len(candidate)) <= 2
+        and (query[0] == candidate[0] or query[:2] == candidate[1::-1])
+    )
+
+
 def smart_search_score(query, fields):
-    query_keys = _search_keys(query, keyboard_variants=True)
-    if not query_keys:
+    base_keys = _search_keys(query)
+    if not base_keys:
         return 0
 
     values = tuple(sorted(field for field in fields if isinstance(field, str) and field.strip()))
+    combined = ' '.join(values)
+    searchable_values = (combined,) if len(_normalize(query).split()) >= 3 else (*values, combined)
     candidates = {
         candidate
-        for field in (*values, ' '.join(values))
+        for field in searchable_values
         for candidate in _search_keys(field)
     }
+    best = _best_score(base_keys, candidates)
+    if best:
+        return best
+    keyboard_keys = _search_keys(query, keyboard_variants=True) - base_keys
+    return _best_score(keyboard_keys, candidates)
+
+
+def _best_score(query_keys, candidates):
     best = 0
     for candidate in candidates:
         for query_key in query_keys:
