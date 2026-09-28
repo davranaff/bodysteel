@@ -277,6 +277,12 @@ if not DEBUG or DEBUG_WITH_PRODUCTION_SETTINGS:
     # allowing temporary production diagnostics requested by an operator.
     if DEBUG_WITH_PRODUCTION_SETTINGS:
         DEBUG = _REQUESTED_DEBUG
+        SECURE_SSL_REDIRECT = True
+        SESSION_COOKIE_SECURE = True
+        CSRF_COOKIE_SECURE = True
+        SECURE_HSTS_SECONDS = 31_536_000
+        SECURE_HSTS_INCLUDE_SUBDOMAINS = True
+        SECURE_HSTS_PRELOAD = True
 else:
     try:
         from .settings_dev import *
