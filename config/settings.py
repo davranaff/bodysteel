@@ -10,6 +10,10 @@ DEVELOPMENT_SECRET_KEY = 'unsafe-development-only-change-me'
 SECRET_KEY = os.getenv('SECRET_KEY', DEVELOPMENT_SECRET_KEY)
 
 DEBUG = os.getenv('DEBUG', '').strip().lower() in {'1', 'true', 'yes'}
+DEBUG_WITH_PRODUCTION_SETTINGS = (
+    DEBUG
+    and os.getenv('DEBUG_WITH_PRODUCTION_SETTINGS', '').strip().lower() in {'1', 'true', 'yes'}
+)
 
 from .security_settings import *  # noqa: E402,F403
 
@@ -263,8 +267,16 @@ REGOS_CONNECTED_INTEGRATION_ID = os.getenv('REGOS_CONNECTED_INTEGRATION_ID', '')
 PAYMENT_WEBHOOK_SECRET = os.getenv('PAYMENT_WEBHOOK_SECRET', '')
 
 
-if not DEBUG:
+_REQUESTED_DEBUG = DEBUG
+
+if not DEBUG or DEBUG_WITH_PRODUCTION_SETTINGS:
     from .settings_prod import *
+
+    # ``settings_prod`` intentionally forces DEBUG off. The explicit
+    # break-glass flag keeps its database and service configuration while
+    # allowing temporary production diagnostics requested by an operator.
+    if DEBUG_WITH_PRODUCTION_SETTINGS:
+        DEBUG = _REQUESTED_DEBUG
 else:
     try:
         from .settings_dev import *
