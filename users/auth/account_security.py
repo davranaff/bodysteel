@@ -72,7 +72,9 @@ def session_payload(request):
     if token is None:
         return []
     return [{
-        'id': token.pk,
+        # DRF token primary keys are the secret token strings themselves.
+        # The API needs an opaque numeric display id, never the credential.
+        'id': token.user_id,
         'created_at': token.created.isoformat(),
         'current': True,
     }]

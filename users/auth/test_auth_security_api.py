@@ -123,6 +123,8 @@ class AuthSecurityApiTests(TestCase):
         sessions = self._private_get('/api/v1/users/sessions/', token)
         self.assertEqual(sessions.status_code, 200)
         self.assertEqual(sessions.json()['data'][0]['current'], True)
+        self.assertEqual(sessions.json()['data'][0]['id'], user.pk)
+        self.assertNotIn(token.key, sessions.content.decode())
 
         invalid_delete = self._private_post('/api/v1/users/delete/', token, {
             'password': STRONG_PASSWORD,
