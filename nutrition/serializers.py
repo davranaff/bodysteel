@@ -54,7 +54,8 @@ class NutritionProfileSerializer(serializers.ModelSerializer):
                 'name': getattr(method, 'name_{}'.format(language)),
                 'kind': method.kind,
             }
-            for method in instance.allowed_delivery_methods.filter(is_active=True)
+            for method in instance.allowed_delivery_methods.all()
+            if method.is_active
         ]
 
 

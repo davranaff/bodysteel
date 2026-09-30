@@ -42,7 +42,10 @@ class ProductViewSet(viewsets.ViewSet):
                     output_field=IntegerField(),
                 ))
                 order_fields = ('search_rank', '-created_at')
-        products = products.with_favorite(request.auth).with_rating().order_by_stock(*order_fields)
+        products = (
+            products.with_favorite(request.auth).with_rating()
+            .order_by_stock(*order_fields).with_storefront_relations()
+        )
         if not fetch_all:
             products = products[int(offset):int(limit)]
 
@@ -53,7 +56,8 @@ class ProductViewSet(viewsets.ViewSet):
 
     def retrieve(self, request, slug):
         product = get_object_or_404(
-            Product.objects.displayable_on_storefront().with_favorite(request.auth).with_rating(),
+            Product.objects.displayable_on_storefront().with_favorite(request.auth)
+            .with_rating().with_storefront_relations(),
             slug=slug,
         )
         product.view_count += 1
@@ -68,7 +72,10 @@ class ProductViewSet(viewsets.ViewSet):
             )
         else:
             related_products = related_products.sports_catalog()
-        related_products = related_products.distinct().order_by_stock()[:4]
+        related_products = (
+            related_products.distinct().order_by_stock()
+            .with_storefront_relations()[:4]
+        )
         return Response(
             {
                 'data': ProductSerializer(product, many=False).data,
@@ -95,6 +102,7 @@ class CategoryViewSet(viewsets.ViewSet):
             .with_rating()
             .filter(category=category)
             .order_by_stock()
+            .with_storefront_relations()
         )
         return Response(
             {

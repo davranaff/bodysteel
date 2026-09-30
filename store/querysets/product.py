@@ -1,6 +1,9 @@
 import datetime
 
-from django.db.models import Sum, Count, Case, When, Value, FloatField, Q, FilteredRelation, IntegerField
+from django.db.models import (
+    Case, Count, FilteredRelation, FloatField, IntegerField, Prefetch, Q,
+    Sum, Value, When,
+)
 from store.querysets.base_queryset import BaseQuerySet
 
 
@@ -17,6 +20,21 @@ class ProductQueryset(BaseQuerySet):
     def sports_catalog(self):
         """Products belonging to the sports-nutrition storefront channel."""
         return self.filter(product_type='supplement')
+
+    def with_storefront_relations(self):
+        """Load every relation consumed by ``ProductSerializer`` in batches."""
+        from store.catalog.models import Review
+
+        return self.select_related('brand', 'nutrition_profile').prefetch_related(
+            'product_images',
+            'product_360_images',
+            'category',
+            'set_of_products',
+            Prefetch('reviews', queryset=Review.objects.select_related('user')),
+            'nutrition_profile__tags',
+            'nutrition_profile__allergens',
+            'nutrition_profile__allowed_delivery_methods',
+        )
 
     def with_rating(self):
         query = self

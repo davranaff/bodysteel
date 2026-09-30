@@ -17,7 +17,10 @@ class HomePageAPIView(APIView):
     allowed_methods = ['get']
 
     def get(self, request):
-        sports_products = Product.objects.displayable_on_storefront().sports_catalog()
+        sports_products = (
+            Product.objects.displayable_on_storefront().sports_catalog()
+            .with_storefront_relations()
+        )
         sports_set_filter = Q(
             products__product_type=Product.TYPE_SUPPLEMENT,
             products__regos_catalog_status__in=('manual', 'published', 'draft'),
@@ -133,6 +136,7 @@ class SetOfProductViewSet(viewsets.ViewSet):
             .with_favorite(request.auth)
             .filter(set_of_products__slug=slug)
             .order_by_stock()
+            .with_storefront_relations()
         )
         product_set = get_object_or_404(SetOfProduct, slug=slug)
         return Response(

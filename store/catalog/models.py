@@ -1,6 +1,7 @@
 from django.core.validators import MaxValueValidator, MinValueValidator
 from django.db import models
 
+from store.catalog.indexes import PRODUCT_INDEXES
 from store.fields import SanitizedHtmlField
 from store.models import (
     BaseModel,
@@ -170,9 +171,7 @@ class Product(BaseModel):
     class Meta:
         verbose_name = 'Продукт'
         verbose_name_plural = 'Продукты'
-        indexes = [
-            models.Index(fields=['updated_at', 'id'], name='store_prod_updated_id_idx'),
-        ]
+        indexes = PRODUCT_INDEXES
 
 
 class ProductImage(models.Model):

@@ -3,6 +3,11 @@ import unicodedata
 from collections import Counter, defaultdict
 from functools import lru_cache
 
+from rapidfuzz.distance import DamerauLevenshtein
+
+from store.catalog.search_candidates import shortlist_products
+from store.catalog.search_compounds import compound_score, has_compound_match
+
 
 _ENGLISH_KEYS = "qwertyuiop[]asdfghjkl;'zxcvbnm,."
 _RUSSIAN_KEYS = 'йцукенгшщзхъфывапролджэячсмитьбю'
@@ -19,12 +24,13 @@ _CYRILLIC_TO_LATIN = str.maketrans({
 _WHITESPACE = re.compile(r'\s+')
 _LATIN_LOOKALIKES = str.maketrans({'a': 'а', 'c': 'с', 'e': 'е', 'o': 'о', 'p': 'р', 'x': 'х', 'y': 'у'})
 
-
 def smart_product_ids(queryset, query):
     """Return matching product IDs ordered by forgiving search relevance."""
-    query_tokens = tuple(key.split() for key in _search_keys(query, keyboard_variants=True))
+    query_keys = _search_keys(query, keyboard_variants=True)
+    query_tokens = tuple(key.split() for key in query_keys)
     if not query_tokens:
         return []
+    queryset = shortlist_products(queryset, query_keys)
     fields_by_product = defaultdict(set)
     rows = queryset.values(
         'pk', 'name_ru', 'name_uz', 'slug', 'regos_item_code',
@@ -52,12 +58,15 @@ def smart_product_ids(queryset, query):
 def _likely_product_match(query_variants, fields):
     """Cheap recall-friendly gate before edit-distance scoring every catalog row."""
     searchable = ' '.join(sorted(field for field in fields if isinstance(field, str)))
+    candidate_keys = _search_keys(searchable)
     candidate_tokens = {
         token
-        for key in _search_keys(searchable)
+        for key in candidate_keys
         for token in key.split()
     }
     for query_tokens in query_variants:
+        if has_compound_match(query_tokens, candidate_keys):
+            return True
         required = 1 if len(query_tokens) < 3 else max(2, (len(query_tokens) * 2 + 2) // 3)
         matches = sum(
             any(_plausible_token(token, candidate) for candidate in candidate_tokens)
@@ -100,11 +109,35 @@ def smart_search_score(query, fields):
 
 def _best_score(query_keys, candidates):
     best = 0
-    for candidate in candidates:
-        for query_key in query_keys:
+    for query_key in query_keys:
+        if ' ' not in query_key:
+            best = max(best, _single_token_score(query_key, candidates))
+            continue
+        for candidate in candidates:
             best = max(best, _pair_score(query_key, candidate))
             if best >= 108:
                 return best
+    return best
+
+
+def _single_token_score(query, candidates):
+    best = 0
+    tokens = set()
+    for candidate in candidates:
+        tokens.update(candidate.split())
+        if query == candidate:
+            return 120
+        if candidate.startswith(query):
+            best = max(best, 112)
+        elif query in candidate.split():
+            best = max(best, 108)
+        elif query in candidate:
+            best = max(best, max(94, 106 - candidate.index(query)))
+        else:
+            best = max(best, compound_score(query, candidate))
+    ratio = max((_token_ratio(query, token) for token in tokens), default=0)
+    if ratio >= _fuzzy_threshold(len(query)):
+        best = max(best, round(70 + ratio * 30))
     return best
 
 
@@ -122,8 +155,7 @@ def _search_keys(value, keyboard_variants=False):
         elif re.search(r'[а-яё]', normalized) and not re.search(r'[a-z]', normalized):
             corrected = _normalize(normalized.translate(_RUSSIAN_TO_ENGLISH))
             variants.update((corrected, _transliterate(corrected)))
-        # A single word may be typed with the wrong layout inside an otherwise
-        # correct query (for example "ghjntby Optimum").
+        # Correct a wrong-layout word inside an otherwise valid query.
         words = normalized.split()
         for index, word in enumerate(words):
             if re.search(r'[a-z]', word) and not re.search(r'[а-яё]', word):
@@ -160,6 +192,9 @@ def _pair_score(query, candidate):
         return 108
     if query in candidate:
         return max(94, 106 - candidate.index(query))
+    joined_score = compound_score(query, candidate)
+    if joined_score:
+        return joined_score
 
     query_tokens = query.split()
     candidate_tokens = candidate.split()
@@ -201,37 +236,15 @@ def _edit_ratio(left, right):
     shared_characters = sum((Counter(left) & Counter(right)).values())
     if shared_characters < min(len(left), len(right)) - maximum_distance:
         return 0
-
-    previous_previous = None
-    previous = list(range(len(right) + 1))
-    for row, left_character in enumerate(left, start=1):
-        current = [row]
-        for column, right_character in enumerate(right, start=1):
-            substitution_cost = 0 if left_character == right_character else 1
-            distance = min(
-                current[column - 1] + 1,
-                previous[column] + 1,
-                previous[column - 1] + substitution_cost,
-            )
-            if (
-                previous_previous is not None
-                and column > 1
-                and left_character == right[column - 2]
-                and left[row - 2] == right_character
-            ):
-                distance = min(distance, previous_previous[column - 2] + 1)
-            current.append(distance)
-        if min(current) > maximum_distance:
-            return 0
-        previous_previous, previous = previous, current
-
-    distance = previous[-1]
+    distance = DamerauLevenshtein.distance(left, right, score_cutoff=maximum_distance)
     return 0 if distance > maximum_distance else 1 - (distance / longest)
 
 
 def _fuzzy_threshold(length):
     if length <= 3:
         return .84
+    if length == 4:
+        return .75
     if length <= 5:
         return .76
     return .68

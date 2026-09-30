@@ -1,9 +1,12 @@
+from django.db import connection
 from django.test import RequestFactory, SimpleTestCase, TestCase
+from django.test.utils import CaptureQueriesContext
 
 from store.admin_catalog import ProductAdmin
 from store.admin_site import bodysteel_admin_site
 from store.catalog.search import smart_product_ids, smart_search_score
-from store.models import Brand, Product
+from store.models import Brand, Category, Product
+from store.serializers.products import ProductSerializer
 
 
 class SmartCatalogSearchTests(SimpleTestCase):
@@ -14,6 +17,14 @@ class SmartCatalogSearchTests(SimpleTestCase):
     def test_accepts_transposed_letters(self):
         score = smart_search_score('proetin', ('Whey Protein',))
         self.assertGreater(score, 0)
+
+    def test_accepts_one_typo_in_four_letter_word(self):
+        score = smart_search_score('стпл', ('Стол',))
+        self.assertGreater(score, 0)
+
+    def test_accepts_words_typed_without_spaces(self):
+        score = smart_search_score('столистул', ('Стол и стул для кухни',))
+        self.assertGreaterEqual(score, 100)
 
     def test_accepts_cyrillic_product_searched_in_latin(self):
         score = smart_search_score('protein', ('Сывороточный протеин',))
@@ -48,6 +59,13 @@ class SmartCatalogSearchTests(SimpleTestCase):
 
 
 class SmartAdminSearchTests(TestCase):
+    def test_product_gate_accepts_words_typed_without_spaces(self):
+        product = Product.objects.create(
+            name_ru='Стол и стул для кухни', name_uz='Stol va stul',
+            slug='table-and-chair-test', price=100000, quantity=1,
+        )
+        self.assertEqual(smart_product_ids(Product.objects.all(), 'столистул'), [product.pk])
+
     def test_catalog_admin_finds_brand_and_sku_and_respects_filters(self):
         brand = Brand.objects.create(name='Sports Research')
         product = Product.objects.create(
@@ -68,3 +86,29 @@ class SmartAdminSearchTests(TestCase):
         self.assertEqual(list(results.values_list('pk', flat=True)), [product.pk])
         self.assertEqual(smart_product_ids(Product.objects.filter(pk=other.pk), 'SR-D3K2-160'), [])
         self.assertEqual(smart_product_ids(Product.objects.all(), 'SR-D3K2-160'), [product.pk])
+
+
+class StorefrontProductQueryTests(TestCase):
+    def test_serializing_product_list_uses_a_fixed_number_of_queries(self):
+        brand = Brand.objects.create(name='Fast Catalog')
+        category = Category.objects.create(
+            name_ru='Категория', name_uz='Kategoriya', photo='category.webp',
+            description='', sort=991,
+        )
+        for index in range(6):
+            product = Product.objects.create(
+                name_ru='Товар {}'.format(index),
+                name_uz='Mahsulot {}'.format(index),
+                slug='fast-product-{}'.format(index),
+                price=100000,
+                quantity=1,
+                brand=brand,
+            )
+            product.category.add(category)
+
+        queryset = Product.objects.order_by('pk').with_storefront_relations()
+        with CaptureQueriesContext(connection) as captured:
+            payload = ProductSerializer(queryset, many=True).data
+
+        self.assertEqual(len(payload), 6)
+        self.assertLessEqual(len(captured), 6)
