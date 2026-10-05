@@ -60,6 +60,20 @@ class SavdoqShopperClientTests(SimpleTestCase):
             'subjectHash': SUBJECT,
         })
 
+    def test_issue_accepts_rfc3339_utc_expiry(self):
+        expires_at = (timezone.now() + timedelta(minutes=15)).isoformat(
+            timespec='milliseconds',
+        ).replace('+00:00', 'Z')
+
+        issued = client_for(
+            lambda request: httpx.Response(201, json=session_body(expiresAt=expires_at)),
+        ).issue(SUBJECT, 'ru')
+
+        self.assertEqual(
+            issued.expires_at.isoformat(timespec='milliseconds'),
+            expires_at.replace('Z', '+00:00'),
+        )
+
     def test_refusals_keep_a_bounded_retry_after(self):
         cases = ((403, {}, 403, None), (429, {'Retry-After': '9'}, 429, 9),
                  (429, {'Retry-After': 'tomorrow'}, 429, None))

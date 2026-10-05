@@ -134,6 +134,11 @@ def _parse_session(body):
 
 
 def _parse_expiry(value):
+    # Python 3.10 does not accept RFC 3339's UTC ``Z`` suffix in
+    # ``datetime.fromisoformat``. SAVDOQ emits that canonical form in
+    # production, so normalize it without weakening the timezone checks.
+    if isinstance(value, str) and value.endswith('Z'):
+        value = f'{value[:-1]}+00:00'
     try:
         expires_at = datetime.fromisoformat(value)
     except (TypeError, ValueError):
