@@ -3,6 +3,7 @@ from users import views
 from users.auth import views as auth_views
 from users.orders import views as order_views
 from users.profile import views as profile_views
+from users.savdoq import views as savdoq_views
 from customer_telegram import api_views as customer_telegram_views
 
 
@@ -12,6 +13,7 @@ urlpatterns = [
     path('password/change/', profile_views.ChangePasswordView.as_view(), name='password-change'),
     path('sessions/', profile_views.SessionsView.as_view(), name='sessions'),
     path('sessions/revoke-all/', profile_views.RevokeAllSessionsView.as_view(), name='sessions-revoke-all'),
+    path('savdoq/session/', savdoq_views.ShopperChatSessionView.as_view(), name='savdoq-session'),
     path('email/change/start/', profile_views.EmailChangeStartView.as_view(), name='email-change-start'),
     path('phone/change/start/', profile_views.PhoneChangeStartView.as_view(), name='phone-change-start'),
     path('contact/verify/', profile_views.ContactVerificationCompleteView.as_view(), name='contact-verify'),

@@ -250,6 +250,12 @@ SAVDOQ_ALLOW_LOCAL_ORIGINS = (
 SAVDOQ_CART_TTL_SECONDS = int(os.getenv('SAVDOQ_CART_TTL_SECONDS', '3600'))
 SAVDOQ_WEBHOOK_URL = os.getenv('SAVDOQ_WEBHOOK_URL', '')
 SAVDOQ_WEBHOOK_SECRET = os.getenv('SAVDOQ_WEBHOOK_SECRET', '')
+# Shopper AI-chat sessions. Server-only: the storefront and apps never hold
+# these; users.savdoq issues short-lived widget sessions for signed-in customers.
+SAVDOQ_API_ORIGIN = os.getenv('SAVDOQ_API_ORIGIN', '')
+SAVDOQ_WIDGET_PUBLIC_KEY = os.getenv('SAVDOQ_WIDGET_PUBLIC_KEY', '')
+SAVDOQ_SHOPPER_SERVICE_TOKEN = os.getenv('SAVDOQ_SHOPPER_SERVICE_TOKEN', '')
+SAVDOQ_SHOPPER_IDENTITY_KEY = os.getenv('SAVDOQ_SHOPPER_IDENTITY_KEY', '')
 
 # REGOS remains the inventory source of truth.  These settings are deliberately
 # server-only: no REGOS credential is ever exposed through the Next.js app.

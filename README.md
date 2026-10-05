@@ -18,6 +18,7 @@ store/serializers/      Legacy storefront response serializers
 users/auth/             OTP registration, sign-in, rate limits and Eskiz adapter
 users/orders/           Transactional checkout and idempotency
 users/profile/          Authenticated account transport
+users/savdoq/           SAVDOQ shopper chat sessions for signed-in customers
 users/management/       Auth retention commands
 ```
 
@@ -27,6 +28,8 @@ users/management/       Auth retention commands
 
 Auth deployment and API contracts are documented in [`users/auth/README.md`](users/auth/README.md).
 The store connector contract and rollout are documented in [`integration/README.md`](integration/README.md).
+Shopper AI-chat sessions and their rollout are documented in
+[`users/savdoq/README.md`](users/savdoq/README.md).
 The isolated customer bot, campaigns and rollout are documented in
 [`customer_telegram/README.md`](customer_telegram/README.md).
 

@@ -39,3 +39,4 @@ from users.auth.models import (  # noqa: E402,F401
     AuthRateLimit,
     PhoneVerificationChallenge,
 )
+from users.savdoq.models import SavdoqShopperSession  # noqa: E402,F401

@@ -29,6 +29,7 @@ from users.auth.serializers import (
     PhoneChangeStartSerializer,
 )
 from users.models import User
+from users.savdoq.sessions import ShopperChatRevocationFailed, revoke_shopper_chat
 from users.serializers.me import UserSerializer
 
 
@@ -52,6 +53,8 @@ class MeView(APIView):
 
     @swagger_auto_schema(responses={status.HTTP_204_NO_CONTENT: 'null'})
     def delete(self, request):
+        if problem := _revoke_shopper_chat(request.user):
+            return problem
         with transaction.atomic():
             user = User.objects.select_for_update().get(pk=request.user.pk)
             from customer_telegram.links import unlink_user
@@ -83,6 +86,8 @@ class SignOutView(APIView):
     permission_classes = [IsAuthenticated]
 
     def post(self, request):
+        if problem := _revoke_shopper_chat(request.user):
+            return problem
         Token.objects.filter(user=request.user).delete()
         return Response(status=status.HTTP_204_NO_CONTENT)
 
@@ -104,6 +109,8 @@ class ChangePasswordView(APIView):
             return _problem(400, 'invalid_request', 'Invalid request')
         try:
             consume(PASSWORD_CHANGE_USER, str(request.user.pk), timezone.now())
+            if problem := _revoke_shopper_chat(request.user):
+                return problem
             payload = change_password(
                 request.user,
                 serializer.validated_data['current_password'],
@@ -122,6 +129,8 @@ class DeleteAccountView(APIView):
         serializer = DeleteAccountSerializer(data=request.data)
         if not serializer.is_valid():
             return _problem(400, 'invalid_request', 'Invalid request')
+        if problem := _revoke_shopper_chat(request.user):
+            return problem
         try:
             delete_account(
                 request.user,
@@ -146,6 +155,8 @@ class RevokeAllSessionsView(APIView):
     permission_classes = [IsAuthenticated]
 
     def post(self, request):
+        if problem := _revoke_shopper_chat(request.user):
+            return problem
         revoke_all_sessions(request.user)
         return Response(status=status.HTTP_204_NO_CONTENT)
 
@@ -205,6 +216,16 @@ def _start_contact(request, channel, identifier):
         'expires_in': receipt.expires_in,
         'resend_after': receipt.resend_after,
     }}, status=status.HTTP_201_CREATED, headers={'Cache-Control': 'no-store'})
+
+
+def _revoke_shopper_chat(user):
+    # Chat sessions are revoked before the account mutation; a failed revocation
+    # is reported instead of presenting the sign-out as complete.
+    try:
+        revoke_shopper_chat(user)
+    except ShopperChatRevocationFailed:
+        return _problem(503, 'service_unavailable', 'Session revocation unavailable')
+    return None
 
 
 def _problem(status_code, code, message, retry_after=None):

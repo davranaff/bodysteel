@@ -7,3 +7,4 @@ class UsersConfig(AppConfig):
 
     def ready(self):
         from users.auth import checks  # noqa: F401
+        from users.savdoq import checks as savdoq_checks  # noqa: F401
