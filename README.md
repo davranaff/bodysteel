@@ -49,3 +49,42 @@ GitHub Actions повторяет SQLite test/migration gate и `pip-audit` на
 production release дополнительно обязан пройти `check_integration_release` на целевой БД.
 Gunicorn не содержит release-specific paths или public IP: задайте `GUNICORN_COMMAND`,
 `GUNICORN_PYTHONPATH`, `GUNICORN_BIND` и bounded `GUNICORN_WORKERS` через systemd environment.
+
+## Native push notifications
+
+`notifications/` owns encrypted installation tokens, campaign segmentation and a durable delivery
+queue. It adds no demographic/profile fields to `User`: age, birth date and weight are not available.
+The admin supports RU/UZ content, scheduling, preview/confirmation, an own-device test and cancellation.
+Filters combine with AND; lists combine with OR. Product/category/brand criteria must match one basket
+position. Recent-purchase filters use the last order in the selected purchase scope, not any old order.
+Cancelled/refunded orders are excluded by default; staff inclusion and one matching device per user
+are explicit options. Only active, recently seen installations with OS permission and explicit
+marketing consent participate. Device metadata is reported by the app, not hardware-attested.
+
+Before rollout:
+
+1. Apply `python manage.py migrate notifications` in the normal release workflow.
+2. Configure server-only `PUSH_TOKEN_ENCRYPTION_KEYS` (comma-separated Fernet keys, newest first),
+   `PUSH_FIREBASE_PROJECT_ID` and Application Default Credentials for that Firebase project.
+   `GOOGLE_APPLICATION_CREDENTIALS` may point to a service-account file outside the repository;
+   prefer workload identity where supported. Keep old encryption keys during rotation.
+3. Set `PUSH_ENABLED=true` only after the mobile Firebase apps and APNs are configured. With it off,
+   drafts/preview remain available and sending fails closed; missing encryption keys reject registration.
+4. Grant trusted staff `view/add/change_pushcampaign` plus the separate
+   `publish_pushcampaign`, `test_pushcampaign` and/or `cancel_pushcampaign` permissions.
+5. Schedule `python manage.py deliver_push_notifications --limit 100` using the existing worker
+   infrastructure (for example once a minute). Publishing never performs HTTP delivery in a DB
+   transaction or in an admin request. Leases expire after 300 seconds; provider retries stop after
+   five attempts. A network-uncertain send can be repeated: delivery IDs/collapse tags are stable,
+   but exactly-once delivery and proof of reading are not claimed.
+
+The cookie-authenticated Next.js gateway must implement `GET/PUT/DELETE
+/api/push-devices/{installation_id}`. Forward only to
+`/api/v1/users/push/devices/{installation_id}/` with the current customer's server-held Django
+token, independent storefront proxy token and RU/UZ language. Require the existing exact-Origin
+mutation checks; never trust a caller-supplied user ID, bearer/proxy header or upstream URL. PUT accepts
+bounded JSON (16 KiB); GET/DELETE accept no query/body. Return the existing problem/data envelope,
+`Cache-Control: no-store`, and never return/log an FCM token. The generated mobile contract lives in
+`openapi/auth-proxy.yaml`; deployment of this new Next route is a prerequisite, not included in this
+Django repository. Sign-out/token rotation deactivate devices; already queued OS alerts cannot be
+recalled. Campaign content must not contain private account data.

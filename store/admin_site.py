@@ -33,6 +33,7 @@ class BodySteelAdminSite(admin.AdminSite):
         'courses': 'Обучение',
         'customer_telegram': 'Клиентский Telegram-бот',
         'nutrition': 'Правильное питание',
+        'notifications': 'Push-уведомления',
         'payments': 'Оплата',
         'store': 'Магазин',
         'teleg': 'Бот заказов',
@@ -75,6 +76,9 @@ class BodySteelAdminSite(admin.AdminSite):
         'teleg.chat': 'Чаты сотрудников',
         'teleg.secretphrase': 'Секретные ключи',
         'users.user': 'Пользователи',
+        'notifications.pushdevice': 'Push-устройства',
+        'notifications.pushcampaign': 'Push-рассылки',
+        'notifications.pushdelivery': 'Отправки push',
     }
 
     def get_urls(self):

@@ -13,6 +13,8 @@ from users.auth.presenter import user_payload
 
 
 def rotate_token(user):
+    from notifications.services.devices import deactivate_user_devices
+    deactivate_user_devices(user)
     Token.objects.filter(user=user).delete()
     return Token.objects.create(user=user)
 
@@ -39,6 +41,8 @@ def delete_account(user, password, confirmation):
             raise AuthProblem(400, 'account_unavailable', 'Account is unavailable')
         from customer_telegram.links import unlink_user
         unlink_user(locked)
+        from notifications.services.devices import deactivate_user_devices
+        deactivate_user_devices(locked)
         suffix = uuid.uuid4().hex
         locked.username = f'deleted_{locked.pk}_{suffix[:16]}'[:100]
         locked.email = f'deleted.{locked.pk}.{suffix}@invalid.bodysteel.local'
@@ -62,6 +66,8 @@ def delete_account(user, password, confirmation):
 
 
 def revoke_all_sessions(user):
+    from notifications.services.devices import deactivate_user_devices
+    deactivate_user_devices(user)
     Token.objects.filter(user=user).delete()
 
 

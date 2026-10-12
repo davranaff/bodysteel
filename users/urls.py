@@ -5,9 +5,11 @@ from users.orders import views as order_views
 from users.profile import views as profile_views
 from users.savdoq import views as savdoq_views
 from customer_telegram import api_views as customer_telegram_views
+from notifications.views.device import PushDeviceView
 
 
 urlpatterns = [
+    path('push/devices/<uuid:installation_id>/', PushDeviceView.as_view(), name='push-device'),
     path('me/', profile_views.MeView.as_view(), name='me'),
     path('delete/', profile_views.DeleteAccountView.as_view(), name='delete-account'),
     path('password/change/', profile_views.ChangePasswordView.as_view(), name='password-change'),

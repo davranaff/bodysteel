@@ -59,6 +59,8 @@ class MeView(APIView):
             user = User.objects.select_for_update().get(pk=request.user.pk)
             from customer_telegram.links import unlink_user
             unlink_user(user)
+            from notifications.services.devices import deactivate_user_devices
+            deactivate_user_devices(user)
             suffix = uuid.uuid4().hex
             user.username = 'deleted_{}_{}'.format(user.pk, suffix[:16])[:100]
             user.email = 'deleted.{}.{}@invalid.bodysteel.local'.format(user.pk, suffix)
@@ -88,7 +90,11 @@ class SignOutView(APIView):
     def post(self, request):
         if problem := _revoke_shopper_chat(request.user):
             return problem
-        Token.objects.filter(user=request.user).delete()
+        with transaction.atomic():
+            owner = User.objects.select_for_update().get(pk=request.user.pk)
+            from notifications.services.devices import deactivate_user_devices
+            deactivate_user_devices(owner)
+            Token.objects.filter(user=owner).delete()
         return Response(status=status.HTTP_204_NO_CONTENT)
 
 

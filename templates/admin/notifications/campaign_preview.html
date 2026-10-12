@@ -1,0 +1,31 @@
+{% extends "admin/base_site.html" %}
+{% block content %}
+<div class="module" style="max-width:900px;padding:24px">
+  <h1>{{ campaign.name }}</h1>
+  <p>Новые поля профиля не добавлены. Возраст, пол и вес неизвестны и не используются.</p>
+  {% if not provider_ready %}<p class="errornote">Firebase ещё не подключён. Черновики и фильтры доступны; отправка выключена.</p>{% endif %}
+  {% if size %}<h2>{{ size.users }} пользователей · {{ size.devices }} устройств</h2>
+  <p>Только активные аккаунты, разрешённые устройства и отдельное согласие на рассылки. При подтверждении получатели фиксируются. Перед отправкой снова проверяются разрешения, вход и владелец устройства.</p>{% endif %}
+  <div class="module"><h2>Русский</h2><h3>{{ campaign.title_ru }}</h3><p style="white-space:pre-wrap">{{ campaign.body_ru }}</p></div>
+  <div class="module"><h2>Узбекский</h2><h3>{{ campaign.title_uz }}</h3><p style="white-space:pre-wrap">{{ campaign.body_uz }}</p></div>
+  <p>{{ campaign.target_url }}</p>
+  {% if campaign.status == 'draft' %}
+    {% if can_publish and provider_ready and size.devices %}
+    <form method="post">{% csrf_token %}<input type="hidden" name="operation" value="publish"><input type="hidden" name="expected_devices" value="{{ size.devices }}">
+      <p><strong>Это подтверждение реальной рассылки {{ size.devices }} устройствам.</strong></p>
+      <button type="submit" class="button">Подтверждаю: поставить в очередь</button>
+    </form>{% endif %}
+    {% if can_test and provider_ready %}<form method="post" style="margin-top:24px">{% csrf_token %}<input type="hidden" name="operation" value="test">
+      <label for="test-device">Тест только на своё устройство:</label>
+      <select name="test_device" id="test-device" required>{% for device in test_devices %}<option value="{{ device.pk }}">{{ device }}</option>{% endfor %}</select>
+      <button type="submit" class="button">Поставить тест в очередь</button>
+    </form>{% endif %}
+  {% endif %}
+  {% if can_cancel and campaign.status != 'completed' and campaign.status != 'cancelled' %}
+  <form method="post" style="margin-top:24px">{% csrf_token %}<input type="hidden" name="operation" value="cancel"><button type="submit" class="button">Отменить оставшиеся отправки</button></form>{% endif %}
+  <h2>Журнал отправок</h2>
+  <p>Отмена останавливает оставшиеся отправки. Уже переданное Firebase уведомление отозвать нельзя.</p>
+  <p>«Принято Firebase» означает приём провайдером, не подтверждение чтения пользователем. Повторы после сетевой неопределённости могут дублироваться; notification ID и системное объединение остаются стабильными.</p>
+  <ul>{% for status,count in totals.items %}<li>{{ status }}: {{ count }}</li>{% endfor %}</ul>
+</div>
+{% endblock %}

@@ -16,6 +16,7 @@ DEBUG_WITH_PRODUCTION_SETTINGS = (
 )
 
 from .security_settings import *  # noqa: E402,F403
+from .push_settings import *  # noqa: E402,F403
 
 ALLOWED_HOSTS = [
     host.strip()
@@ -42,6 +43,7 @@ INSTALLED_APPS = [
     'teleg',
     'customer_telegram.apps.CustomerTelegramConfig',
     'integration.apps.IntegrationConfig',
+    'notifications.apps.NotificationsConfig',
 ]
 
 TEMPLATES = [
