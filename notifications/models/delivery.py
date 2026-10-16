@@ -13,8 +13,19 @@ class PushDelivery(models.Model):
         FAILED = 'failed', 'Ошибка'
         SKIPPED = 'skipped', 'Пропущено'
 
+    class Kind(models.TextChoices):
+        CAMPAIGN = 'campaign', 'Рассылка'
+        ORDER_UPDATE = 'order_update', 'Статус заказа'
+
     id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
-    campaign = models.ForeignKey('notifications.PushCampaign', on_delete=models.PROTECT, related_name='deliveries', verbose_name='Кампания')
+    kind = models.CharField(max_length=16, choices=Kind.choices, default=Kind.CAMPAIGN, editable=False, verbose_name='Тип')
+    campaign = models.ForeignKey('notifications.PushCampaign', null=True, blank=True, on_delete=models.PROTECT,
+                                 related_name='deliveries', verbose_name='Кампания')
+    # Order rows may outlive the order (SET_NULL); the worker skips them once the order is gone.
+    order = models.ForeignKey('store.Order', null=True, blank=True, on_delete=models.SET_NULL,
+                              related_name='push_deliveries', editable=False, verbose_name='Заказ')
+    order_event = models.CharField(max_length=24, blank=True, default='', editable=False, verbose_name='Событие заказа')
+    dedupe_key = models.CharField(max_length=120, null=True, unique=True, editable=False, verbose_name='Ключ защиты от повтора')
     device = models.ForeignKey('notifications.PushDevice', null=True, on_delete=models.SET_NULL,
                               related_name='deliveries', verbose_name='Устройство')
     user = models.ForeignKey(settings.AUTH_USER_MODEL, null=True, on_delete=models.SET_NULL,
@@ -40,6 +51,13 @@ class PushDelivery(models.Model):
     class Meta:
         verbose_name = 'Отправка push'
         verbose_name_plural = 'Отправки push'
-        constraints = [models.UniqueConstraint(fields=('campaign', 'device'),
-                         condition=models.Q(is_test=False), name='push_campaign_device_unique')]
+        constraints = [
+            models.UniqueConstraint(fields=('campaign', 'device'),
+                                    condition=models.Q(is_test=False), name='push_campaign_device_unique'),
+            models.CheckConstraint(
+                condition=models.Q(kind='campaign', campaign__isnull=False, dedupe_key__isnull=True, order_event='')
+                | models.Q(kind='order_update', campaign__isnull=True, dedupe_key__isnull=False,
+                           is_test=False, requested_by__isnull=True) & ~models.Q(order_event=''),
+                name='push_delivery_kind_source'),
+        ]
         indexes = [models.Index(fields=('status', 'next_attempt_at'), name='push_delivery_due')]

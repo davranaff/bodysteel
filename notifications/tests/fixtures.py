@@ -62,7 +62,7 @@ def category(index=1):
 
 
 def purchase(user, item=None, **kwargs):
-    order = Order.objects.create(user=user, type='pickup', full_name='Synthetic shopper', phone=user.phone,
+    order = Order.objects.create(user=user, type=kwargs.pop('type', 'pickup'), full_name='Synthetic shopper', phone=user.phone,
         subtotal_price=100000, total_price=kwargs.pop('total_price', 100000), status='purchased', **kwargs)
     if item:
         Basket.objects.create(user=user, order=order, product=item, quantity=1)

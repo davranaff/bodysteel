@@ -1,5 +1,3 @@
-import uuid
-
 from django.db import IntegrityError, transaction
 from django.utils import timezone
 from drf_yasg.utils import swagger_auto_schema
@@ -12,6 +10,7 @@ from rest_framework.views import APIView
 from users.auth.account_security import (
     change_password,
     delete_account,
+    erase_account,
     revoke_all_sessions,
     session_payload,
 )
@@ -57,29 +56,7 @@ class MeView(APIView):
             return problem
         with transaction.atomic():
             user = User.objects.select_for_update().get(pk=request.user.pk)
-            from customer_telegram.links import unlink_user
-            unlink_user(user)
-            from notifications.services.devices import deactivate_user_devices
-            deactivate_user_devices(user)
-            suffix = uuid.uuid4().hex
-            user.username = 'deleted_{}_{}'.format(user.pk, suffix[:16])[:100]
-            user.email = 'deleted.{}.{}@invalid.bodysteel.local'.format(user.pk, suffix)
-            user.phone = '+998{:09d}'.format((int(suffix[:12], 16) + user.pk) % 1_000_000_000)
-            user.first_name = ''
-            user.last_name = ''
-            user.is_active = False
-            user.is_staff = False
-            user.is_superuser = False
-            user.deleted_at = timezone.now()
-            user.phone_verified_at = None
-            user.email_verified_at = None
-            user.set_unusable_password()
-            user.save(update_fields=(
-                'username', 'email', 'phone', 'first_name', 'last_name', 'is_active',
-                'is_staff', 'is_superuser',
-                'deleted_at', 'phone_verified_at', 'email_verified_at', 'password',
-            ))
-            Token.objects.filter(user=user).delete()
+            erase_account(user)
         return Response(status=status.HTTP_204_NO_CONTENT)
 
 

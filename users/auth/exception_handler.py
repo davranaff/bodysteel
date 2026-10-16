@@ -1,7 +1,7 @@
 from rest_framework.views import exception_handler as drf_exception_handler
 
 
-AUTH_VIEW_MODULES = ('users.auth.views', 'users.profile.views')
+AUTH_VIEW_MODULES = ('users.auth.views', 'users.profile.views', 'moderation.views')
 
 
 def exception_handler(exc, context):

@@ -30,29 +30,30 @@ class ProductQueryset(BaseQuerySet):
             'product_360_images',
             'category',
             'set_of_products',
-            Prefetch('reviews', queryset=Review.objects.select_related('user')),
+            Prefetch(
+                'reviews',
+                queryset=Review.objects.published().select_related('user'),
+                to_attr='published_reviews',
+            ),
             'nutrition_profile__tags',
             'nutrition_profile__allergens',
             'nutrition_profile__allowed_delivery_methods',
         )
 
     def with_rating(self):
-        query = self
-
-        query = query.annotate(
-            review_count=Count('reviews__id'),
+        published = Q(reviews__is_published=True)
+        return self.annotate(
+            review_count=Count('reviews__id', filter=published),
             rating=Case(
                 When(review_count=0, then=Value(0)),
-                default=Sum('reviews__rating') / Case(
+                default=Sum('reviews__rating', filter=published) / Case(
                     When(review_count=0, then=Value(1)),
-                    default=Count('reviews__id'),
+                    default=Count('reviews__id', filter=published),
                     output_field=FloatField()
                 ),
                 output_field=FloatField()
             )
         )
-
-        return query
 
     def with_favorite(self, key):
         query = self

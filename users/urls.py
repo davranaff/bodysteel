@@ -6,6 +6,7 @@ from users.profile import views as profile_views
 from users.savdoq import views as savdoq_views
 from customer_telegram import api_views as customer_telegram_views
 from notifications.views.device import PushDeviceView
+from moderation.views import ContentReportView
 
 
 urlpatterns = [
@@ -58,5 +59,6 @@ urlpatterns = [
     path('basket/', views.BasketAPIView.as_view(), name='basket'),
     path('orders/', order_views.OrderAPIView.as_view(), name='histories'),
     path('reviews/', views.ReviewAPIView.as_view(), name='reviews'),
+    path('content-reports/', ContentReportView.as_view(), name='content-reports'),
     path('coupons/', views.CouponAPIView.as_view(), name='coupons'),
 ]

@@ -5,6 +5,7 @@ from datetime import timedelta
 
 from cryptography.fernet import InvalidToken
 from django.conf import settings
+from django.core.exceptions import PermissionDenied
 from django.db.models import F, Q
 from django.utils import timezone
 from rest_framework.authtoken.models import Token
@@ -14,10 +15,10 @@ from notifications.configuration import PushNotConfigured, require_provider_conf
 from notifications.models import PushCampaign, PushDelivery, PushDevice
 from notifications.services.campaigns import require_permission
 from notifications.services.devices import credential_digest
-from django.core.exceptions import PermissionDenied
 
 MAX_ATTEMPTS = 5
 LEASE_SECONDS = 300
+ORDER_UPDATE_MAX_AGE_HOURS = 24
 
 
 def due_deliveries(now):
@@ -25,8 +26,10 @@ def due_deliveries(now):
     due |= Q(status='sending', locked_at__lte=now - timedelta(seconds=LEASE_SECONDS))
     campaigns = Q(is_test=True, campaign__status='draft') | Q(
         campaign__status__in=('queued', 'scheduled', 'sending'))
-    return PushDelivery.objects.filter(due, campaigns).filter(
-        Q(is_test=True) | Q(campaign__scheduled_at__isnull=True) | Q(campaign__scheduled_at__lte=now))
+    released = Q(is_test=True) | Q(campaign__scheduled_at__isnull=True) | Q(campaign__scheduled_at__lte=now)
+    sources = Q(kind=PushDelivery.Kind.CAMPAIGN) & campaigns & released
+    sources |= Q(kind=PushDelivery.Kind.ORDER_UPDATE)
+    return PushDelivery.objects.filter(due).filter(sources)
 
 
 def deliver_pending(limit=100, sender=None, now=None):
@@ -43,8 +46,8 @@ def deliver_pending(limit=100, sender=None, now=None):
             status='sending', lease_token=lease, locked_at=current, attempt_count=F('attempt_count') + 1)
         if not claimed:
             continue
-        delivery = PushDelivery.objects.select_related('device__user', 'campaign__published_by', 'campaign__created_by').get(pk=identifier)
-        if not delivery.is_test:
+        delivery = PushDelivery.objects.select_related('device__user', 'campaign', 'order').get(pk=identifier)
+        if delivery.kind == PushDelivery.Kind.CAMPAIGN and not delivery.is_test:
             PushCampaign.objects.filter(pk=delivery.campaign_id, status__in=('queued', 'scheduled')).update(status='sending')
         _deliver(delivery, lease, provider, current)
         processed += 1
@@ -54,19 +57,17 @@ def deliver_pending(limit=100, sender=None, now=None):
 
 def _deliver(delivery, lease, sender, now):
     device = delivery.device
-    if delivery.campaign.status == 'cancelled':
-        return _finish(delivery, lease, 'skipped', 'campaign_cancelled')
-    operator = delivery.requested_by
-    try:
-        if not operator:
-            raise PermissionDenied()
-        require_permission(operator, 'test' if delivery.is_test else 'publish')
-    except PermissionDenied:
-        return _finish(delivery, lease, 'skipped', 'publisher_unavailable')
+    if delivery.kind == PushDelivery.Kind.ORDER_UPDATE:
+        reason = _order_skip_reason(delivery, now)
+    else:
+        reason = _campaign_skip_reason(delivery)
+    if reason:
+        return _finish(delivery, lease, 'skipped', reason)
+    marketing = delivery.kind == PushDelivery.Kind.CAMPAIGN and not delivery.is_test
     if (device is None or not device.is_active or device.user_id != delivery.user_id
             or device.registration_scope != delivery.expected_scope or not device.user.is_active
             or device.user.deleted_at is not None or device.permission not in ('authorized', 'provisional')
-            or (not delivery.is_test and not device.marketing_opt_in)
+            or (marketing and not device.marketing_opt_in)
             or device.last_seen_at < now - timedelta(days=settings.PUSH_DEVICE_STALE_DAYS)):
         return _finish(delivery, lease, 'skipped', 'device_ineligible')
     credential = Token.objects.filter(user_id=device.user_id).first()
@@ -93,12 +94,37 @@ def _deliver(delivery, lease, sender, now):
     return _finish(delivery, lease, 'failed', result.code or 'provider_rejected')
 
 
+def _campaign_skip_reason(delivery):
+    if delivery.campaign is None or delivery.campaign.status == 'cancelled':
+        return 'campaign_cancelled'
+    operator = delivery.requested_by
+    try:
+        if not operator:
+            raise PermissionDenied()
+        require_permission(operator, 'test' if delivery.is_test else 'publish')
+    except PermissionDenied:
+        return 'publisher_unavailable'
+    return ''
+
+
+def _order_skip_reason(delivery, now):
+    # Transactional alerts need no operator or marketing consent, but must still be about
+    # the recipient's own, still existing order and not arrive long after the change.
+    order = delivery.order
+    if order is None or order.user_id is None or order.user_id != delivery.user_id:
+        return 'order_unavailable'
+    if delivery.created_at < now - timedelta(hours=ORDER_UPDATE_MAX_AGE_HOURS):
+        return 'expired'
+    return ''
+
+
 def _finish(delivery, lease, status, code, **values):
     return PushDelivery.objects.filter(pk=delivery.pk, status='sending', lease_token=lease).update(
         status=status, failure_code=code, lease_token=None, locked_at=None, **values)
 
 
 def _complete_campaigns(now):
+    # Order updates have no campaign and never affect campaign completion.
     active = PushCampaign.objects.filter(status__in=('queued', 'scheduled', 'sending'))
     for campaign in active.iterator(chunk_size=100):
         if not campaign.deliveries.filter(is_test=False, status__in=('pending', 'retry', 'sending')).exists():

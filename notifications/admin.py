@@ -127,10 +127,19 @@ class PushDeviceAdmin(admin.ModelAdmin):
 
 @admin.register(PushDelivery, site=bodysteel_admin_site)
 class PushDeliveryAdmin(admin.ModelAdmin):
-    list_display = ('campaign', 'device', 'language', 'status', 'is_test', 'attempt_count', 'failure_code', 'accepted_at')
-    list_filter = ('status', 'is_test', 'language', 'created_at')
-    list_select_related = ('campaign', 'device', 'user')
-    readonly_fields = tuple(field.name for field in PushDelivery._meta.fields)
+    list_display = ('kind', 'campaign', 'order_code', 'order_event', 'device', 'language', 'status', 'is_test',
+                    'attempt_count', 'failure_code', 'accepted_at')
+    list_filter = ('kind', 'status', 'order_event', 'is_test', 'language', 'created_at')
+    list_select_related = ('campaign', 'order', 'device', 'user')
+    search_fields = ('order__order_code',)
+    exclude = ('dedupe_key', 'order')
+    readonly_fields = tuple(field.name for field in PushDelivery._meta.fields
+                            if field.name not in ('dedupe_key', 'order')) + ('order_code',)
+
+    @admin.display(description='Номер заказа', ordering='order__order_code')
+    def order_code(self, obj):
+        # Only the public code: the order's __str__ includes the recipient name.
+        return obj.order.order_code if obj.order_id else '—'
 
     def has_add_permission(self, request):
         return False

@@ -131,7 +131,8 @@ class Command(BaseCommand):
                 rating=random.randint(1, 5),
                 comment=fake.text(),
                 user=random.choice(users) if users else None,
-                product=random.choice(products) if products else None
+                product=random.choice(products) if products else None,
+                is_published=True,
             )
 
     def generate_baskets(self):
@@ -152,7 +153,8 @@ class Command(BaseCommand):
         for _ in range(50):
             Favorite.objects.create(
                 user=random.choice(users) if users else None,
-                product=random.choice(products) if products else None
+                product=random.choice(products) if products else None,
+                is_published=True,
             )
 
     def generate_orders(self):

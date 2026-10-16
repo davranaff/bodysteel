@@ -13,7 +13,7 @@ from notifications.tests.fixtures import PUSH_SETTINGS
 @override_settings(**PUSH_SETTINGS)
 class FirebaseSenderTests(SimpleTestCase):
     def setUp(self):
-        self.delivery = SimpleNamespace(pk='synthetic-delivery', campaign_id='synthetic-campaign',
+        self.delivery = SimpleNamespace(pk='synthetic-delivery', kind='campaign', campaign_id='synthetic-campaign', order_id=None,
             expected_scope='synthetic-scope', title='Synthetic title', body='Synthetic body',
             target_url='https://bodysteel.uz/app/catalog')
 
@@ -27,11 +27,27 @@ class FirebaseSenderTests(SimpleTestCase):
         self.assertEqual(message.android.ttl, timedelta(days=1))
         self.assertEqual(message.android.notification.channel_id, 'bodysteel_notifications')
         self.assertEqual(message.android.notification.tag, str(self.delivery.pk))
+        self.assertEqual(message.android.collapse_key, 'synthetic-campaign')
+        self.assertEqual(message.apns.headers['apns-collapse-id'], str(self.delivery.pk))
         self.assertEqual(message.apns.headers['apns-push-type'], 'alert')
         self.assertEqual(message.apns.payload.aps.sound, 'default')
         self.assertEqual(message.notification.title, self.delivery.title)
         self.assertEqual(set(message.data), {'notification_id', 'scope', 'url'})
         self.assertEqual(message.data['scope'], self.delivery.expected_scope)
+
+    @patch('notifications.clients.firebase.firebase_admin.get_app')
+    @patch('notifications.clients.firebase.messaging.send')
+    def test_order_updates_replace_previous_alert_of_the_same_order(self, send, app):
+        send.return_value = 'projects/synthetic/messages/synthetic'
+        delivery = SimpleNamespace(**{**vars(self.delivery), 'kind': 'order_update', 'campaign_id': None, 'order_id': 42,
+                                      'target_url': 'https://bodysteel.uz/app/orders'})
+        FirebaseSender().send('synthetic-token', delivery)
+        message = send.call_args.args[0]
+        self.assertEqual(message.android.collapse_key, 'order-42')
+        self.assertEqual(message.android.notification.tag, 'order-42')
+        self.assertEqual(message.apns.headers['apns-collapse-id'], 'order-42')
+        self.assertEqual(set(message.data), {'notification_id', 'scope', 'url'})
+        self.assertEqual(message.data['url'], 'https://bodysteel.uz/app/orders')
 
     @patch('notifications.clients.firebase.firebase_admin.get_app')
     @patch('notifications.clients.firebase.messaging.send')

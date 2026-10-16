@@ -44,6 +44,7 @@ INSTALLED_APPS = [
     'customer_telegram.apps.CustomerTelegramConfig',
     'integration.apps.IntegrationConfig',
     'notifications.apps.NotificationsConfig',
+    'moderation.apps.ModerationConfig',
 ]
 
 TEMPLATES = [

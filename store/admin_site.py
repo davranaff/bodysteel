@@ -32,6 +32,7 @@ class BodySteelAdminSite(admin.AdminSite):
     menu_app_titles = {
         'courses': 'Обучение',
         'customer_telegram': 'Клиентский Telegram-бот',
+        'moderation': 'Модерация контента',
         'nutrition': 'Правильное питание',
         'notifications': 'Push-уведомления',
         'payments': 'Оплата',
@@ -50,6 +51,7 @@ class BodySteelAdminSite(admin.AdminSite):
         'customer_telegram.customertelegramcampaign': 'Рассылки',
         'customer_telegram.customertelegramcampaignrecipient': 'Получатели рассылок',
         'customer_telegram.customertelegramchat': 'Клиенты Telegram',
+        'moderation.contentreport': 'Жалобы на контент',
         'nutrition.allergen': 'Аллергены',
         'nutrition.deliverymethod': 'Способы доставки',
         'nutrition.deliveryslot': 'Интервалы доставки',

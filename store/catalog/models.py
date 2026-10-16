@@ -1,4 +1,3 @@
-from django.core.validators import MaxValueValidator, MinValueValidator
 from django.db import models
 
 from store.catalog.indexes import PRODUCT_INDEXES
@@ -10,7 +9,6 @@ from store.models import (
     product_image_directory_path,
 )
 from store.querysets.product import ProductQueryset
-from users.models import User
 
 
 class Category(BaseModel):
@@ -216,34 +214,5 @@ class Product360Image(models.Model):
         ordering = ['sort_order']
 
 
-class Review(BaseModel):
-    full_name = models.CharField(max_length=100, verbose_name='Полное имя')
-    rating = models.PositiveIntegerField(
-        verbose_name='Рейтинг',
-        validators=[MinValueValidator(1), MaxValueValidator(5)],
-        default=5,
-    )
-    comment = models.TextField(verbose_name='Комментария')
-    user = models.ForeignKey(
-        User,
-        on_delete=models.CASCADE,
-        related_name='reviews',
-        related_query_name='reviews',
-        verbose_name='Какому пользователю принадлежит отзыв',
-        null=True,
-    )
-    product = models.ForeignKey(
-        'Product',
-        on_delete=models.CASCADE,
-        related_name='reviews',
-        related_query_name='reviews',
-        verbose_name='Какому продукту принадлежит отзыв',
-    )
-
-    def __str__(self):
-        return 'Пользователь: {0}, рейтинг: {1}'.format(self.full_name, self.rating)
-
-    class Meta:
-        verbose_name = 'Отзыв'
-        verbose_name_plural = 'Отзывы'
-        ordering = ['-created_at']
+# Django discovers the review model through this module.
+from store.catalog.reviews.models import Review  # noqa: E402,F401

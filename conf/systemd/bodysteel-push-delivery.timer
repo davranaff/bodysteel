@@ -1,0 +1,11 @@
+[Unit]
+Description=Run BodySteel native push delivery worker every minute
+
+[Timer]
+OnBootSec=1min
+OnUnitActiveSec=1min
+AccuracySec=1s
+Unit=bodysteel-push-delivery.service
+
+[Install]
+WantedBy=timers.target

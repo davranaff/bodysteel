@@ -5,7 +5,7 @@ from rest_framework.permissions import IsAuthenticated
 from rest_framework.generics import get_object_or_404
 
 from store.models import Favorite, Basket, Coupon
-from store.serializers.review import ReviewSerializer
+from store.serializers.review import ReviewCreateSerializer
 from teleg.utils import notify_review
 from users.serializers.basket import BasketSerializer, CreateBasketsListSerializer
 from users.serializers.favorites import GetFavoritesSerializer, CreateFavoritesSerializer, CreateFavoritesListSerializer
@@ -13,6 +13,9 @@ from store.serializers.coupon import CouponSerializer
 
 from drf_yasg.utils import swagger_auto_schema
 from drf_yasg import openapi
+
+
+REVIEW_PENDING_MODERATION = 'pending_moderation'
 
 class FavoriteApi(APIView):
     permission_classes = [IsAuthenticated]
@@ -126,14 +129,14 @@ class ReviewAPIView(APIView):
     allowed_methods = ['post']
 
     @swagger_auto_schema(manual_parameters=[],
-                         responses={status.HTTP_200_OK: ReviewSerializer()})
+                         responses={status.HTTP_201_CREATED: openapi.Response(
+                             description='Review accepted; it stays hidden until staff approve it. '
+                                         'The X-Review-Status header is pending_moderation.')})
     def post(self, request):
-        serializer = ReviewSerializer(data=request.data)
+        serializer = ReviewCreateSerializer(data=request.data)
         serializer.is_valid(raise_exception=True)
-        data = serializer.create({
-            **serializer.validated_data,
-            'user': request.user,
-        })
+        # Pre-moderation: a new review is stored unpublished until staff approve it.
+        data = serializer.save(user=request.user, is_published=False)
 
         notify_review.notify_review({
             "id": data.id,
@@ -148,6 +151,8 @@ class ReviewAPIView(APIView):
             "product": data.product.name_ru,
         })
 
+        # The body keeps the exact key set the storefront proxy validates; the
+        # moderation state travels in a header so older clients keep working.
         return Response({'data': {
             "id": data.id,
             "rating": data.rating,
@@ -165,7 +170,10 @@ class ReviewAPIView(APIView):
             "product": data.product.id,
         }, 'bonus': {
             'bonus_used': request.user.bonus_used,
-        }}, status=status.HTTP_201_CREATED)
+        }}, status=status.HTTP_201_CREATED, headers={
+            'X-Review-Status': REVIEW_PENDING_MODERATION,
+            'Cache-Control': 'no-store',
+        })
 
 
 class CouponAPIView(APIView):

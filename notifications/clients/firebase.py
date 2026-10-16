@@ -31,14 +31,15 @@ class FirebaseSender:
                 }, name='bodysteel-push')
             except (DefaultCredentialsError, OSError, ValueError):
                 return SendResult('failed', code='provider_credentials')
+        collapse_key, tag = _identity(delivery)
         message = messaging.Message(
             token=token, notification=messaging.Notification(title=delivery.title, body=delivery.body),
             data={'notification_id': str(delivery.pk), 'scope': str(delivery.expected_scope), 'url': delivery.target_url},
             android=messaging.AndroidConfig(priority='high', ttl=timedelta(days=1),
-                collapse_key=str(delivery.campaign_id), notification=messaging.AndroidNotification(
-                    channel_id='bodysteel_notifications', tag=str(delivery.pk), sound='default')),
+                collapse_key=collapse_key, notification=messaging.AndroidNotification(
+                    channel_id='bodysteel_notifications', tag=tag, sound='default')),
             apns=messaging.APNSConfig(headers={
-                'apns-push-type': 'alert', 'apns-priority': '10', 'apns-collapse-id': str(delivery.pk),
+                'apns-push-type': 'alert', 'apns-priority': '10', 'apns-collapse-id': tag,
                 'apns-expiration': str(int(time.time()) + 86400),
             }, payload=messaging.APNSPayload(messaging.Aps(sound='default'))),
         )
@@ -56,3 +57,14 @@ class FirebaseSender:
             return SendResult('failed', code='provider_credentials')
         except (exceptions.InvalidArgumentError, ValueError, DefaultCredentialsError):
             return SendResult('failed', code='provider_rejected')
+
+
+def _identity(delivery):
+    """Return (Android collapse key, tray tag / APNs collapse id).
+
+    Order updates replace the previous alert of the same order; campaigns keep per-delivery tags.
+    """
+    if delivery.kind == 'order_update' and delivery.order_id is not None:
+        identity = 'order-{}'.format(delivery.order_id)
+        return identity, identity
+    return str(delivery.campaign_id), str(delivery.pk)

@@ -39,30 +39,44 @@ def delete_account(user, password, confirmation):
         locked = type(user).objects.select_for_update().get(pk=user.pk)
         if not locked.is_active or locked.deleted_at is not None:
             raise AuthProblem(400, 'account_unavailable', 'Account is unavailable')
-        from customer_telegram.links import unlink_user
-        unlink_user(locked)
-        from notifications.services.devices import deactivate_user_devices
-        deactivate_user_devices(locked)
-        suffix = uuid.uuid4().hex
-        locked.username = f'deleted_{locked.pk}_{suffix[:16]}'[:100]
-        locked.email = f'deleted.{locked.pk}.{suffix}@invalid.bodysteel.local'
-        locked.phone = _deleted_phone(locked.pk, suffix)
-        locked.first_name = ''
-        locked.last_name = ''
-        locked.is_active = False
-        locked.is_staff = False
-        locked.is_superuser = False
-        locked.deleted_at = timezone.now()
-        locked.phone_verified_at = None
-        locked.email_verified_at = None
-        locked.set_unusable_password()
-        locked.save(update_fields=[
-            'username', 'email', 'phone', 'first_name', 'last_name', 'is_active',
-            'is_staff', 'is_superuser', 'deleted_at', 'phone_verified_at',
-            'email_verified_at', 'password',
-        ])
-        Token.objects.filter(user=locked).delete()
+        erase_account(locked)
         record('account_delete', 'success', user_id=locked.pk)
+
+
+def erase_account(locked):
+    """Anonymize a locked customer row in place (the caller owns the transaction).
+
+    Kept on purpose: orders keep their recipient name/phone/address because
+    accounting and consumer-protection law require the sales records; they are
+    only reachable by staff. SAVDOQ exposes no conversation-deletion API, so
+    callers revoke every SAVDOQ chat session before calling this (the
+    conversation history is then unreachable under the old subject).
+    """
+    from customer_telegram.links import unlink_user
+    unlink_user(locked)
+    from notifications.services.devices import deactivate_user_devices
+    deactivate_user_devices(locked)
+    from store.catalog.reviews.privacy import anonymize_user_reviews
+    anonymize_user_reviews(locked)
+    suffix = uuid.uuid4().hex
+    locked.username = f'deleted_{locked.pk}_{suffix[:16]}'[:100]
+    locked.email = f'deleted.{locked.pk}.{suffix}@invalid.bodysteel.local'
+    locked.phone = deleted_phone(locked.pk)
+    locked.first_name = ''
+    locked.last_name = ''
+    locked.is_active = False
+    locked.is_staff = False
+    locked.is_superuser = False
+    locked.deleted_at = timezone.now()
+    locked.phone_verified_at = None
+    locked.email_verified_at = None
+    locked.set_unusable_password()
+    locked.save(update_fields=[
+        'username', 'email', 'phone', 'first_name', 'last_name', 'is_active',
+        'is_staff', 'is_superuser', 'deleted_at', 'phone_verified_at',
+        'email_verified_at', 'password',
+    ])
+    Token.objects.filter(user=locked).delete()
 
 
 def revoke_all_sessions(user):
@@ -86,6 +100,13 @@ def session_payload(request):
     }]
 
 
-def _deleted_phone(user_id, suffix):
-    value = int(suffix[:12], 16) % 1_000_000_000
-    return f'+998{(value + user_id) % 1_000_000_000:09d}'
+DELETED_PHONE_PREFIX = 'del:'
+
+
+def deleted_phone(user_id):
+    """Unique placeholder that can never equal a real ``+998XXXXXXXXX`` number.
+
+    It fits ``User.phone`` (13 characters) and fails ``validate_phone``, so no
+    registration, sign-in or phone change can ever match or collide with it.
+    """
+    return f'{DELETED_PHONE_PREFIX}{user_id:09x}'

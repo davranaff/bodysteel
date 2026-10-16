@@ -4,7 +4,7 @@ from django.utils.html import format_html
 from store.admin_shared import Product360ImageInline, ProductImageInline, ProductStateFilter, StockFilter
 from store.admin_site import admin_url, bodysteel_admin_site, format_uzs
 from store.catalog.search import smart_product_ids
-from store.models import FilialPhoto, Product, Product360Image, ProductImage, Review
+from store.models import FilialPhoto, Product, Product360Image, ProductImage
 
 
 @admin.register(Product, site=bodysteel_admin_site)
@@ -144,22 +144,3 @@ class Product360ImageAdmin(admin.ModelAdmin):
         if not obj.photo:
             return '—'
         return format_html('<img class="bs-inline-image bs-inline-image--small" src="{}" alt="">', obj.photo.url)
-
-
-@admin.register(Review, site=bodysteel_admin_site)
-class ReviewAdmin(admin.ModelAdmin):
-    empty_value_display = '—'
-    list_display = ('rating_badge', 'full_name', 'product', 'comment_preview', 'created_at')
-    list_filter = ('rating', 'created_at')
-    search_fields = ('full_name', 'comment', 'product__name_ru')
-    date_hierarchy = 'created_at'
-    readonly_fields = ('created_at',)
-    list_select_related = ('product', 'user')
-
-    @admin.display(description='Оценка', ordering='rating')
-    def rating_badge(self, obj):
-        return format_html('<span class="bs-rating">{} <small>/ 5</small></span>', obj.rating)
-
-    @admin.display(description='Комментарий')
-    def comment_preview(self, obj):
-        return (obj.comment or 'Без комментария')[:72]

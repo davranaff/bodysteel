@@ -9,8 +9,8 @@ from store.admin_catalog import (  # noqa: F401
     Product360ImageAdmin,
     ProductAdmin,
     ProductImageAdmin,
-    ReviewAdmin,
 )
+from store.admin_reviews import ReviewAdmin  # noqa: F401
 from store.admin_commerce import BasketAdmin, CouponAdmin, OrderAdmin  # noqa: F401
 from store.admin_content import (  # noqa: F401
     BlogAdmin,
