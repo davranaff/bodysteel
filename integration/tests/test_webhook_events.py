@@ -73,6 +73,11 @@ class WebhookEventTests(IntegrationAPITestCase):
         self.assertIsNone(attribution.cart_id)
 
         IntegrationWebhookEvent.objects.all().delete()
+        # Even a delivery point stored on the order must never reach SAVDOQ.
+        Order.objects.filter(pk=order.pk).update(
+            address_latitude='39.774723', address_longitude='64.419841', address_label='Ляби-Хауз',
+        )
+        order.refresh_from_db()
         original_code = order.order_code
         original_total = order.total_price
         order.status = 'purchased'
@@ -88,6 +93,12 @@ class WebhookEventTests(IntegrationAPITestCase):
         self.assertEqual(event['data']['channel'], 'web')
         self.assertEqual(event['data']['aiSessionId'], 'ai-session-reference')
         self.assertFalse({'full_name', 'phone', 'address'} & set(event['data']))
+        self.assertFalse({
+            'address_latitude', 'address_longitude', 'address_label',
+            'addressLatitude', 'addressLongitude', 'addressLabel', 'latitude', 'longitude', 'location',
+        } & set(event['data']))
+        self.assertNotIn('39.77', IntegrationWebhookEvent.objects.get().body)
+        self.assertNotIn('Ляби-Хауз', IntegrationWebhookEvent.objects.get().body)
 
         order.save()
         self.assertEqual(IntegrationWebhookEvent.objects.count(), 1)
@@ -104,6 +115,8 @@ class WebhookEventTests(IntegrationAPITestCase):
         unavailable['baskets'][0]['quantity'] = self.products[1].quantity + 1
         response = self.post_order(unavailable)
         self.assertEqual(response.status_code, 409)
+        self.assertEqual(response.json()['error']['code'], 'out_of_stock')
+        self.assertEqual(response.json()['detail'], 'One or more products are unavailable')
         self.assertEqual(Order.objects.count(), 0)
 
     @staticmethod

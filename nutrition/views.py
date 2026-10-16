@@ -1,6 +1,7 @@
 from datetime import date
 
 from django.db.models import Prefetch, Q
+from django.utils import timezone
 from rest_framework import status, viewsets
 from rest_framework.generics import get_object_or_404
 from rest_framework.response import Response
@@ -86,19 +87,28 @@ class DeliveryOptionsAPIView(APIView):
             except ValueError:
                 parsed_date = None
             if parsed_date:
-                slots = DeliverySlot.objects.filter(
-                    zone__code=zone_code,
-                    delivery_date=parsed_date,
-                    is_active=True,
-                ).order_by('starts_at')
-                payload['slots'] = [
-                    {
-                        'id': slot.pk,
-                        'date': slot.delivery_date.isoformat(),
-                        'starts_at': slot.starts_at.strftime('%H:%M'),
-                        'ends_at': slot.ends_at.strftime('%H:%M'),
-                        'available': slot.has_capacity(),
-                    }
-                    for slot in slots
-                ]
+                payload['slots'] = _open_slots(zone_code, parsed_date)
         return Response(payload, status=status.HTTP_200_OK)
+
+
+def _open_slots(zone_code, delivery_date):
+    """Only slots that can still be ordered: past, started and cut-off slots are hidden."""
+    now = timezone.now()
+    if delivery_date < timezone.localdate(now):
+        return []
+    slots = DeliverySlot.objects.filter(
+        zone__code=zone_code,
+        delivery_date=delivery_date,
+        is_active=True,
+    ).exclude(cutoff_at__lte=now).order_by('starts_at')
+    return [
+        {
+            'id': slot.pk,
+            'date': slot.delivery_date.isoformat(),
+            'starts_at': slot.starts_at.strftime('%H:%M'),
+            'ends_at': slot.ends_at.strftime('%H:%M'),
+            'available': slot.has_capacity(),
+        }
+        for slot in slots
+        if slot.accepts_orders_at(now)
+    ]

@@ -54,9 +54,12 @@ class OrderAPIView(APIView):
             created = create_order(serializer.validated_data, request.user, idempotency_key)
         except OrderIdempotencyConflict:
             return Response({'detail': 'Idempotency key conflict'}, status=status.HTTP_409_CONFLICT)
-        except OrderUnavailable:
+        except OrderUnavailable as error:
             return Response(
-                {'detail': 'One or more products are unavailable'},
+                {
+                    'detail': 'One or more products are unavailable',
+                    'error': {'code': error.code, 'message': str(error)},
+                },
                 status=status.HTTP_409_CONFLICT,
             )
 

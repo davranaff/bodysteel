@@ -1,5 +1,6 @@
 from rest_framework import serializers
 
+from store.geocoding.bounds import CoordinateField, inside_uzbekistan
 from store.models import Order
 from store.utils.format_phone import format_phone_number
 from users.serializers.basket import BasketSerializer
@@ -7,6 +8,8 @@ from users.serializers.basket import BasketSerializer
 
 class OrderSerializer(serializers.ModelSerializer):
     baskets = BasketSerializer(many=True, read_only=True)
+    address_latitude = serializers.FloatField(read_only=True, allow_null=True)
+    address_longitude = serializers.FloatField(read_only=True, allow_null=True)
 
     class Meta:
         model = Order
@@ -19,6 +22,9 @@ class OrderSerializer(serializers.ModelSerializer):
             'phone',
             'fix_check',
             'address',
+            'address_latitude',
+            'address_longitude',
+            'address_label',
             'status',
             'order_code',
             'coupon',
@@ -72,6 +78,11 @@ class OrderCreateSerializer(StrictInputSerializer):
     delivery_zone_code = serializers.RegexField(r'^[a-z0-9_-]{1,100}$', required=False, allow_blank=True)
     delivery_slot_id = serializers.IntegerField(min_value=1, required=False, allow_null=True)
     customer_note = serializers.CharField(max_length=1000, required=False, allow_blank=True, trim_whitespace=True)
+    address_latitude = CoordinateField(90, required=False, allow_null=True)
+    address_longitude = CoordinateField(180, required=False, allow_null=True)
+    address_label = serializers.CharField(
+        max_length=255, required=False, allow_blank=True, allow_null=True, trim_whitespace=True,
+    )
 
     def validate_phone(self, value):
         formatted = format_phone_number(value)
@@ -82,4 +93,27 @@ class OrderCreateSerializer(StrictInputSerializer):
     def validate(self, attrs):
         if attrs['type'] != 'pickup' and len(attrs['address']) < 2:
             raise serializers.ValidationError({'address': 'Delivery address is required'})
-        return attrs
+        return _validate_location(attrs)
+
+
+def _validate_location(attrs):
+    latitude = attrs.pop('address_latitude', None)
+    longitude = attrs.pop('address_longitude', None)
+    label = attrs.pop('address_label', None) or ''
+    if (latitude is None) != (longitude is None):
+        raise serializers.ValidationError({
+            'address_latitude': 'Latitude and longitude must be sent together',
+        })
+    if attrs['type'] == 'pickup' and (latitude is not None or label):
+        raise serializers.ValidationError({
+            'address_latitude': 'A map location is not allowed for pickup orders',
+        })
+    if latitude is not None and not inside_uzbekistan(latitude, longitude):
+        raise serializers.ValidationError({
+            'address_latitude': 'The location must be inside Uzbekistan',
+        })
+    if latitude is not None:
+        attrs.update(address_latitude=latitude, address_longitude=longitude)
+    if label:
+        attrs['address_label'] = label
+    return attrs

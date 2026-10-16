@@ -2,6 +2,7 @@ from django.contrib import admin
 from django.utils.html import format_html
 
 from store.admin_shared import BasketInline
+from store.geocoding.map_links import order_map_links
 from store.admin_site import admin_url, bodysteel_admin_site, format_uzs
 from store.models import Basket, Coupon, Order
 
@@ -20,11 +21,13 @@ class OrderAdmin(admin.ModelAdmin):
     readonly_fields = (
         'order_code', 'full_name', 'phone', 'type', 'total_price', 'subtotal_price', 'discount_price',
         'delivery_fee', 'payment_status', 'fulfillment_status', 'address', 'fix_check',
+        'address_label', 'address_latitude', 'address_longitude', 'map_links',
         'user', 'coupon', 'idempotency_digest', 'request_fingerprint', 'created_at',
     )
     fieldsets = (
         ('Заказ', {'fields': (('order_code', 'status'), ('total_price', 'payment_status', 'fulfillment_status'), ('type', 'subtotal_price', 'discount_price', 'delivery_fee'))}),
         ('Получатель', {'fields': (('full_name', 'phone'), 'address', 'user')}),
+        ('Точка на карте', {'fields': ('address_label', ('address_latitude', 'address_longitude'), 'map_links')}),
         ('Оплата и доставка', {'fields': ('coupon', 'fix_check')}),
         ('Служебные данные', {'classes': ('collapse',), 'fields': ('idempotency_digest', 'request_fingerprint', 'created_at')}),
     )
@@ -51,6 +54,17 @@ class OrderAdmin(admin.ModelAdmin):
     def status_badge(self, obj):
         tone = 'success' if obj.status == 'purchased' else 'warning'
         return format_html('<span class="bs-status bs-status--{}">{}</span>', tone, obj.get_status_display())
+
+    @admin.display(description='Открыть на карте')
+    def map_links(self, obj):
+        links = order_map_links(obj)
+        if not links:
+            return self.empty_value_display
+        return format_html(
+            '<a href="{}" target="_blank" rel="noopener noreferrer">Google Maps</a> · '
+            '<a href="{}" target="_blank" rel="noopener noreferrer">Яндекс Карты</a>',
+            links.google, links.yandex,
+        )
 
     @admin.action(description='Перевести выбранные заказы в «Куплен»')
     def mark_purchased(self, request, queryset):

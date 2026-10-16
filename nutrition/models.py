@@ -1,5 +1,8 @@
+from datetime import datetime
+
 from django.core.exceptions import ValidationError
 from django.db import models
+from django.utils import timezone
 
 from store.fields import SanitizedHtmlField
 from store.catalog.models import Product
@@ -84,6 +87,19 @@ class DeliverySlot(models.Model):
 
     def has_capacity(self):
         return self.is_active and self.reserved_count < self.capacity
+
+    def starts_at_datetime(self):
+        moment = datetime.combine(self.delivery_date, self.starts_at)
+        return timezone.make_aware(moment, timezone.get_default_timezone())
+
+    def accepts_orders_at(self, now):
+        """A slot closes at its cutoff, or when its interval starts if no cutoff is set."""
+        if self.cutoff_at is not None and self.cutoff_at <= now:
+            return False
+        return self.starts_at_datetime() > now
+
+    def is_open(self, now):
+        return self.has_capacity() and self.accepts_orders_at(now)
 
     def __str__(self):
         return '{} {}-{}'.format(self.delivery_date, self.starts_at, self.ends_at)

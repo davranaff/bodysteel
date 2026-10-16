@@ -11,7 +11,8 @@ integration/            SAVDOQ catalog, inventory, carts and webhook outbox
 store/models.py         Stable model facade and historical migration callbacks
 store/views.py          Backward-compatible HTTP facade
 store/catalog/          Product/category models and storefront read adapters
-store/commerce/         Basket/favorite/order/coupon models
+store/commerce/         Basket/favorite/order/coupon models and shared checkout discount pricing
+store/geocoding/        Public Nominatim reverse/search proxy, Uzbekistan bounds, map links
 store/content/          Menu/blog/brand/location models, HTML policy and content adapters
 store/locations/        Filial administration transport
 store/serializers/      Legacy storefront response serializers
@@ -32,6 +33,8 @@ Shopper AI-chat sessions and their rollout are documented in
 [`users/savdoq/README.md`](users/savdoq/README.md).
 The isolated customer bot, campaigns and rollout are documented in
 [`customer_telegram/README.md`](customer_telegram/README.md).
+Checkout map location, quote discounts and the geocoder are documented in
+[Checkout: map location, discounts and geocoding](#checkout-map-location-discounts-and-geocoding).
 
 ## Verification
 
@@ -133,3 +136,75 @@ campaign, new columns, check constraint; existing rows stay `campaign`). Install
 `failure_code` in the delivery admin. Rollback: stop the timer or set `PUSH_ENABLED=false`; queued
 rows stay pending, and rows older than 24 hours are skipped as `expired` when the worker resumes.
 Do not roll back the migration.
+
+## Checkout: map location, discounts and geocoding
+
+### Order delivery point
+
+`POST /api/v1/users/orders/` accepts three optional fields (migration
+`store.0049_order_address_location`, additive):
+
+| Field | Type | Rules |
+| --- | --- | --- |
+| `address_latitude` | JSON number or `null` | −90..90, stored as `DECIMAL(9,6)` |
+| `address_longitude` | JSON number or `null` | −180..180, stored as `DECIMAL(9,6)` |
+| `address_label` | string or `null` | ≤255, may be empty; place name chosen on the map |
+
+Both coordinates or neither (also a DB check constraint `store_order_address_location_pair`); a point
+outside Uzbekistan's box (lat 37.0–45.7, lng 55.9–73.2) is `400`; for `type: "pickup"` a point or a
+non-empty label is `400`. `address` stays the required human-readable line (street, house, flat) for
+`dcb`/`dtu`; pickup clients send `"-"`. `GET /api/v1/users/orders/` returns
+`address_latitude`/`address_longitude` as JSON numbers or `null` and `address_label` as a string.
+
+The idempotency fingerprint (v2) now covers the location, `delivery_method_code`,
+`delivery_zone_code`, `delivery_slot_id` and `customer_note`. Orders stored with the previous
+fingerprint keep replaying for requests without a location. The staff Telegram message shows the
+label and Google/Yandex «Открыть на карте» links and replies with a venue pin (venue failures are only
+logged). The admin shows the point read-only with map links. Coordinates never reach SAVDOQ webhooks,
+customer-bot messages or push texts.
+
+### Checkout quote
+
+`POST /api/v1/nutrition/checkout/quote/` accepts optional `coupon_code` (≤20, may be `null`) and
+returns, in addition to the existing keys:
+
+```json
+{"data": {"subtotal": 380000, "bonus_discount": 50000, "coupon_discount": 49500,
+  "coupon_applied": true, "discount": 99500, "delivery_fee": 0, "total": 280500,
+  "currency": "UZS", "delivery_method_code": "pickup", "delivery_zone_code": "",
+  "delivery_slot": null, "language": "ru"}}
+```
+
+`bonus_discount` is the signed-in customer's unused one-time `Menu.bonus` (0 for guests);
+the coupon percentage applies after it. Quote and order creation share
+`store/commerce/discounts.py:price_discounts`, so `total` equals the amount the order is charged.
+An unknown, inactive or exhausted coupon yields `coupon_applied: false` (not an error). Quote and
+order `409` responses keep `detail` and add a stable code:
+`{"detail": "...", "error": {"code": "out_of_stock|minimum_order|slot_unavailable|method_not_allowed", "message": "..."}}`.
+
+`GET /api/v1/nutrition/delivery/options/` lists only slots that can still be ordered: past dates,
+slots whose cutoff passed and slots that already started (when no cutoff is set) are omitted; full
+slots stay listed with `available: false`. Checkout rejects such slots with `slot_unavailable`.
+
+### Geocoding proxy
+
+Public, unauthenticated, `Accept-Language: ru|uz` (default `ru`), `Cache-Control: no-store`:
+
+- `GET /api/v1/store/geocode/reverse/?lat=39.7747&lng=64.4198` →
+  `{"data": {"label": "Ляби-Хауз", "address": "улица Накшбанди, 5, Бухара"}}`
+  (empty strings when nothing is found).
+- `GET /api/v1/store/geocode/search/?q=ляби` (2–120 chars) →
+  `{"data": [{"label": "...", "address": "...", "lat": 39.774, "lng": 64.4198}]}` — at most 5,
+  `countrycodes=uz`, biased to Bukhara, results outside Uzbekistan dropped.
+
+Problems use `{"error": {"code", "message"}}`: `400 invalid_request` (unknown/missing/malformed
+parameters), `400 outside_service_area`, `429 rate_limited` (60 requests/min per client IP, with
+`Retry-After`), `503 geocoder_unavailable` (upstream error/timeout or the shared budget of 50 upstream
+calls/min is exhausted). Rate limits reuse `users.auth.rate_limits` and therefore require the auth
+hash keys. Upstream is `GEOCODER_BASE_URL` (default `https://nominatim.openstreetmap.org`; any
+Nominatim-compatible server) called via httpx with `User-Agent: BODYSTEEL/1.0 (+https://bodysteel.uz)`
+and a 6 s timeout. Results are cached in the Django cache for 7 days (coordinates rounded to 5
+decimals, normalized query, language). Without `CACHES` configured the cache is per process; configure
+a shared cache for multiple Gunicorn workers to respect Nominatim's usage policy. Coordinates and
+search text are never logged.
+

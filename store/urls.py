@@ -1,6 +1,7 @@
 from django.urls import path
 
 from store import views
+from store.geocoding.views import GeocodeReverseView, GeocodeSearchView
 from store.views import CategoryViewSet, FilialViewSet, ProductViewSet
 
 urlpatterns = [
@@ -15,6 +16,9 @@ urlpatterns = [
     path('set_of_products/<slug>/', views.SetOfProductViewSet.as_view({'get': 'retrieve'}), name='set_of_product_detail'),
 
     path('brands/', views.BrandAPIView.as_view(), name='brands'),
+
+    path('geocode/reverse/', GeocodeReverseView.as_view(), name='geocode_reverse'),
+    path('geocode/search/', GeocodeSearchView.as_view(), name='geocode_search'),
 
     path('delivery_and_payment/', views.DeliveryAndPaymentsAPIView.as_view(), name='delivery_and_payments'),
 

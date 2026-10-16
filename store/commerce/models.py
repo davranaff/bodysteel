@@ -136,6 +136,13 @@ class Order(BaseModel):
     phone = models.CharField(max_length=13, verbose_name='Телефон')
     fix_check = models.FileField(upload_to=check_path, null=True, verbose_name='Чек об оплате')
     address = models.CharField(max_length=255, blank=True, null=True, default='', verbose_name='Адрес доставки')
+    address_latitude = models.DecimalField(
+        max_digits=9, decimal_places=6, null=True, blank=True, verbose_name='Широта точки доставки',
+    )
+    address_longitude = models.DecimalField(
+        max_digits=9, decimal_places=6, null=True, blank=True, verbose_name='Долгота точки доставки',
+    )
+    address_label = models.CharField(max_length=255, blank=True, default='', verbose_name='Место на карте')
     status = models.CharField(max_length=50, choices=STATUS_CHOICES, default='moderation', verbose_name='Статус заказа')
     payment_status = models.CharField(
         max_length=20,
@@ -205,6 +212,13 @@ class Order(BaseModel):
                     | models.Q(idempotency_digest__isnull=False, request_fingerprint__isnull=False)
                 ),
                 name='store_order_idempotency_pair',
+            ),
+            models.CheckConstraint(
+                condition=(
+                    models.Q(address_latitude__isnull=True, address_longitude__isnull=True)
+                    | models.Q(address_latitude__isnull=False, address_longitude__isnull=False)
+                ),
+                name='store_order_address_location_pair',
             ),
         ]
 

@@ -274,6 +274,9 @@ REGOS_TO_SERVER_USERNAME = os.getenv('REGOS_TO_SERVER_USERNAME', '')
 REGOS_TO_SERVER_PASSWORD = os.getenv('REGOS_TO_SERVER_PASSWORD', '')
 REGOS_CONNECTED_INTEGRATION_ID = os.getenv('REGOS_CONNECTED_INTEGRATION_ID', '')
 PAYMENT_WEBHOOK_SECRET = os.getenv('PAYMENT_WEBHOOK_SECRET', '')
+# Public map geocoding proxy (store/geocoding). Nominatim-compatible base URL;
+# point it at a self-hosted Nominatim to avoid the public instance's usage policy.
+GEOCODER_BASE_URL = os.getenv('GEOCODER_BASE_URL', 'https://nominatim.openstreetmap.org')
 
 
 _REQUESTED_DEBUG = DEBUG

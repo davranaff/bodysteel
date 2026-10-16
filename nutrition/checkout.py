@@ -1,11 +1,23 @@
 from dataclasses import dataclass
 
+from django.utils import timezone
+
 from nutrition.models import DeliveryMethod, DeliverySlot, DeliveryZone
 from store.models import Menu, Product
 
 
+OUT_OF_STOCK = 'out_of_stock'
+MINIMUM_ORDER = 'minimum_order'
+SLOT_UNAVAILABLE = 'slot_unavailable'
+METHOD_NOT_ALLOWED = 'method_not_allowed'
+
+
 class CheckoutUnavailable(Exception):
-    pass
+    """A checkout precondition failed; ``code`` is a stable client-facing problem code."""
+
+    def __init__(self, message, code=OUT_OF_STOCK):
+        super().__init__(message)
+        self.code = code
 
 
 @dataclass(frozen=True)
@@ -17,10 +29,6 @@ class Quote:
     delivery_method_code: str
     delivery_zone_code: str
     delivery_slot: DeliverySlot | None
-
-    @property
-    def total(self):
-        return self.subtotal + self.delivery_fee
 
 
 def aggregate(items):
@@ -79,8 +87,8 @@ def _find_slot(slot_id, zone_code, lock):
     if lock:
         queryset = queryset.select_for_update()
     slot = queryset.first()
-    if not slot or not slot.has_capacity():
-        raise CheckoutUnavailable('Delivery slot is unavailable')
+    if not slot or not slot.is_open(timezone.now()):
+        raise CheckoutUnavailable('Delivery slot is unavailable', SLOT_UNAVAILABLE)
     return slot
 
 
@@ -89,7 +97,7 @@ def _delivery_fee(method_code, zone_code, order_type, subtotal):
         method = DeliveryMethod.objects.filter(code=method_code, is_active=True).first()
         if method:
             if subtotal < method.minimum_order:
-                raise CheckoutUnavailable('Minimum order amount is not reached')
+                raise CheckoutUnavailable('Minimum order amount is not reached', MINIMUM_ORDER)
             if method.free_from is not None and subtotal >= method.free_from:
                 return 0
             zone_fee = DeliveryZone.objects.filter(code=zone_code, is_active=True).values_list('fee', flat=True).first() or 0
@@ -106,4 +114,7 @@ def _validate_product_delivery(products, method_code, order_type):
             continue
         allowed = set(profile.allowed_delivery_methods.values_list('code', flat=True))
         if method_code and method_code not in allowed:
-            raise CheckoutUnavailable('Selected delivery method is not available for one or more products')
+            raise CheckoutUnavailable(
+                'Selected delivery method is not available for one or more products',
+                METHOD_NOT_ALLOWED,
+            )

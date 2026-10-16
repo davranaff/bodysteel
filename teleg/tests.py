@@ -1,3 +1,4 @@
+from decimal import Decimal
 from types import SimpleNamespace
 from unittest.mock import patch
 
@@ -40,6 +41,70 @@ class OrderNotificationFormatTests(TestCase):
 
         self.assertEqual(send_message.call_count, 2)
         self.assertTrue(all(call.kwargs['parse_mode'] == 'HTML' for call in send_message.call_args_list))
+
+    def test_location_adds_label_and_map_links(self):
+        order = self.located_order()
+        order.address_label = 'Ляби-Хауз <центр>'
+
+        text = format_order_notification(order, [self.basket('Product', 1, 100_000)])
+
+        self.assertIn('📍 Zebiniso 13\n', text)
+        self.assertIn('🏷 Ляби-Хауз &lt;центр&gt;\n', text)
+        self.assertIn('<a href="https://maps.google.com/?q=39.774723,64.419841">Открыть на карте</a>', text)
+        self.assertIn('<a href="https://yandex.uz/maps/?pt=64.419841,39.774723&amp;z=17&amp;l=map">', text)
+
+    def test_order_without_location_has_no_map_links(self):
+        text = format_order_notification(self.order(), [self.basket('Product', 1, 100_000)])
+
+        self.assertNotIn('Открыть на карте', text)
+        self.assertNotIn('🏷', text)
+
+    @patch('teleg.utils.notify_message.bot.send_venue')
+    @patch('teleg.utils.notify_message.bot.send_message')
+    def test_venue_replies_to_the_order_message(self, send_message, send_venue):
+        Chat.objects.create(chat_id='1001', first_name='First')
+        send_message.return_value = SimpleNamespace(message_id=77)
+
+        notify_message(self.located_order(), [self.basket('Product', 1, 100_000)])
+
+        send_venue.assert_called_once_with(
+            '1001', 39.774723, 64.419841,
+            title='Адрес доставки', address='Zebiniso 13', reply_to_message_id=77,
+        )
+
+    @patch('teleg.utils.notify_message.logger.exception')
+    @patch('teleg.utils.notify_message.bot.send_venue')
+    @patch('teleg.utils.notify_message.bot.send_message')
+    def test_venue_failure_is_logged_and_not_raised(self, send_message, send_venue, log):
+        Chat.objects.create(chat_id='1001', first_name='First')
+        Chat.objects.create(chat_id='1002', first_name='Second')
+        send_message.return_value = SimpleNamespace(message_id=5)
+        send_venue.side_effect = [RuntimeError('venue rejected'), None]
+
+        notify_message(self.located_order(), [self.basket('Product', 1, 100_000)])
+
+        self.assertEqual(send_message.call_count, 2)
+        self.assertEqual(send_venue.call_count, 2)
+        log.assert_called_once()
+        self.assertEqual(log.call_args.args[0], 'Telegram order venue failed')
+
+    @patch('teleg.utils.notify_message.bot.send_venue')
+    @patch('teleg.utils.notify_message.bot.send_message')
+    def test_no_venue_without_coordinates(self, send_message, send_venue):
+        Chat.objects.create(chat_id='1001', first_name='First')
+
+        notify_message(self.order(), [self.basket('Product', 1, 100_000)])
+
+        send_message.assert_called_once()
+        send_venue.assert_not_called()
+
+    @classmethod
+    def located_order(cls):
+        order = cls.order()
+        order.address_latitude = Decimal('39.774723')
+        order.address_longitude = Decimal('64.419841')
+        order.address_label = ''
+        return order
 
     @staticmethod
     def order():

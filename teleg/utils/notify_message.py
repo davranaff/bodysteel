@@ -3,6 +3,7 @@ from html import escape
 
 from django.utils import timezone
 
+from store.geocoding.map_links import order_map_links
 from store.models import Order
 from teleg.models import Chat as ChatModel
 from teleg.views import bot
@@ -20,7 +21,7 @@ def notify_message(order, baskets, coupon=None):
 
     for recipient_number, chat_id in enumerate(chat_ids, start=1):
         try:
-            bot.send_message(chat_id, text=text, parse_mode='HTML')
+            message = bot.send_message(chat_id, text=text, parse_mode='HTML')
             delivered += 1
         except Exception:
             failed += 1
@@ -31,6 +32,8 @@ def notify_message(order, baskets, coupon=None):
                     'recipient_number': recipient_number,
                 },
             )
+            continue
+        _send_delivery_venue(chat_id, order, message, recipient_number)
 
     if failed and not delivered:
         raise RuntimeError('Telegram order notification failed for every recipient')
@@ -48,7 +51,8 @@ def format_order_notification(order, baskets, coupon=None):
         f'📞 {escape(order.phone or "—")}\n\n'
         '🚚 <b>Доставка</b>\n'
         f'{escape(str(delivery))}\n'
-        f'📍 {escape(order.address or "—")}\n\n'
+        f'📍 {escape(order.address or "—")}\n'
+        f'{_location_lines(order)}\n'
         f'📦 <b>Товары · {len(baskets)}</b>\n'
     )
     coupon_line = ''
@@ -75,6 +79,44 @@ def format_order_notification(order, baskets, coupon=None):
         item_blocks.append(f'\n<i>… ещё {hidden_items} поз. — подробности в админке</i>\n')
 
     return header + ''.join(item_blocks) + footer
+
+
+def _location_lines(order):
+    lines = ''
+    label = (getattr(order, 'address_label', '') or '').strip()
+    address = (getattr(order, 'address', '') or '').strip()
+    # The map label often equals the prefilled address; repeat it only when it adds detail.
+    if label and label.casefold() != address.casefold():
+        lines += f'🏷 {escape(label)}\n'
+    links = order_map_links(order)
+    if links:
+        lines += (
+            f'🗺 <a href="{escape(links.google)}">Открыть на карте</a>'
+            f' · <a href="{escape(links.yandex)}">Яндекс Карты</a>\n'
+        )
+    return lines
+
+
+def _send_delivery_venue(chat_id, order, message, recipient_number):
+    """Pin the delivery point under the order message; never fails the order."""
+    latitude = getattr(order, 'address_latitude', None)
+    longitude = getattr(order, 'address_longitude', None)
+    if latitude is None or longitude is None:
+        return
+    try:
+        bot.send_venue(
+            chat_id,
+            float(latitude),
+            float(longitude),
+            title=getattr(order, 'address_label', '') or 'Адрес доставки',
+            address=order.address or '',
+            reply_to_message_id=message.message_id,
+        )
+    except Exception:
+        logger.exception(
+            'Telegram order venue failed',
+            extra={'order_id': order.pk, 'recipient_number': recipient_number},
+        )
 
 
 def _basket_block(index, basket):

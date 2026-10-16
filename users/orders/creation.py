@@ -6,10 +6,15 @@ from django.db.models import F
 from integration.orders.attribution import attach_order_attribution
 from nutrition.checkout import CheckoutUnavailable, build_quote
 from payments.models import Payment
-from store.models import Basket, Coupon, Menu, Order
-from users.models import User
+from store.commerce.discounts import price_discounts
+from store.models import Basket, Coupon, Order
 from users.orders.errors import OrderUnavailable
-from users.orders.idempotency import find_replay, idempotency_digest, request_fingerprint
+from users.orders.idempotency import (
+    find_replay,
+    idempotency_digest,
+    legacy_request_fingerprint,
+    request_fingerprint,
+)
 
 
 @dataclass(frozen=True)
@@ -22,14 +27,15 @@ class CreatedOrder:
 def create_order(command, actor, idempotency_key):
     digest = idempotency_digest(idempotency_key)
     fingerprint = request_fingerprint(command, actor)
-    existing = find_replay(digest, fingerprint)
+    legacy_fingerprint = legacy_request_fingerprint(command, actor)
+    existing = find_replay(digest, fingerprint, legacy_fingerprint)
     if existing:
         return CreatedOrder(order=existing, coupon=existing.coupon, replayed=True)
 
     try:
         return _create_order(command, actor, digest, fingerprint)
     except IntegrityError:
-        existing = find_replay(digest, fingerprint)
+        existing = find_replay(digest, fingerprint, legacy_fingerprint)
         if existing:
             return CreatedOrder(order=existing, coupon=existing.coupon, replayed=True)
         raise
@@ -40,18 +46,19 @@ def _create_order(command, actor, digest, fingerprint):
         try:
             quote = build_quote(command, lock=True)
         except CheckoutUnavailable as error:
-            raise OrderUnavailable(str(error)) from error
+            raise OrderUnavailable(str(error), error.code) from error
         quantities = quote.quantities
         products = quote.products
-        subtotal = quote.subtotal
-        user, subtotal = _apply_bonus(actor, subtotal)
-        coupon, subtotal = _apply_coupon(command.get('coupon_code'), subtotal)
-        total = max(0, subtotal) + quote.delivery_fee
+        pricing = price_discounts(quote.subtotal, actor, command.get('coupon_code'), lock=True)
+        _spend_discounts(pricing)
+        user = pricing.user
+        coupon = pricing.coupon
+        total = pricing.discounted_subtotal + quote.delivery_fee
         order = Order.objects.create(
             user=user,
             total_price=total,
             subtotal_price=quote.subtotal,
-            discount_price=max(0, quote.subtotal - subtotal),
+            discount_price=pricing.discount,
             delivery_fee=quote.delivery_fee,
             delivery_method_code=quote.delivery_method_code,
             delivery_zone_code=quote.delivery_zone_code,
@@ -65,6 +72,9 @@ def _create_order(command, actor, digest, fingerprint):
             full_name=command['full_name'],
             phone=command['phone'],
             address=command['address'],
+            address_latitude=command.get('address_latitude'),
+            address_longitude=command.get('address_longitude'),
+            address_label=command.get('address_label') or '',
             coupon=coupon,
             status='moderation',
             idempotency_digest=digest,
@@ -91,38 +101,14 @@ def _create_order(command, actor, digest, fingerprint):
         return CreatedOrder(order=order, coupon=coupon, replayed=False)
 
 
-def _aggregate_quantities(items):
-    quantities = {}
-    for item in items:
-        product_id = item['product']
-        quantities[product_id] = quantities.get(product_id, 0) + item['quantity']
-        if quantities[product_id] > 100:
-            raise OrderUnavailable('Requested product quantity is unavailable')
-    return quantities
-
-
-def _apply_bonus(actor, subtotal):
-    if not getattr(actor, 'is_authenticated', False):
-        return None, subtotal
-    user = User.objects.select_for_update().get(pk=actor.pk)
-    if user.bonus_used:
-        return user, subtotal
-    menu = Menu.objects.get(is_active=True)
-    user.bonus_used = True
-    user.save(update_fields=('bonus_used',))
-    return user, max(0, subtotal - int(menu.bonus))
-
-
-def _apply_coupon(code, subtotal):
-    if not code:
-        return None, subtotal
-    coupon = Coupon.objects.select_for_update().filter(code__iexact=code, is_active=True).first()
-    if not coupon or not coupon.can_use():
-        return None, subtotal
-    discount = int(subtotal * (coupon.discount_percent / 100))
-    coupon.used_count += 1
-    coupon.save(update_fields=('used_count',))
-    return coupon, max(0, subtotal - discount)
+def _spend_discounts(pricing):
+    # The rows were locked by price_discounts(lock=True) in this transaction.
+    if pricing.bonus_eligible:
+        pricing.user.bonus_used = True
+        pricing.user.save(update_fields=('bonus_used',))
+    if pricing.coupon is not None:
+        pricing.coupon.used_count += 1
+        pricing.coupon.save(update_fields=('used_count',))
 
 
 def _persist_baskets(order, user, products, quantities):
@@ -134,7 +120,3 @@ def _persist_baskets(order, user, products, quantities):
             product=product,
             quantity=quantity,
         )
-
-
-def _unit_price(product):
-    return int(product.price) - int(product.discounted_price)

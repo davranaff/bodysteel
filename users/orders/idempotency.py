@@ -20,32 +20,69 @@ def idempotency_digest(value):
     return hashlib.sha256(value.encode('utf-8')).hexdigest()
 
 
+LOCATION_FIELDS = ('address_latitude', 'address_longitude', 'address_label')
+
+
 def request_fingerprint(command, actor):
-    canonical = json.dumps(
-        {
-            'actorId': str(actor.pk) if getattr(actor, 'is_authenticated', False) else None,
-            'fullName': command['full_name'],
-            'phone': command['phone'],
-            'address': command['address'],
-            'type': command['type'],
-            'baskets': _canonical_baskets(command['baskets']),
-            'couponCode': command.get('coupon_code'),
-            'integrationCartToken': command.get('integration_cart_token'),
-        },
-        ensure_ascii=False,
-        separators=(',', ':'),
-        sort_keys=True,
-    )
-    return hashlib.sha256(canonical.encode('utf-8')).hexdigest()
+    """Fingerprint of every input that changes the created order (v2)."""
+    return _digest({
+        **_legacy_canonical(command, actor),
+        'version': 2,
+        'deliveryMethodCode': command.get('delivery_method_code') or '',
+        'deliveryZoneCode': command.get('delivery_zone_code') or '',
+        'deliverySlotId': command.get('delivery_slot_id'),
+        'customerNote': command.get('customer_note') or '',
+        'addressLatitude': _coordinate(command.get('address_latitude')),
+        'addressLongitude': _coordinate(command.get('address_longitude')),
+        'addressLabel': command.get('address_label') or '',
+    })
 
 
-def find_replay(digest, fingerprint):
+def legacy_request_fingerprint(command, actor):
+    """Fingerprint stored before v2, or ``None`` when it cannot describe ``command``.
+
+    Orders created before the delivery/location fields were fingerprinted keep
+    replaying. A map location did not exist then, so a request carrying one can
+    never be a replay of such an order.
+    """
+    if any(command.get(field) not in (None, '') for field in LOCATION_FIELDS):
+        return None
+    return _digest(_legacy_canonical(command, actor))
+
+
+def find_replay(digest, fingerprint, legacy_fingerprint=None):
     order = Order.objects.select_related('coupon').filter(idempotency_digest=digest).first()
     if not order:
         return None
-    if not secrets.compare_digest(order.request_fingerprint or '', fingerprint):
+    stored = order.request_fingerprint or ''
+    matches = secrets.compare_digest(stored, fingerprint)
+    if legacy_fingerprint is not None:
+        matches = secrets.compare_digest(stored, legacy_fingerprint) or matches
+    if not matches:
         raise OrderIdempotencyConflict()
     return order
+
+
+def _legacy_canonical(command, actor):
+    return {
+        'actorId': str(actor.pk) if getattr(actor, 'is_authenticated', False) else None,
+        'fullName': command['full_name'],
+        'phone': command['phone'],
+        'address': command['address'],
+        'type': command['type'],
+        'baskets': _canonical_baskets(command['baskets']),
+        'couponCode': command.get('coupon_code'),
+        'integrationCartToken': command.get('integration_cart_token'),
+    }
+
+
+def _digest(canonical):
+    encoded = json.dumps(canonical, ensure_ascii=False, separators=(',', ':'), sort_keys=True)
+    return hashlib.sha256(encoded.encode('utf-8')).hexdigest()
+
+
+def _coordinate(value):
+    return None if value is None else '{:.6f}'.format(value)
 
 
 def _canonical_baskets(items):
