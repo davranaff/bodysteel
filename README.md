@@ -77,8 +77,8 @@ Before rollout:
    `publish_pushcampaign`, `test_pushcampaign` and/or `cancel_pushcampaign` permissions.
 5. Schedule `python manage.py deliver_push_notifications --limit 100` once a minute with the supplied
    `conf/systemd/bodysteel-push-delivery.service` + `.timer` (same `root:www-data` identity,
-   `/etc/bodysteel/gunicorn-release.env` and literal `RELEASE_ID` replacement as the customer-Telegram
-   units). The oneshot unit never overlaps itself; with push unconfigured it exits non-zero without
+   `/etc/bodysteel/gunicorn-release.env` and `/home/body/current` release symlink as the other
+   background units). The oneshot unit never overlaps itself; with push unconfigured it exits non-zero without
    sending, so enable the timer only after step 3. Publishing never performs HTTP delivery in a DB
    transaction or in an admin request. Leases expire after 300 seconds; provider retries stop after
    five attempts. A network-uncertain send can be repeated: delivery IDs/collapse tags are stable,
@@ -207,4 +207,17 @@ and a 6 s timeout. Results are cached in the Django cache for 7 days (coordinate
 decimals, normalized query, language). Without `CACHES` configured the cache is per process; configure
 a shared cache for multiple Gunicorn workers to respect Nominatim's usage policy. Coordinates and
 search text are never logged.
+
+## Production layout (bodysteel.server)
+
+- Each backend release is a git worktree in `/home/body/releases/<sha>-<name>-<date>` with its own
+  `venv`, `config/settings_prod.py` (copied from the previous release) and `files` symlink.
+- `/home/body/current` points at the live release. gunicorn's drop-in
+  (`/etc/systemd/system/gunicorn.service.d/20-bodysteel-release.conf`) and every background unit
+  (`conf/systemd/*.service`) run from it, so switching a release is: migrate in the new release,
+  `ln -sfn <new> /home/body/current`, update the gunicorn drop-in, `systemctl daemon-reload &&
+  systemctl restart gunicorn`. Background units then pick up the new code on their next run.
+- Settings come from `/etc/bodysteel/gunicorn-release.env` (mode 600). Keep `DEBUG=false` and
+  `DEBUG_WITH_PRODUCTION_SETTINGS=false` outside short, supervised diagnostics.
+- Back up the database before migrating: `pg_dump -Fc` into `/home/body/backups/`.
 
