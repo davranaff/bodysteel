@@ -219,5 +219,8 @@ search text are never logged.
   systemctl restart gunicorn`. Background units then pick up the new code on their next run.
 - Settings come from `/etc/bodysteel/gunicorn-release.env` (mode 600). Keep `DEBUG=false` and
   `DEBUG_WITH_PRODUCTION_SETTINGS=false` outside short, supervised diagnostics.
+- nginx (`/etc/nginx/sites-enabled/body`, `api.bodysteel.uz`) sets `client_max_body_size 25m;` so an
+  admin product form with several photos fits. Each catalog photo is still capped at 3 MB by
+  `store.validators.validate_catalog_image_size`.
 - Back up the database before migrating: `pg_dump -Fc` into `/home/body/backups/`.
 
