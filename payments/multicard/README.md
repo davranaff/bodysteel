@@ -46,6 +46,16 @@ the docs show both, so both are accepted).
   or a cancelled order is refused, so Multicard returns that money.
 * A `failed` payment can still be completed by a late success callback.
 
+## Staff notifications
+
+While Multicard is enabled every storefront order is prepaid, so order creation
+sends no Telegram alert. The alert ("✅ ОПЛАЧЕН ОНЛАЙН") is sent once, after
+the first successful callback, webhook or status poll commits the payment; a
+replayed callback does not repeat it. With Multicard disabled, orders are still
+announced at creation as before, so none go unseen. Clients that never start
+an online payment (for example an old app build) create orders that stay
+unpaid and are not announced; check the admin for `payment_status = unpaid`.
+
 ## Configuration
 
 All keys are environment variables (see `back/.env.example`). Locally they can

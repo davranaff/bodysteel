@@ -7,6 +7,7 @@ from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
 from rest_framework.views import APIView
 
+from payments.multicard.configuration import multicard_enabled
 from store.models import Order
 from teleg.utils.notify_message import notify_message
 from users.orders.creation import create_order
@@ -63,7 +64,9 @@ class OrderAPIView(APIView):
                 status=status.HTTP_409_CONFLICT,
             )
 
-        if not created.replayed:
+        # With online payment enabled every order is prepaid: staff are
+        # notified when Multicard confirms the payment, not before.
+        if not created.replayed and not multicard_enabled():
             _notify_order(created)
         response = Response({'orderId': str(created.order.pk)}, status=status.HTTP_201_CREATED)
         if created.replayed:

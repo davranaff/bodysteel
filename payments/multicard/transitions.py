@@ -11,6 +11,7 @@ from dataclasses import dataclass
 from django.db import IntegrityError, transaction
 
 from payments.models import Payment, PaymentEvent
+from payments.multicard.notifications import notify_paid_order
 from payments.multicard.receipt import order_amount_tiyin
 from payments.services import complete_payment
 
@@ -55,6 +56,9 @@ def record_success(payment_id, transaction_uuid, amount_tiyin, event_id, payload
         return CallbackOutcome(False, 'Транзакция уже учтена')
     _record_event(payment, event_id, 'success', payload_hash)
     complete_payment(payment.pk, transaction_uuid)
+    # Telegram delivery runs only after the payment row is committed.
+    order_id = payment.order_id
+    transaction.on_commit(lambda: notify_paid_order(order_id))
     return CallbackOutcome(True)
 
 

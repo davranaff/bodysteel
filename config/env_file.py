@@ -5,6 +5,7 @@ the process environment (systemd ``EnvironmentFile``, CI, shell) always wins.
 The file itself is gitignored; nothing here logs or echoes values.
 """
 import os
+import sys
 from pathlib import Path
 
 
@@ -13,6 +14,9 @@ ALLOWED_PREFIXES = ('MULTICARD_',)
 
 def load_env_file(path, environ=None):
     environ = os.environ if environ is None else environ
+    if environ is os.environ and sys.argv[1:2] == ['test']:
+        # Test runs must not depend on a developer's local credentials.
+        return
     path = Path(path)
     if not path.is_file():
         return
