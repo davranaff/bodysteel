@@ -33,6 +33,8 @@ Shopper AI-chat sessions and their rollout are documented in
 [`users/savdoq/README.md`](users/savdoq/README.md).
 The isolated customer bot, campaigns and rollout are documented in
 [`customer_telegram/README.md`](customer_telegram/README.md).
+Online card payment through Multicard is documented in
+[`payments/multicard/README.md`](payments/multicard/README.md).
 Checkout map location, quote discounts and the geocoder are documented in
 [Checkout: map location, discounts and geocoding](#checkout-map-location-discounts-and-geocoding).
 

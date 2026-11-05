@@ -98,6 +98,20 @@ class Product(BaseModel):
         verbose_name='Статус карточки REGOS',
         help_text='Черновики видны на витрине, но недоступны для заказа. Архивированные позиции скрыты.',
     )
+    ikpu_code = models.CharField(
+        max_length=17,
+        blank=True,
+        default='',
+        verbose_name='ИКПУ (MXIK)',
+        help_text='17-значный код из tasnif.soliq.uz для фискального чека онлайн-оплаты.',
+    )
+    package_code = models.CharField(
+        max_length=20,
+        blank=True,
+        default='',
+        verbose_name='Код упаковки',
+        help_text='Код упаковки из tasnif.soliq.uz для фискального чека онлайн-оплаты.',
+    )
     name_uz = models.CharField(max_length=500, verbose_name='Название Продукта uz', unique=True)
     name_ru = models.CharField(max_length=500, verbose_name='Название Продукта ru', unique=True)
     description_uz = SanitizedHtmlField(verbose_name='Описание Товара uz', null=True, blank=True)
