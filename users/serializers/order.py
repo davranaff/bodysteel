@@ -78,6 +78,9 @@ class OrderCreateSerializer(StrictInputSerializer):
     delivery_zone_code = serializers.RegexField(r'^[a-z0-9_-]{1,100}$', required=False, allow_blank=True)
     delivery_slot_id = serializers.IntegerField(min_value=1, required=False, allow_null=True)
     customer_note = serializers.CharField(max_length=1000, required=False, allow_blank=True, trim_whitespace=True)
+    # Sent by clients that pay online right after creating the order. Older
+    # clients omit it; their orders are paid on delivery.
+    payment_method = serializers.ChoiceField(choices=('online',), required=False)
     address_latitude = CoordinateField(90, required=False, allow_null=True)
     address_longitude = CoordinateField(180, required=False, allow_null=True)
     address_label = serializers.CharField(

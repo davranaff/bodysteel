@@ -7,8 +7,9 @@ only through the Next.js gateway.
 
 ## Flow
 
-1. The shopper creates an order as before (`POST /api/v1/users/orders/`).
-2. If they chose online payment, the client calls
+1. The shopper creates an order (`POST /api/v1/users/orders/` with
+   `payment_method: "online"`).
+2. The client then calls
    `POST /api/v1/payments/orders/{order_id}/multicard/` with
    `{"channel": "web"|"app", "order_key": "<the order's Idempotency-Key>"}`.
    The gateway fixes `channel` by route. A signed-in owner may omit `order_key`.
@@ -48,13 +49,16 @@ the docs show both, so both are accepted).
 
 ## Staff notifications
 
-While Multicard is enabled every storefront order is prepaid, so order creation
-sends no Telegram alert. The alert ("✅ ОПЛАЧЕН ОНЛАЙН") is sent once, after
-the first successful callback, webhook or status poll commits the payment; a
-replayed callback does not repeat it. With Multicard disabled, orders are still
-announced at creation as before, so none go unseen. Clients that never start
-an online payment (for example an old app build) create orders that stay
-unpaid and are not announced; check the admin for `payment_status = unpaid`.
+Clients that pay online send `payment_method: "online"` when creating the order.
+Such an order sends no Telegram alert at creation. The alert ("✅ ОПЛАЧЕН ОНЛАЙН")
+is sent once, after the first successful callback, webhook or status poll commits
+the payment; a replayed callback does not repeat it. An online order that is never
+paid stays `unpaid` and is not announced.
+
+Clients that do not send the field (app builds up to 1.1.0 (4), browser tabs opened
+before the release) cannot start a payment. Their orders stay valid: staff are
+alerted at creation with "💵 ОПЛАТА ПРИ ПОЛУЧЕНИИ". With Multicard disabled, every
+order is announced at creation without that line.
 
 ## Configuration
 
