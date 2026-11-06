@@ -77,7 +77,7 @@ https://github.com/davranaff/bodysteel_mobile/pull/1 и `main` не содерж
 1. Сделайте резервную копию базы.
 2. Смёрджите backend-PR и выкатите его обычным способом.
 3. Обновите зависимости (`pip install -r requirements.txt`) и выполните
-   `python manage.py migrate` (добавляется `store.0050_product_fiscal_codes`).
+   `python manage.py migrate` (добавляется `store.0051_product_fiscal_codes`).
 4. Добавьте значения в env-файл, оставьте `MULTICARD_ENABLED=0`, перезапустите gunicorn.
 5. Проверьте:
 
@@ -169,7 +169,7 @@ curl -s https://bodysteel.uz/.well-known/assetlinks.json | grep -c "A6:60:8D"
 | --- | --- |
 | Сбой оплаты, приложение ещё не вышло | Выкатите прошлую версию сайта, затем `MULTICARD_ENABLED=0` и перезапуск gunicorn. Заказы снова оформляются без онлайн-оплаты. |
 | Сбой оплаты, новое приложение уже вышло | То же самое, но в новой версии заказ оформить нельзя, она покажет «Онлайн-оплата временно недоступна». Старая версия продолжит работать. |
-| Ошибка в коде backend | Верните прошлый релиз. Перед этим `python manage.py migrate store 0049`, иначе старый код не сможет создавать товары. Коды товаров при этом удалятся. |
+| Ошибка в коде backend | Верните прошлый релиз. Перед этим `python manage.py migrate store 0050_catalog_image_size_limit`, иначе старый код не сможет создавать товары. Коды товаров при этом удалятся. |
 | Ошибка в приложении | Остановите staged rollout или phased release и выпустите новую сборку. |
 
 `MULTICARD_ENABLED=0` не отменяет уже начатые платежи: callback и запрос статуса продолжают

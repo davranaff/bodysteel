@@ -4,7 +4,7 @@ from django.db import migrations, models
 class Migration(migrations.Migration):
 
     dependencies = [
-        ("store", "0049_order_address_location"),
+        ("store", "0050_catalog_image_size_limit"),
     ]
 
     operations = [
