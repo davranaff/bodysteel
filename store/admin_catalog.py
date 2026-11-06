@@ -43,6 +43,7 @@ class ProductAdmin(admin.ModelAdmin):
             'fields': (
                 ('regos_item_id', 'regos_item_code'),
                 ('regos_item_articul', 'regos_catalog_status'),
+                ('ikpu_code', 'package_code'),
                 ('view_count', 'updated_at'),
             ),
         }),

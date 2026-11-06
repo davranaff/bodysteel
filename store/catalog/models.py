@@ -9,6 +9,7 @@ from store.models import (
     product_image_directory_path,
 )
 from store.querysets.product import ProductQueryset
+from store.validators import validate_catalog_image_size
 
 
 class Category(BaseModel):
@@ -16,7 +17,9 @@ class Category(BaseModel):
     name_ru = models.CharField(max_length=255, verbose_name='Название категории ru')
     photo = models.ImageField(
         upload_to=category_directory_path,
+        validators=[validate_catalog_image_size],
         verbose_name='Картинка категории',
+        help_text='JPG, PNG или WebP, не больше 3 МБ.',
     )
     slug = models.SlugField(
         verbose_name='без пробела, либо через "-", либо через "_"',
@@ -97,6 +100,20 @@ class Product(BaseModel):
         db_index=True,
         verbose_name='Статус карточки REGOS',
         help_text='Черновики видны на витрине, но недоступны для заказа. Архивированные позиции скрыты.',
+    )
+    ikpu_code = models.CharField(
+        max_length=17,
+        blank=True,
+        default='',
+        verbose_name='ИКПУ (MXIK)',
+        help_text='17-значный код из tasnif.soliq.uz для фискального чека онлайн-оплаты.',
+    )
+    package_code = models.CharField(
+        max_length=20,
+        blank=True,
+        default='',
+        verbose_name='Код упаковки',
+        help_text='Код упаковки из tasnif.soliq.uz для фискального чека онлайн-оплаты.',
     )
     name_uz = models.CharField(max_length=500, verbose_name='Название Продукта uz', unique=True)
     name_ru = models.CharField(max_length=500, verbose_name='Название Продукта ru', unique=True)
@@ -180,7 +197,12 @@ class ProductImage(models.Model):
         related_query_name='product_images',
         verbose_name='картинка продуктов',
     )
-    photo = models.ImageField(upload_to=product_image_directory_path, verbose_name='Фото продукта')
+    photo = models.ImageField(
+        upload_to=product_image_directory_path,
+        validators=[validate_catalog_image_size],
+        verbose_name='Фото продукта',
+        help_text='JPG, PNG или WebP, не больше 3 МБ.',
+    )
 
     def __str__(self):
         return self.product.name_ru
@@ -198,7 +220,12 @@ class Product360Image(models.Model):
         related_query_name='product_360_images',
         verbose_name='360° изображения продукта',
     )
-    photo = models.ImageField(upload_to=product_360_directory_path, verbose_name='Фото для 360°')
+    photo = models.ImageField(
+        upload_to=product_360_directory_path,
+        validators=[validate_catalog_image_size],
+        verbose_name='Фото для 360°',
+        help_text='JPG, PNG или WebP, не больше 3 МБ.',
+    )
     sort_order = models.PositiveIntegerField(
         default=0,
         verbose_name='Порядок сортировки',

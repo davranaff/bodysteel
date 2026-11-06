@@ -11,10 +11,12 @@ from teleg.views import bot
 
 logger = logging.getLogger(__name__)
 TELEGRAM_MESSAGE_LIMIT = 3900
+PAID_LINE = '✅ <b>ОПЛАЧЕН ОНЛАЙН</b> · Multicard\n'
+CASH_LINE = '💵 <b>ОПЛАТА ПРИ ПОЛУЧЕНИИ</b> · старая версия приложения\n'
 
 
-def notify_message(order, baskets, coupon=None):
-    text = format_order_notification(order, baskets, coupon)
+def notify_message(order, baskets, coupon=None, paid=False, cash_on_delivery=False):
+    text = format_order_notification(order, baskets, coupon, paid=paid, cash_on_delivery=cash_on_delivery)
     chat_ids = ChatModel.objects.values_list('chat_id', flat=True).distinct()
     delivered = 0
     failed = 0
@@ -39,12 +41,14 @@ def notify_message(order, baskets, coupon=None):
         raise RuntimeError('Telegram order notification failed for every recipient')
 
 
-def format_order_notification(order, baskets, coupon=None):
+def format_order_notification(order, baskets, coupon=None, paid=False, cash_on_delivery=False):
     baskets = list(baskets)
     delivery = dict(Order.DELIVERY_CHOICES).get(order.type, order.type or '—')
     created_at = timezone.localtime(order.created_at).strftime('%d.%m.%Y · %H:%M')
     header = (
         '🛒 <b>НОВЫЙ ЗАКАЗ</b>\n'
+        f'{PAID_LINE if paid else ""}'
+        f'{CASH_LINE if cash_on_delivery else ""}'
         f'<b>№ {escape(str(order.order_code))}</b>  ·  {created_at}\n\n'
         '👤 <b>Покупатель</b>\n'
         f'{escape(order.full_name or "—")}\n'

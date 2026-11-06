@@ -6,6 +6,11 @@ from django.core.exceptions import ImproperlyConfigured
 
 BASE_DIR = Path(__file__).resolve().parent.parent
 
+from .env_file import load_env_file  # noqa: E402
+
+# Local, gitignored provider credentials (MULTICARD_* only); real env wins.
+load_env_file(os.getenv('BODYSTEEL_ENV_FILE') or BASE_DIR / '.env')
+
 DEVELOPMENT_SECRET_KEY = 'unsafe-development-only-change-me'
 SECRET_KEY = os.getenv('SECRET_KEY', DEVELOPMENT_SECRET_KEY)
 
@@ -17,6 +22,7 @@ DEBUG_WITH_PRODUCTION_SETTINGS = (
 
 from .security_settings import *  # noqa: E402,F403
 from .push_settings import *  # noqa: E402,F403
+from .multicard_settings import *  # noqa: E402,F403
 
 ALLOWED_HOSTS = [
     host.strip()

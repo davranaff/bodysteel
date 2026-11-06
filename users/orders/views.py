@@ -7,6 +7,7 @@ from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
 from rest_framework.views import APIView
 
+from payments.multicard.configuration import multicard_enabled
 from store.models import Order
 from teleg.utils.notify_message import notify_message
 from users.orders.creation import create_order
@@ -63,17 +64,22 @@ class OrderAPIView(APIView):
                 status=status.HTTP_409_CONFLICT,
             )
 
-        if not created.replayed:
-            _notify_order(created)
+        online_enabled = multicard_enabled()
+        # A client paying online is announced when Multicard confirms the
+        # payment. Everything else (older app builds, or online payment switched
+        # off) is announced now, or the staff would never see the order.
+        prepaid = online_enabled and serializer.validated_data.get('payment_method') == 'online'
+        if not created.replayed and not prepaid:
+            _notify_order(created, cash_on_delivery=online_enabled)
         response = Response({'orderId': str(created.order.pk)}, status=status.HTTP_201_CREATED)
         if created.replayed:
             response['Idempotency-Replayed'] = 'true'
         return response
 
 
-def _notify_order(created):
+def _notify_order(created, cash_on_delivery=False):
     baskets = created.order.baskets.select_related('product')
     try:
-        notify_message(created.order, baskets, created.coupon)
+        notify_message(created.order, baskets, created.coupon, cash_on_delivery=cash_on_delivery)
     except Exception:
         logger.exception('Order notification delivery failed', extra={'order_id': created.order.pk})
