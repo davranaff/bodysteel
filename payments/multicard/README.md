@@ -83,6 +83,9 @@ Switching to production is only an environment change: production base URL,
 production credentials and store, production callback URL. Do it only after
 Multicard approves the sandbox integration.
 
+The production rollout order, values and rollback are in
+[RELEASE_RUNBOOK.md](RELEASE_RUNBOOK.md).
+
 ## Sandbox testing
 
 Test card `8600 5333 6409 8829`, expiry `06/28`, SMS code `111111`.
