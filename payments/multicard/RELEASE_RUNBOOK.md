@@ -10,7 +10,7 @@
 | --- | --- | --- |
 | backend | https://github.com/davranaff/bodysteel/pull/1 | `main` |
 | сайт | https://github.com/shakhbozv/bodysteel/pull/3 | `main` |
-| приложение 1.2.0 (5) | ветка `feat/multicard-release` | `feat/checkout-map-location` |
+| приложение 1.2.0 (5) | https://github.com/davranaff/bodysteel_mobile/pull/2 | `feat/checkout-map-location` |
 
 Приложение собирается только из `feat/multicard-release`. Старый PR
 https://github.com/davranaff/bodysteel_mobile/pull/1 и `main` не содержат релиза 1.1.0,
