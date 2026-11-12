@@ -16,7 +16,8 @@ from telegram_widgets.html import MAXIMUM_COMPRESSED_BYTES, compressed_size
 from telegram_widgets.state import fits
 
 
-STAFF_SETTINGS = {'BOT_TOKEN': '200000:staff_telegram_token_1234567890123', 'CUSTOMER_TELEGRAM_PUBLIC_ORIGIN': 'https://api.bodysteel.uz'}
+STAFF_SETTINGS = {'BOT_TOKEN': '200000:staff_telegram_token_1234567890123', 'CUSTOMER_TELEGRAM_PUBLIC_ORIGIN': 'https://api.bodysteel.uz',
+                  'TELEGRAM_WIDGETS_ROLLOUT': 'all'}
 
 
 def order(**extra):
@@ -98,3 +99,16 @@ class StaffReportTests(TestCase):
         return {'id': 'q-{}'.format(sender), 'from': {'id': sender, 'is_bot': False, 'first_name': 'S'},
                 'chat': {'id': sender, 'type': 'private'}, 'message_id': 9, 'chat_instance': '1',
                 'type': {'type': 'data'}, 'data': data}
+
+
+@override_settings(**{**STAFF_SETTINGS, 'TELEGRAM_WIDGETS_ROLLOUT': '1001'})
+class StaffRolloutTests(TestCase):
+    def test_only_trial_chats_get_the_widget_others_keep_the_text_alert(self):
+        Chat.objects.create(chat_id='1001', first_name='Owner')
+        Chat.objects.create(chat_id='1002', first_name='Staff')
+        with patch('teleg.utils.notify_message.send_widget', return_value=55) as send_widget, \
+                patch('teleg.utils.notify_message.bot.send_message') as send_message, \
+                patch('teleg.utils.notify_message.bot.send_venue'):
+            notify_message(order(), [basket('Креатин', 1, 150_000)])
+        self.assertEqual([call.args[0] for call in send_widget.call_args_list], ['1001'])
+        self.assertEqual([call.args[0] for call in send_message.call_args_list], ['1002'])

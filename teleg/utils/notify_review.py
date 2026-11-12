@@ -5,6 +5,7 @@ from teleg.models import Chat as ChatModel
 from teleg.views import bot
 from teleg.widget_api import StaffWidgetError, send_widget
 from telegram_widgets.html import WidgetTooLarge
+from telegram_widgets.rollout import widgets_enabled
 
 
 logger = logging.getLogger(__name__)
@@ -27,7 +28,7 @@ def notify_review(message):
     except WidgetTooLarge:
         html = None
     for chat in ChatModel.objects.all():
-        if html and _send_card(chat.chat_id, html, message):
+        if html and widgets_enabled(chat.chat_id) and _send_card(chat.chat_id, html, message):
             continue
         try:
             bot.send_message(chat.chat_id, text=text)

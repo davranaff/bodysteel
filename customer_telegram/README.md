@@ -35,6 +35,10 @@ Bot replies are [widgets](https://core.telegram.org/bots/widgets.md): fixed HTML
 - One-time codes and campaigns stay plain messages. If Telegram refuses a widget, the reply is sent
   as the original text.
 
+`TELEGRAM_WIDGETS_ROLLOUT` decides who gets widgets in both bots: empty (default) keeps the
+previous plain messages and menu, `111,222` limits them to those chat ids for a trial, and `all`
+turns them on for everyone. Changing it needs only a restart, no release.
+
 After deploying migration `0004`, run `python manage.py set_customer_telegram_webhook` once: the
 webhook must list `widget_query` in `allowed_updates`, or every tap ends in `TIMEOUT`. The staff bot
 needs the same (`python manage.py webhook api.bodysteel.uz`, optional `STAFF_TELEGRAM_WEBHOOK_SECRET`).

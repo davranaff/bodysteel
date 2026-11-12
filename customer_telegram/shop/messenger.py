@@ -12,6 +12,7 @@ from html import unescape
 from customer_telegram.bot_api import DeliveryStatus
 from customer_telegram.models import CustomerTelegramChat, CustomerTelegramWidget
 from customer_telegram.shop.sender import send_card
+from telegram_widgets.rollout import widgets_enabled
 from telegram_widgets.html import WidgetTooLarge
 from telegram_widgets.state import clip
 
@@ -31,6 +32,8 @@ class WidgetMessenger:
         return self._api.send_message(chat_id, text, reply_markup, parse_mode)
 
     def send_message(self, chat_id, text, reply_markup=None, parse_mode='HTML'):
+        if not widgets_enabled(chat_id):
+            return self._api.send_message(chat_id, text, reply_markup, parse_mode)
         chat = CustomerTelegramChat.objects.filter(chat_id=chat_id).first()
         language = (chat.language if chat else '') or 'ru'
         state, native_markup = card_from_message(text, reply_markup)

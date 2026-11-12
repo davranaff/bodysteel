@@ -74,7 +74,7 @@ def _handle_message(payload, api):
         return _command(chat, 'unlink', api)
     if text and search_message(chat, text, api):
         return 'search'
-    api.send_message(chat.chat_id, message(language, 'unknown'), main_menu(language))
+    api.send_message(chat.chat_id, message(language, 'unknown'), main_menu(language, chat.chat_id))
     return 'unknown'
 
 
@@ -99,7 +99,7 @@ def _start(sender_id, chat_id, start_parameter, payload, api):
     api.send_message(
         chat_id,
         '{}\n{}'.format(message(chat.language, 'welcome'), message(chat.language, 'help')),
-        main_menu(chat.language),
+        main_menu(chat.language, chat_id),
     )
     open_catalog(chat, api)
     return 'started'
@@ -139,15 +139,15 @@ def _command(chat, command, api):
         return _notifications(chat, api)
     if command == 'stop':
         _set_notifications(chat, False, 'command')
-        api.send_message(chat.chat_id, message(language, 'notifications_off'), main_menu(language))
+        api.send_message(chat.chat_id, message(language, 'notifications_off'), main_menu(language, chat.chat_id))
         return 'notifications_off'
     if command == 'unlink':
         api.send_message(chat.chat_id, message(language, 'unlink_confirm'), unlink_keyboard(language))
         return 'unlink_confirm'
     if command == 'help':
-        api.send_message(chat.chat_id, message(language, 'help'), main_menu(language))
+        api.send_message(chat.chat_id, message(language, 'help'), main_menu(language, chat.chat_id))
         return 'help'
-    api.send_message(chat.chat_id, message(language, 'unknown'), main_menu(language))
+    api.send_message(chat.chat_id, message(language, 'unknown'), main_menu(language, chat.chat_id))
     return 'unknown'
 
 
@@ -184,7 +184,7 @@ def _dispatch_callback(chat, data, api):
     if data.startswith('lang:'):
         chat.language = data[-2:]
         chat.save(update_fields=('language', 'updated_at'))
-        api.send_message(chat.chat_id, message(chat.language, 'welcome'), main_menu(chat.language))
+        api.send_message(chat.chat_id, message(chat.language, 'welcome'), main_menu(chat.language, chat.chat_id))
         open_catalog(chat, api)
         return 'language'
     if data.startswith('notify:'):
@@ -194,7 +194,7 @@ def _dispatch_callback(chat, data, api):
         return 'notifications'
     if data == 'unlink:yes':
         unlink_chat(chat)
-        api.send_message(chat.chat_id, message(language, 'unlinked'), main_menu(language))
+        api.send_message(chat.chat_id, message(language, 'unlinked'), main_menu(language, chat.chat_id))
         return 'unlinked'
     if data == 'unlink:no':
         return 'cancelled'

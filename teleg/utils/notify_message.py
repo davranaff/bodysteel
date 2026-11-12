@@ -10,6 +10,7 @@ from teleg.models import Chat as ChatModel
 from teleg.views import bot
 from teleg.widget_api import StaffWidgetError, send_widget
 from telegram_widgets.html import WidgetTooLarge
+from telegram_widgets.rollout import widgets_enabled
 
 
 logger = logging.getLogger(__name__)
@@ -27,7 +28,7 @@ def notify_message(order, baskets, coupon=None, paid=False, cash_on_delivery=Fal
     failed = 0
 
     for recipient_number, chat_id in enumerate(chat_ids, start=1):
-        if widget and _send_widget(chat_id, widget, order, recipient_number):
+        if widget and widgets_enabled(chat_id) and _send_widget(chat_id, widget, order, recipient_number):
             delivered += 1
             continue
         try:
