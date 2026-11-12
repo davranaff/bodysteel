@@ -97,7 +97,7 @@ def _claim_update(update_id, update_type):
 
 
 def _update_type(payload):
-    present = [name for name in ('message', 'callback_query') if name in payload]
+    present = [name for name in ('message', 'callback_query', 'widget_query') if name in payload]
     if len(present) != 1 or not isinstance(payload[present[0]], dict):
         return None
     return present[0]
@@ -107,8 +107,7 @@ def _apply_rate_limits(payload, update_type):
     now = timezone.now()
     update_id = payload['update_id']
     consume(CUSTOMER_TELEGRAM_UPDATE, str(update_id), now)
-    update = payload[update_type]
-    sender = update.get('from') if update_type == 'message' else update.get('from')
+    sender = payload[update_type].get('from')
     sender_id = sender.get('id') if isinstance(sender, dict) else None
     if valid_telegram_id(sender_id):
         consume(CUSTOMER_TELEGRAM_USER, str(sender_id), now)

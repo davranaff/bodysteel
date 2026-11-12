@@ -86,7 +86,9 @@ def _prepare_and_send(link_id, sender_id, chat_id, contact, require_contact, api
     text = '{}\n<code>{}</code>\n{}'.format(
         message(language, 'otp_title'), escape(code), message(language, 'otp_warning'),
     )
-    result = (api or CustomerTelegramApi()).send_message(target_chat, text)
+    client = api or CustomerTelegramApi()
+    # A code stays a plain message (not a widget) so it shows in the notification.
+    result = getattr(client, 'send_text', client.send_message)(target_chat, text)
     recorded = _record_delivery(link_id, delivery_id, result.status, now)
     if not recorded:
         return OtpOutcome('invalid', language)

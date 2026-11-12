@@ -11,7 +11,6 @@ from customer_telegram.keyboards import (
     main_menu,
     notification_keyboard,
     remove_keyboard,
-    store_keyboard,
     unlink_keyboard,
 )
 from customer_telegram.links import get_or_create_chat, open_link, unlink_chat
@@ -19,6 +18,9 @@ from customer_telegram.models import CustomerTelegramChat, CustomerTelegramLink
 from customer_telegram.orders import order_detail, orders_page
 from customer_telegram.otp import deliver_linked_reset, process_contact
 from customer_telegram.security import valid_telegram_id
+from customer_telegram.shop.messenger import WidgetMessenger
+from customer_telegram.shop.queries import handle_widget_query
+from customer_telegram.shop.routing import open_catalog, search_message, shop_message
 
 
 COMMAND = re.compile(r'^/([a-z]+)(?:@[A-Za-z0-9_]+)?(?:\s+(.+))?$')
@@ -26,11 +28,13 @@ CALLBACK = re.compile(r'^(lang:(?:ru|uz)|notify:(?:on|off)|unlink:(?:yes|no)|ord
 
 
 def handle_update(update, api=None):
-    client = api or CustomerTelegramApi()
+    client = WidgetMessenger(api or CustomerTelegramApi())
     if 'message' in update:
         return _handle_message(update['message'], client)
     if 'callback_query' in update:
         return _handle_callback(update['callback_query'], client)
+    if 'widget_query' in update:
+        return handle_widget_query(update['widget_query'], client, lambda chat, data: _card_tap(chat, data, client))
     return 'ignored'
 
 
@@ -47,12 +51,15 @@ def _handle_message(payload, api):
     if chat is None:
         return 'ignored'
     language = chat.language or 'ru'
+    shop_outcome = shop_message(chat, payload, text, api)
+    if shop_outcome is not None:
+        return shop_outcome
     if isinstance(payload.get('contact'), dict):
         return _contact(chat, payload['contact'], api)
     if command_match:
         return _command(chat, command_match.group(1), api)
     menu_keys = {key: message(language, key) for key in (
-        'menu_orders', 'menu_notifications', 'menu_language', 'menu_store', 'menu_help', 'menu_unlink',
+        'menu_orders', 'menu_notifications', 'menu_language', 'menu_help', 'menu_unlink',
     )}
     if text == menu_keys['menu_orders']:
         return _send_orders(chat, 0, api)
@@ -61,13 +68,12 @@ def _handle_message(payload, api):
     if text == menu_keys['menu_language']:
         api.send_message(chat.chat_id, message(language, 'choose_language'), language_keyboard())
         return 'language'
-    if text == menu_keys['menu_store']:
-        api.send_message(chat.chat_id, message(language, 'open_store'), store_keyboard(language))
-        return 'store'
     if text == menu_keys['menu_help']:
         return _command(chat, 'help', api)
     if text == menu_keys['menu_unlink']:
         return _command(chat, 'unlink', api)
+    if text and search_message(chat, text, api):
+        return 'search'
     api.send_message(chat.chat_id, message(language, 'unknown'), main_menu(language))
     return 'unknown'
 
@@ -82,9 +88,7 @@ def _start(sender_id, chat_id, start_parameter, payload, api):
         if not started.requires_contact:
             outcome = deliver_linked_reset(started.link.pk, sender_id, chat_id, api)
             return _otp_outcome(started.link.chat, outcome, api)
-        api.send_message(
-            chat_id, message(language, 'request_contact'), contact_keyboard(language),
-        )
+        api.send_message(chat_id, message(language, 'request_contact'), contact_keyboard(language))
         return 'contact_requested'
     chat = get_or_create_chat(sender_id, chat_id)
     if chat is None:
@@ -97,6 +101,7 @@ def _start(sender_id, chat_id, start_parameter, payload, api):
         '{}\n{}'.format(message(chat.language, 'welcome'), message(chat.language, 'help')),
         main_menu(chat.language),
     )
+    open_catalog(chat, api)
     return 'started'
 
 
@@ -166,11 +171,21 @@ def _handle_callback(payload, api):
         api.answer_callback_query(callback_id)
         return 'denied'
     api.answer_callback_query(callback_id)
+    return _dispatch_callback(chat, data, api)
+
+
+def _card_tap(chat, data, api):
+    """A tap on a card widget button carries the inline button's callback data."""
+    return _dispatch_callback(chat, data, api) if CALLBACK.fullmatch(data) else 'denied'
+
+
+def _dispatch_callback(chat, data, api):
     language = chat.language or 'ru'
     if data.startswith('lang:'):
         chat.language = data[-2:]
         chat.save(update_fields=('language', 'updated_at'))
         api.send_message(chat.chat_id, message(chat.language, 'welcome'), main_menu(chat.language))
+        open_catalog(chat, api)
         return 'language'
     if data.startswith('notify:'):
         enabled = data.endswith('on')

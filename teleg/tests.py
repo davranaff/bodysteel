@@ -7,9 +7,17 @@ from django.utils import timezone
 
 from teleg.models import Chat
 from teleg.utils.notify_message import format_order_notification, notify_message
+from teleg.widget_api import StaffWidgetError
 
 
 class OrderNotificationFormatTests(TestCase):
+    """The text message, sent when Telegram refuses the widget card."""
+
+    def setUp(self):
+        patcher = patch('teleg.utils.notify_message.send_widget', side_effect=StaffWidgetError('refused'))
+        self.send_widget = patcher.start()
+        self.addCleanup(patcher.stop)
+
     def test_formats_readable_html_and_escapes_customer_content(self):
         order = self.order()
         order.full_name = 'Xakim & Co'

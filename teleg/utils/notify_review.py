@@ -1,7 +1,10 @@
 import logging
 
+from teleg.cards import review_card_html
 from teleg.models import Chat as ChatModel
 from teleg.views import bot
+from teleg.widget_api import StaffWidgetError, send_widget
+from telegram_widgets.html import WidgetTooLarge
 
 
 logger = logging.getLogger(__name__)
@@ -19,9 +22,24 @@ def notify_review(message):
         f"Продукт: {message.get('product')} \n"
         f"Опубликуйте или отклоните его в админке: Магазин → Отзывы."
     )
+    try:
+        html = review_card_html(message)
+    except WidgetTooLarge:
+        html = None
     for chat in ChatModel.objects.all():
+        if html and _send_card(chat.chat_id, html, message):
+            continue
         try:
             bot.send_message(chat.chat_id, text=text)
         except Exception:
             # A Telegram outage must not fail the customer's review submission.
             logger.exception('Telegram review notification failed', extra={'review_id': message.get('id')})
+
+
+def _send_card(chat_id, html, message):
+    try:
+        send_widget(chat_id, html, '💬 Новый отзыв на модерации')
+    except StaffWidgetError:
+        logger.warning('Staff review widget refused, sending text', extra={'review_id': message.get('id')})
+        return False
+    return True

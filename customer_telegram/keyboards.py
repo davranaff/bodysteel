@@ -11,9 +11,10 @@ def language_keyboard():
 
 def main_menu(language):
     return {'keyboard': [
+        [{'text': message(language, 'menu_catalog')}, {'text': message(language, 'menu_cart')}],
         [{'text': message(language, 'menu_orders')}, {'text': message(language, 'menu_notifications')}],
-        [{'text': message(language, 'menu_language')}, {'text': message(language, 'menu_store')}],
-        [{'text': message(language, 'menu_help')}, {'text': message(language, 'menu_unlink')}],
+        [{'text': message(language, 'menu_language')}, {'text': message(language, 'menu_help')}],
+        [{'text': message(language, 'menu_unlink')}],
     ], 'resize_keyboard': True}
 
 

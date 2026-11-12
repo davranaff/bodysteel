@@ -203,6 +203,8 @@ AUTH_EMAIL_BACKEND = os.getenv('AUTH_EMAIL_BACKEND', 'smtp')
 DEFAULT_FROM_EMAIL = os.getenv('DEFAULT_FROM_EMAIL', 'no-reply@bodysteel.uz')
 
 BOT_TOKEN = os.getenv('BOT_TOKEN', '')
+# Optional: when set, the staff webhook accepts only Telegram calls carrying it.
+STAFF_TELEGRAM_WEBHOOK_SECRET = os.getenv('STAFF_TELEGRAM_WEBHOOK_SECRET', '').strip()
 TELEGRAM_API_URL = f'https://api.telegram.org/bot{BOT_TOKEN}'
 BOT_POOLING_INTERVAL = 5
 

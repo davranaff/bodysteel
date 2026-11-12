@@ -5,8 +5,11 @@ from django.utils import timezone
 
 from store.geocoding.map_links import order_map_links
 from store.models import Order
+from teleg.cards import order_card_html
 from teleg.models import Chat as ChatModel
 from teleg.views import bot
+from teleg.widget_api import StaffWidgetError, send_widget
+from telegram_widgets.html import WidgetTooLarge
 
 
 logger = logging.getLogger(__name__)
@@ -16,12 +19,17 @@ CASH_LINE = '💵 <b>ОПЛАТА ПРИ ПОЛУЧЕНИИ</b> · старая 
 
 
 def notify_message(order, baskets, coupon=None, paid=False, cash_on_delivery=False):
+    baskets = list(baskets)
     text = format_order_notification(order, baskets, coupon, paid=paid, cash_on_delivery=cash_on_delivery)
+    widget = _order_widget(order, baskets, coupon, paid, cash_on_delivery)
     chat_ids = ChatModel.objects.values_list('chat_id', flat=True).distinct()
     delivered = 0
     failed = 0
 
     for recipient_number, chat_id in enumerate(chat_ids, start=1):
+        if widget and _send_widget(chat_id, widget, order, recipient_number):
+            delivered += 1
+            continue
         try:
             message = bot.send_message(chat_id, text=text, parse_mode='HTML')
             delivered += 1
@@ -39,6 +47,29 @@ def notify_message(order, baskets, coupon=None, paid=False, cash_on_delivery=Fal
 
     if failed and not delivered:
         raise RuntimeError('Telegram order notification failed for every recipient')
+
+
+def _order_widget(order, baskets, coupon, paid, cash_on_delivery):
+    try:
+        html = order_card_html(order, baskets, coupon, paid=paid, cash_on_delivery=cash_on_delivery)
+    except WidgetTooLarge:
+        return None
+    caption = '{} № {} · {} UZS'.format('✅ Оплачен заказ' if paid else '🛒 Новый заказ',
+                                       escape(str(order.order_code)), _money(order.total_price))
+    return html, caption
+
+
+def _send_widget(chat_id, widget, order, recipient_number):
+    """The order as a widget card; on any refusal the text message goes instead."""
+    html, caption = widget
+    try:
+        send_widget(chat_id, html, caption)
+    except StaffWidgetError:
+        logger.warning('Staff order widget refused, sending text', extra={
+            'order_id': order.pk, 'recipient_number': recipient_number,
+        })
+        return False
+    return True
 
 
 def format_order_notification(order, baskets, coupon=None, paid=False, cash_on_delivery=False):

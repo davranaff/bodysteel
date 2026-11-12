@@ -1,0 +1,35 @@
+<style>
+body{margin:0;padding:8px 12px max(10px,env(safe-area-inset-bottom))}
+h3{margin:0 0 4px;font-size:1.06em}
+p{margin:3px 0}
+.h{color:var(--tg-theme-hint-color);font-size:.86em}
+.r{display:flex;justify-content:space-between;gap:8px;padding:5px 0;border-top:1px solid var(--tg-theme-section-separator-color)}
+.n{flex:1}
+.b{font-weight:600;white-space:nowrap}
+.st{display:inline-block;margin:4px 0;padding:3px 8px;border-radius:8px;background:var(--tg-theme-secondary-bg-color);font-weight:600}
+.ok{color:#2e9e4f}
+.x{color:var(--tg-theme-destructive-text-color)}
+.w{width:100%;margin-top:8px}
+.a{background:var(--tg-theme-secondary-bg-color);color:var(--tg-theme-text-color)}
+.m{margin-top:6px;font-size:.88em;color:var(--tg-theme-destructive-text-color)}
+</style><div id="r"></div><script>
+const W=window.TelegramWidget,R=document.getElementById('r'),L=__L__;
+let S=__D__,busy=0,note='';
+function P(x){try{return JSON.parse(x)}catch(e){return null}}
+function E(t,c,x){const n=document.createElement(t);if(c)n.className=c;if(x!=null)n.textContent=x;return n}
+function M(v){return Number(v||0).toLocaleString('ru-RU').replace(/ |,/g,' ')+' '+L.sum}
+function go(q){if(busy||!W)return;busy=1;note=L.wait;W.request(q).then(a=>{busy=0;note='';const s=P(a.result);if(s)S=s;draw()},e=>{busy=0;note=L[e.code]||L.err;draw()});draw()}
+function B(t,q,c){const b=E('button',c||'w',t);b.disabled=!!busy;b.onclick=()=>go(q);R.append(b)}
+function row(a,b,c){const r=E('div','r');r.append(E('span','n',a),E('span',c||'b',b));R.append(r)}
+function draw(){R.textContent='';if(!S)return;R.append(E('h3','',S.c?L.order+' № '+S.c:L.check));
+const st=E('span','st '+(S.st==='ok'?'ok':S.st==='x'?'x':''),L['s_'+S.st]||'');R.append(st);
+for(const[t,q,s]of S.i||[])row(t+' × '+q,M(s),'h');if(S.mr)R.append(E('p','h','+'+S.mr));
+row(L.sub,M(S.s));row(L.fee,S.f?M(S.f):L.free);row(L.total,M(S.t));
+R.append(E('p','h',S.y||''));for(const x of[S.nm,S.ph,S.ad])if(x)R.append(E('p','',x));
+if(S.st==='c'){B(L.pay,'y');B(L.edit,'z','w a')}
+if(S.st==='p'&&S.u){const b=E('button','w',L.pay);b.onclick=()=>W.openLink(S.u);R.append(b);B(L.recheck,'v','w a')}
+if(S.st==='x')B(L.retry,'y');if(S.st==='ok'||S.st==='cod')B(L.orders,'O','w a');
+const t=note||S.m;if(t)R.append(E('p','m',t))}
+if(W){const s=P(W.chatData);if(s)S=s;W.onEvent('chatDataChanged',()=>{const s=P(W.chatData);if(s&&!busy){S=s;draw()}})}
+draw();
+</script>

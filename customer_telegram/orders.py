@@ -1,6 +1,7 @@
 from dataclasses import dataclass
 from html import escape
 
+from django.db.models import Q
 from django.utils import timezone
 
 from customer_telegram.i18n import message
@@ -8,7 +9,8 @@ from customer_telegram.keyboards import orders_keyboard
 from store.models import Order
 
 
-PAGE_SIZE = 5
+# Four orders keep the card under a widget's 600 px height.
+PAGE_SIZE = 4
 
 
 @dataclass(frozen=True)
@@ -17,12 +19,22 @@ class OrdersMessage:
     reply_markup: dict | None = None
 
 
+def visible_orders(chat):
+    """Orders of the linked account plus the ones placed in this chat."""
+    placed_here = Q(customer_telegram_widgets__chat=chat)
+    if _active_link(chat):
+        return Order.objects.filter(Q(user=chat.user) | placed_here).distinct()
+    return Order.objects.filter(placed_here).distinct()
+
+
 def orders_page(chat, page):
-    if not _active_link(chat) or not isinstance(page, int) or not 0 <= page <= 10_000:
+    if not isinstance(page, int) or not 0 <= page <= 10_000:
+        return OrdersMessage(message(chat.language or 'ru', 'not_linked'))
+    if not _active_link(chat) and not visible_orders(chat).exists():
         return OrdersMessage(message(chat.language or 'ru', 'not_linked'))
     language = chat.language or 'ru'
     offset = page * PAGE_SIZE
-    orders = list(Order.objects.filter(user=chat.user).only(
+    orders = list(visible_orders(chat).only(
         'id', 'order_code', 'created_at', 'total_price', 'payment_status', 'fulfillment_status',
     ).order_by('-created_at')[offset:offset + PAGE_SIZE + 1])
     if not orders:
@@ -50,9 +62,9 @@ def orders_page(chat, page):
 
 
 def order_detail(chat, order_id):
-    if not _active_link(chat) or not isinstance(order_id, int) or order_id < 1:
+    if not isinstance(order_id, int) or order_id < 1:
         return OrdersMessage(message(chat.language or 'ru', 'callback_denied'))
-    order = Order.objects.filter(pk=order_id, user=chat.user).prefetch_related(
+    order = visible_orders(chat).filter(pk=order_id).prefetch_related(
         'baskets__product',
     ).first()
     language = chat.language or 'ru'
