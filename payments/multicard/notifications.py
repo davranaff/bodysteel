@@ -1,6 +1,7 @@
 """Staff alert for an order once Multicard has confirmed its payment."""
 import logging
 
+from customer_telegram.shop.payments import notify_customer_paid
 from store.models import Order
 from teleg.utils.notify_message import notify_message
 
@@ -17,3 +18,7 @@ def notify_paid_order(order_id):
     except Exception:
         # The payment is already committed; a failed alert must not undo it.
         logger.exception('Paid order notification delivery failed', extra={'order_id': order_id})
+    try:
+        notify_customer_paid(order_id)
+    except Exception:
+        logger.exception('Customer bot payment notice failed', extra={'order_id': order_id})

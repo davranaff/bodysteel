@@ -1,5 +1,6 @@
 from customer_telegram.configuration import require_configuration
 from customer_telegram.i18n import message
+from telegram_widgets.rollout import widgets_enabled
 
 
 def language_keyboard():
@@ -9,11 +10,19 @@ def language_keyboard():
     ]]}
 
 
-def main_menu(language):
+def main_menu(language, chat_id=None):
+    """The shop buttons appear only for chats that get widgets."""
+    if not widgets_enabled(chat_id):
+        return {'keyboard': [
+            [{'text': message(language, 'menu_orders')}, {'text': message(language, 'menu_notifications')}],
+            [{'text': message(language, 'menu_language')}, {'text': message(language, 'menu_store')}],
+            [{'text': message(language, 'menu_help')}, {'text': message(language, 'menu_unlink')}],
+        ], 'resize_keyboard': True}
     return {'keyboard': [
+        [{'text': message(language, 'menu_catalog')}, {'text': message(language, 'menu_cart')}],
         [{'text': message(language, 'menu_orders')}, {'text': message(language, 'menu_notifications')}],
-        [{'text': message(language, 'menu_language')}, {'text': message(language, 'menu_store')}],
-        [{'text': message(language, 'menu_help')}, {'text': message(language, 'menu_unlink')}],
+        [{'text': message(language, 'menu_language')}, {'text': message(language, 'menu_help')}],
+        [{'text': message(language, 'menu_unlink')}],
     ], 'resize_keyboard': True}
 
 

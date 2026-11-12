@@ -166,3 +166,8 @@ from customer_telegram.campaign_models import (  # noqa: E402,F401
     CustomerTelegramCampaign,
     CustomerTelegramCampaignRecipient,
 )
+from customer_telegram.shop_models import (  # noqa: E402,F401
+    CustomerTelegramCart,
+    CustomerTelegramCheckout,
+    CustomerTelegramWidget,
+)

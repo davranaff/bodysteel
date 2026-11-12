@@ -1,0 +1,29 @@
+<style>
+body{margin:0;padding:8px 12px max(10px,env(safe-area-inset-bottom))}
+h3{margin:0 0 6px;font-size:1.06em}
+p{margin:1px 0;line-height:1.25}
+.h{color:var(--tg-theme-hint-color);font-size:.88em}
+.b{font-weight:600}
+hr{margin:6px 0}
+.k{display:flex;flex-wrap:wrap;gap:6px;margin-top:8px}
+.k button{flex:1 1 40%}
+.a{background:var(--tg-theme-secondary-bg-color);color:var(--tg-theme-text-color)}
+.m{margin-top:6px;color:var(--tg-theme-destructive-text-color);font-size:.88em}
+.sel{user-select:text;-webkit-user-select:text}
+</style><div id="r"></div><script>
+const W=window.TelegramWidget,R=document.getElementById('r'),L=__L__;
+let S=__D__,busy=0;
+function P(x){try{return JSON.parse(x)}catch(e){return null}}
+function E(t,c,x){const n=document.createElement(t);if(c)n.className=c;if(x!=null)n.textContent=x;return n}
+function go(q){if(busy||!W)return;busy=1;draw(L.wait);W.request(q).then(a=>{busy=0;const s=P(a.result);if(s)S=s;draw()},e=>{busy=0;draw(L[e.code]||L.err)})}
+function draw(note){R.textContent='';if(!S)return;if(S.h)R.append(E('h3','',S.h));
+for(const l of S.t||[]){if(l==='-'){R.append(E('hr'));continue}const k=l[0],x=l.slice(1);
+R.append(k==='!'?E('p','b',x):k==='~'?E('p','h',x):k==='='?E('p','sel',x):E('p','',l))}
+const K=E('div','k');
+for(const[t,q]of S.b||[]){const b=E('button',q[0]==='_'?'a':'',t);b.disabled=!!busy;b.onclick=()=>go(q);K.append(b)}
+for(const[t,u]of S.u||[]){const b=E('button','a',t);b.onclick=()=>u.startsWith('https://t.me/')?W.openTelegramLink(u):W.openLink(u);K.append(b)}
+for(const[t,x]of S.c||[]){const b=E('button','a',t);b.onclick=()=>W.copyText(x);K.append(b)}
+if(K.childNodes.length)R.append(K);if(note)R.append(E('p','m',note))}
+if(W){const s=P(W.chatData);if(s)S=s;W.onEvent('chatDataChanged',()=>{const s=P(W.chatData);if(s){S=s;draw()}})}
+draw();
+</script>

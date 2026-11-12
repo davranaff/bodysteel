@@ -16,6 +16,33 @@ Official references: [Bots](https://core.telegram.org/bots),
 [contact keyboard](https://core.telegram.org/bots/api#keyboardbutton), and
 [broadcast limits](https://core.telegram.org/bots/faq#broadcasting-to-users).
 
+## Shop and widgets (Bot API 10.4)
+
+Bot replies are [widgets](https://core.telegram.org/bots/widgets.md): fixed HTML from
+`telegram_widgets/templates/` plus a state of at most 1024 bytes that only the bot writes.
+
+- **Storefront** (`🛍 Каталог`, `/start`, or any typed text as a search): categories, product lists,
+  a product card with a small `data:` photo, the cart and the delivery choice. Taps arrive as
+  `widget_query` updates, are checked against `CustomerTelegramWidget` (owner chat + message id) and
+  answered with the next screen, which is then saved as the widget's chat state.
+- **Checkout**: widgets have no text input, so the phone (own contact only, `+998`) and the address
+  (location inside Uzbekistan or a typed address) come as chat messages. The order widget then calls
+  `users.orders.creation.create_order` with a key derived from the checkout attempt, so repeated taps
+  replay one order, and `start_order_payment` for Multicard. With `MULTICARD_ENABLED=0` the order is
+  placed as cash on delivery and the staff are notified at once, like on the site.
+- When Multicard confirms the payment, `notify_customer_paid` turns the order widget paid and sends
+  a short card so the customer gets a notification (widget edits are silent).
+- One-time codes and campaigns stay plain messages. If Telegram refuses a widget, the reply is sent
+  as the original text.
+
+`TELEGRAM_WIDGETS_ROLLOUT` decides who gets widgets in both bots: empty (default) keeps the
+previous plain messages and menu, `111,222` limits them to those chat ids for a trial, and `all`
+turns them on for everyone. Changing it needs only a restart, no release.
+
+After deploying migration `0004`, run `python manage.py set_customer_telegram_webhook` once: the
+webhook must list `widget_query` in `allowed_updates`, or every tap ends in `TIMEOUT`. The staff bot
+needs the same (`python manage.py webhook api.bodysteel.uz`, optional `STAFF_TELEGRAM_WEBHOOK_SECRET`).
+
 ## BotFather and secrets
 
 1. Open `@BotFather`, run `/newbot`, choose the approved customer-facing name and a unique username

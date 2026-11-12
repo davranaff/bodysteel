@@ -60,12 +60,49 @@ class CustomerTelegramApi:
             payload['text'] = text
         return self._call('answerCallbackQuery', payload)[0]
 
+    def send_widget(self, chat_id, html, caption, chat_data=None, reply_markup=None):
+        """Send an interactive widget (Bot API 10.4); its queries reach the webhook."""
+        payload = {
+            'chat_id': chat_id, 'html': html, 'caption': caption, 'parse_mode': 'HTML',
+            'allow_queries': True, 'protect_content': True,
+        }
+        if chat_data is not None:
+            payload['chat_data'] = chat_data
+        if reply_markup:
+            payload['reply_markup'] = reply_markup
+        result, data = self._call('sendWidget', payload)
+        message_id = data.get('result', {}).get('message_id') if result.status is DeliveryStatus.SENT else None
+        if result.status is DeliveryStatus.SENT and not isinstance(message_id, int):
+            return TelegramResult(DeliveryStatus.UNKNOWN)
+        return TelegramResult(result.status, message_id=message_id, retry_after=result.retry_after)
+
+    def answer_widget_query(self, widget_query_id, data=None):
+        payload = {'widget_query_id': widget_query_id}
+        if data is not None:
+            payload['data'] = data
+        return self._call('answerWidgetQuery', payload)[0]
+
+    def edit_widget_data(self, chat_id, message_id, chat_data):
+        return self._call('editMessageWidgetData', {
+            'chat_id': chat_id, 'message_id': message_id, 'chat_data': chat_data,
+        })[0]
+
+    def edit_reply_markup(self, chat_id, message_id, reply_markup):
+        return self._call('editMessageReplyMarkup', {
+            'chat_id': chat_id, 'message_id': message_id, 'reply_markup': reply_markup,
+        })[0]
+
+    def edit_caption(self, chat_id, message_id, caption):
+        return self._call('editMessageCaption', {
+            'chat_id': chat_id, 'message_id': message_id, 'caption': caption, 'parse_mode': 'HTML',
+        })[0]
+
     def set_webhook(self):
         configuration = require_configuration()
         return self._call('setWebhook', {
             'url': configuration.webhook_url,
             'secret_token': configuration.webhook_secret,
-            'allowed_updates': ['message', 'callback_query'],
+            'allowed_updates': ['message', 'callback_query', 'widget_query'],
             'drop_pending_updates': False,
         })[0]
 
