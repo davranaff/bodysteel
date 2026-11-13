@@ -22,7 +22,12 @@ Bot replies are [widgets](https://core.telegram.org/bots/widgets.md): fixed HTML
 `telegram_widgets/templates/` plus a state of at most 1024 bytes that only the bot writes.
 
 - **Storefront** (`🛍 Каталог`, `/start`, or any typed text as a search): categories, product lists,
-  a product card with a small `data:` photo, the cart and the delivery choice. Taps arrive as
+  the cart, the delivery choice and the customer's recent orders (`📦 Мои заказы`).
+- **Product card**: tapping a product sends it as its own widget with the first product photo, the
+  description as plain text, price, discount and stock. A widget shows images only as `data:` URLs
+  and its HTML must stay under 4096 bytes compressed, so `shop/product_card.py` tries the largest
+  photo first (320 px down to 96 px) and shortens the description only when the photo would fall
+  under 200 px. The card's buttons change the cart quantity (`a`, `d`) and open the cart (`k`). Taps arrive as
   `widget_query` updates, are checked against `CustomerTelegramWidget` (owner chat + message id) and
   answered with the next screen, which is then saved as the widget's chat state.
 - **Checkout**: widgets have no text input, so the phone (own contact only, `+998`) and the address

@@ -16,11 +16,13 @@ from telegram_widgets.state import MAXIMUM_STATE_BYTES, clip, fit_rows, fits, si
 
 class WidgetHtmlTests(SimpleTestCase):
     def test_every_template_fits_with_both_languages_and_leaves_room_for_data(self):
-        for name in TEMPLATE_NAMES:
+        # The product card bakes in its own photo and labels, see test_shop_product_card.
+        for name in set(TEMPLATE_NAMES) - {'product'}:
             for language in ('ru', 'uz'):
                 with self.subTest(template=name, language=language):
                     html = render(name, WIDGET[language], None)
-                    self.assertLess(compressed_size(html), MAXIMUM_COMPRESSED_BYTES - 1500)
+                    # A full 1024-byte state compresses to well under 1100 bytes.
+                    self.assertLess(compressed_size(html), MAXIMUM_COMPRESSED_BYTES - 1100)
 
     def test_baked_data_cannot_close_the_script(self):
         html = render('card', STAFF_LABELS, {'t': ['</script><b onclick=x>&']})

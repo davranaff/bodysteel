@@ -9,7 +9,8 @@ class CustomerTelegramWidget(models.Model):
     STOREFRONT = 'storefront'
     ORDER = 'order'
     CARD = 'card'
-    KIND_CHOICES = ((STOREFRONT, 'Витрина'), (ORDER, 'Заказ'), (CARD, 'Карточка'))
+    PRODUCT = 'product'
+    KIND_CHOICES = ((STOREFRONT, 'Витрина'), (ORDER, 'Заказ'), (CARD, 'Карточка'), (PRODUCT, 'Товар'))
 
     chat = models.ForeignKey(
         CustomerTelegramChat, on_delete=models.CASCADE, related_name='widgets', verbose_name='Чат',

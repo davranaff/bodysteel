@@ -21,11 +21,11 @@ CACHE_SECONDS = 24 * 60 * 60
 def product_thumbnail(product, budget_bytes):
     if budget_bytes <= len(PREFIX) + 200:
         return None
-    photo = _first_photo(product)
+    photo = first_photo(product)
     if not photo:
         return None
     for side, quality in ATTEMPTS:
-        uri = _cached_uri(photo, side, quality)
+        uri = cached_photo_uri(photo, side, quality)
         if uri is None:
             return None
         if len(uri) <= budget_bytes:
@@ -33,12 +33,12 @@ def product_thumbnail(product, budget_bytes):
     return None
 
 
-def _first_photo(product):
+def first_photo(product):
     image = product.product_images.order_by('pk').first()
     return image.photo if image and image.photo else None
 
 
-def _cached_uri(photo, side, quality):
+def cached_photo_uri(photo, side, quality):
     # File names carry spaces and Cyrillic, which some cache backends refuse in keys.
     name = hashlib.sha256(photo.name.encode('utf-8')).hexdigest()[:32]
     key = 'customer_tg:thumb:{}:{}:{}'.format(name, side, quality)

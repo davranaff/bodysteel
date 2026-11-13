@@ -51,7 +51,9 @@ class FakeTelegramApi:
         """Recorded in ``messages`` too, as (chat, caption, markup, 'widget', html)."""
         if self.widget_status is not DeliveryStatus.SENT:
             return TelegramResult(self.widget_status)
-        self.widgets.append({'chat_id': chat_id, 'html': html, 'caption': caption, 'reply_markup': reply_markup})
+        self.widgets.append({
+            'chat_id': chat_id, 'html': html, 'caption': caption, 'reply_markup': reply_markup, 'chat_data': chat_data,
+        })
         self.messages.append((chat_id, caption, reply_markup, 'widget', html))
         return TelegramResult(DeliveryStatus.SENT, message_id=1000 + len(self.messages))
 

@@ -29,6 +29,7 @@ WIDGET = {
         'orders': 'Мои заказы', 'check': 'Проверьте заказ', 'sub': 'Товары', 'fee': 'Доставка',
         's_c': 'Ждёт подтверждения', 's_p': 'Ждёт оплаты', 's_ok': '✓ Оплачен', 's_x': 'Оплата не прошла',
         's_cod': '✓ Принят · оплата при получении',
+        'in': '✓ В наличии', 'tap': 'Нажмите на товар — откроется карточка с фото и описанием.',
     },
     'uz': {
         **_ERRORS['uz'], 'sum': 'so‘m', 'cat': 'BODYSTEEL katalogi',
@@ -41,6 +42,7 @@ WIDGET = {
         'orders': 'Buyurtmalarim', 'check': 'Buyurtmani tekshiring', 'sub': 'Mahsulotlar', 'fee': 'Yetkazib berish',
         's_c': 'Tasdiqlash kutilmoqda', 's_p': 'To‘lov kutilmoqda', 's_ok': '✓ To‘langan', 's_x': 'To‘lov o‘tmadi',
         's_cod': '✓ Qabul qilindi · yetkazilganda to‘lov',
+        'in': '✓ Mavjud', 'tap': 'Mahsulotni bosing — rasm va tavsifli kartochka ochiladi.',
     },
 }
 
@@ -66,6 +68,8 @@ TEXT = {
         'unavailable_minimum_order': 'сумма меньше минимальной для доставки',
         'unavailable_method_not_allowed': 'этот способ получения недоступен для товаров в корзине',
         'unavailable_other': 'проверьте корзину',
+        'card_below': 'Карточка товара — ниже ↓', 'cart_below': 'Корзина — ниже ↓',
+        'no_orders': 'Заказов пока нет. Выберите товары в каталоге.',
     },
     'uz': {
         'added': 'Savatga qo‘shildi ✓', 'limit': 'Ko‘proq qo‘shib bo‘lmaydi: omborda shuncha bor.',
@@ -88,6 +92,8 @@ TEXT = {
         'unavailable_minimum_order': 'summa yetkazib berish uchun minimaldan kam',
         'unavailable_method_not_allowed': 'bu usul savatdagi mahsulotlar uchun mavjud emas',
         'unavailable_other': 'savatni tekshiring',
+        'card_below': 'Mahsulot kartochkasi — pastda ↓', 'cart_below': 'Savat — pastda ↓',
+        'no_orders': 'Hozircha buyurtmalar yo‘q. Katalogdan mahsulot tanlang.',
     },
 }
 

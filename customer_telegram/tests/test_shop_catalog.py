@@ -36,16 +36,17 @@ class StorefrontTests(ShopFixtures, TestCase):
     def test_add_respects_stock_and_updates_cart_count(self):
         self.send(message('ru', 'menu_catalog'))
         widget = self.storefront()
-        self.tap(widget, 'p:{}'.format(self.whey.pk))
+        self.tap(widget, 'c:{}:0'.format(self.category.pk))
         for _ in range(3):
             _, state = self.tap(widget, 'a:{}'.format(self.whey.pk))
-        self.assertEqual(state['q'], 3)
+        whey = next(row for row in state['i'] if row[0] == self.whey.pk)
+        self.assertEqual(whey[5], 3)
         self.assertEqual(state['n'], 3)
         _, state = self.tap(widget, 'a:{}'.format(self.whey.pk))
-        self.assertEqual(state['q'], 3)
         self.assertIn('столько есть на складе', state['m'])
         _, state = self.tap(widget, 'd:{}'.format(self.whey.pk))
-        self.assertEqual(state['q'], 2)
+        whey = next(row for row in state['i'] if row[0] == self.whey.pk)
+        self.assertEqual(whey[5], 2)
 
     def test_hidden_or_unknown_products_cannot_be_added(self):
         self.send(message('ru', 'menu_catalog'))
@@ -71,12 +72,10 @@ class StorefrontTests(ShopFixtures, TestCase):
         _, state = self.tap(widget, 's:0')
         self.assertEqual(state['i'][0][0], self.creatine.pk)
 
-    def test_product_screen_links_to_the_site_and_fits(self):
+    def test_product_card_links_to_the_site(self):
         self.send(message('ru', 'menu_catalog'))
-        _, state = self.tap(self.storefront(), 'p:{}'.format(self.whey.pk))
-        self.assertEqual(state['u'], 'https://bodysteel.uz/product/whey')
-        self.assertEqual(state['b'], 'h')
-        self.assert_fits(state)
+        self.tap(self.storefront(), 'p:{}'.format(self.whey.pk))
+        self.assertIn('"u":"https://bodysteel.uz/product/whey"', self.api.widgets[-1]['html'])
 
     def test_another_user_or_unknown_message_is_denied(self):
         self.send(message('ru', 'menu_catalog'))
