@@ -4,6 +4,7 @@ import logging
 from customer_telegram.bot_api import DeliveryStatus
 from customer_telegram.models import CustomerTelegramWidget
 from customer_telegram.shop.labels import text, widget_labels
+from customer_telegram.shop.product_card import card_caption, card_state, product_card_html
 from telegram_widgets.html import render
 from telegram_widgets.state import encode
 
@@ -22,6 +23,17 @@ def send_order(chat, api, state, caption, order=None, reply_markup=None):
     html = render('order', widget_labels(chat.language), state)
     result = api.send_widget(chat.chat_id, html, caption, reply_markup=reply_markup)
     return _remember(chat, result, CustomerTelegramWidget.ORDER, order=order)
+
+
+def send_product(chat, api, product):
+    """The product card with its photo; ``None`` when it cannot be sent."""
+    html = product_card_html(chat, product)
+    if html is None:
+        return None
+    result = api.send_widget(
+        chat.chat_id, html, card_caption(chat, product), chat_data=encode(card_state(chat, product.pk)),
+    )
+    return _remember(chat, result, CustomerTelegramWidget.PRODUCT, screen='p:{}'.format(product.pk))
 
 
 def send_card(chat_id, api, state, caption, language, reply_markup=None):

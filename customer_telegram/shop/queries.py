@@ -5,12 +5,16 @@ the sender must own the private chat and the message must be one of the bot's wi
 The new screen goes back in the answer at once and is then saved as the chat state.
 """
 import logging
+import re
 
 from customer_telegram.models import CustomerTelegramChat, CustomerTelegramWidget
 from customer_telegram.security import valid_telegram_id
-from customer_telegram.shop.labels import widget_labels
+from customer_telegram.shop.cart import change_quantity
+from customer_telegram.shop.cart_screens import cart_screen
+from customer_telegram.shop.labels import text, widget_labels
 from customer_telegram.shop.order_screens import PAID, order_caption
 from customer_telegram.shop.placement import payment_state, place_and_pay
+from customer_telegram.shop.product_card import card_state
 from customer_telegram.shop.sender import send_storefront, update_state
 from customer_telegram.shop.storefront import REQUEST, render, storefront_request
 from telegram_widgets.state import encode, fits, valid_request
@@ -18,6 +22,8 @@ from telegram_widgets.state import encode, fits, valid_request
 
 logger = logging.getLogger(__name__)
 ORDER_REQUESTS = {'y', 'v', 'z', 'O'}
+PRODUCT_REQUESTS = {'a', 'd', 'k'}
+PRODUCT_SCREEN = re.compile(r'^p:(\d{1,9})$')
 
 
 def handle_widget_query(payload, api, callback_handler):
@@ -43,11 +49,26 @@ def _handle(payload, api, callback_handler):
         return _answer(api, query_id, widget, storefront_request(chat, widget, data, api))
     if widget.kind == CustomerTelegramWidget.ORDER and data in ORDER_REQUESTS:
         return _order_request(chat, widget, data, api, query_id, callback_handler)
+    if widget.kind == CustomerTelegramWidget.PRODUCT and data in PRODUCT_REQUESTS:
+        return _product_request(chat, widget, data, api, query_id)
     if widget.kind == CustomerTelegramWidget.CARD:
         api.answer_widget_query(query_id, None)
         return callback_handler(chat, data)
     api.answer_widget_query(query_id, None)
     return 'denied'
+
+
+def _product_request(chat, widget, data, api, query_id):
+    match = PRODUCT_SCREEN.fullmatch(widget.screen or '')
+    if match is None:
+        api.answer_widget_query(query_id, None)
+        return 'denied'
+    product_id = int(match.group(1))
+    if data == 'k':
+        send_storefront(chat, api, cart_screen(chat), screen='k')
+        return _answer(api, query_id, widget, card_state(chat, product_id, text(chat.language, 'cart_below')))
+    notice = change_quantity(chat, product_id, 1 if data == 'a' else -1)
+    return _answer(api, query_id, widget, card_state(chat, product_id, text(chat.language, notice) if notice else ''))
 
 
 def _order_request(chat, widget, data, api, query_id, callback_handler):

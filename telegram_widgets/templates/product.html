@@ -1,0 +1,33 @@
+<style>
+body{margin:0;padding:0 0 max(10px,env(safe-area-inset-bottom))}
+#f{position:relative;background:#fff;border-radius:12px 12px 0 0;text-align:center}
+#f img{width:100%;max-width:300px;aspect-ratio:1;object-fit:contain}
+#f b{position:absolute;top:8px;left:8px;padding:3px 9px;border-radius:10px;background:#e0312b;color:#fff}
+#c{padding:8px 12px 0}
+h3{margin:2px 0 4px;font-size:1.12em}
+.h{color:var(--tg-theme-hint-color);font-size:.85em}
+.p{font-size:1.3em;font-weight:800}
+s{margin-left:8px;color:var(--tg-theme-hint-color)}
+.t{display:inline-block;margin:6px 6px 0 0;padding:2px 9px;border-radius:9px;font-size:.8em;background:var(--tg-theme-secondary-bg-color)}
+.y{color:#2e9e4f}
+.x{color:var(--tg-theme-destructive-text-color)}
+.d{margin:6px 0 0;line-height:1.35;font-size:.92em;max-height:9.5em;overflow:hidden}
+.r{display:flex;gap:8px;align-items:center;margin-top:8px}
+.r>*{flex:1}
+.a{background:var(--tg-theme-secondary-bg-color);color:var(--tg-theme-text-color)}
+.q{flex:0 0 2.6em;text-align:center;font-weight:800}
+.m{margin-top:8px;padding:6px 9px;border-radius:9px;background:var(--tg-theme-secondary-bg-color);font-size:.88em}
+</style><div id="r"></div><script>
+const W=window.TelegramWidget,R=document.getElementById('r'),L=__L__,D=__D__;
+let S={q:D.q,n:D.n},z=0,o='';
+function E(t,c,x){const n=document.createElement(t);if(c)n.className=c;if(x!=null)n.textContent=x;return n}
+function M(v){return Number(v).toLocaleString('ru-RU').replace(/\D/g,' ')+' '+L.sum}
+function B(t,q,c){const b=E('button',c,t);b.disabled=!!z;b.onclick=()=>{if(z||!W)return;z=1;o=L.wait;W.request(q).then(a=>{z=0;o='';try{S=JSON.parse(a.result)||S}catch(e){}d()},()=>{z=0;o=L.err;d()});d()};return b}
+function A(p,...k){const e=E('div',p);e.append(...k);return e}
+function d(){R.textContent='';const f=E('div');f.id='f';if(D.im){const i=E('img');i.src=D.im;f.append(i);if(D.o)f.append(E('b','','−'+Math.round(100-D.pr*100/D.o)+'%'));R.append(f)}
+const c=E('div');c.id='c';if(D.br)c.append(E('div','h',D.br));c.append(E('h3','',D.t),A('',E('span','p',M(D.pr)),D.o?E('s','',M(D.o)):''),A('',E('span','t '+(D.ok?'y':'x'),D.ok?L.in:L.out),D.c?E('span','t','🌍 '+D.c):''));
+if(D.d)c.append(E('p','d',D.d));if(D.ok)c.append(S.q?A('r',B('−','d','a'),E('span','q',S.q),B('+','a','a')):A('r',B('🛒 '+L.add,'a')));
+const k=A('r',B('🧺 '+L.cart+(S.n?' · '+S.n:''),'k','a'));if(D.u){const b=E('button','a',L.site);b.onclick=()=>W.openLink(D.u);k.append(b)}c.append(k);if(o||S.m)c.append(E('p','m',o||S.m));R.append(c)}
+if(W){W.onEvent('chatDataChanged',()=>{try{const s=JSON.parse(W.chatData);if(s&&!z){S=s;d()}}catch(e){}});try{S=JSON.parse(W.chatData)||S}catch(e){}}
+d();
+</script>

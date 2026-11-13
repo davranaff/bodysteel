@@ -14,7 +14,7 @@ from pathlib import Path
 MAXIMUM_HTML_BYTES = 32768
 MAXIMUM_COMPRESSED_BYTES = 4096
 TEMPLATES = Path(__file__).resolve().parent / 'templates'
-TEMPLATE_NAMES = ('card', 'order', 'storefront')
+TEMPLATE_NAMES = ('card', 'order', 'product', 'storefront')
 _INDENT = re.compile(r'\n\s*')
 
 

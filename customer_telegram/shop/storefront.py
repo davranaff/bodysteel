@@ -6,9 +6,12 @@ from customer_telegram.shop.cart_screens import DELIVERY_TYPES, cart_screen, del
 from customer_telegram.shop.catalog import category_screen, home_screen, product_screen, search_screen
 from customer_telegram.shop.checkout import begin
 from customer_telegram.shop.labels import text
+from customer_telegram.shop.orders_screen import orders_screen
+from customer_telegram.shop.product_card import visible_product
+from customer_telegram.shop.sender import send_product
 
 
-REQUEST = re.compile(r'^(?:h|k|o|c:\d{1,9}:\d{1,4}|s:\d{1,4}|[pad]:\d{1,9}|t:(?:pickup|dcb|dtu))$')
+REQUEST = re.compile(r'^(?:h|k|o|r|c:\d{1,9}:\d{1,4}|s:\d{1,4}|[pad]:\d{1,9}|t:(?:pickup|dcb|dtu))$')
 
 
 def storefront_request(chat, widget, data, api):
@@ -19,6 +22,8 @@ def storefront_request(chat, widget, data, api):
         return render(chat, widget, widget.screen, text(chat.language, notice) if notice else '')
     if kind == 't':
         return _choose_delivery(chat, rest, api)
+    if kind == 'p':
+        return _open_product(chat, widget, int(rest), api)
     return render(chat, widget, data)
 
 
@@ -35,6 +40,8 @@ def render(chat, widget, screen, notice=''):
         state = cart_screen(chat)
     elif kind == 'o':
         state = delivery_screen(chat)
+    elif kind == 'r':
+        state = orders_screen(chat)
     else:
         screen, state = 'h', home_screen(chat)
     if notice:
@@ -44,6 +51,17 @@ def render(chat, widget, screen, notice=''):
         widget.last_list = screen
     widget.save(update_fields=('screen', 'last_list'))
     return state
+
+
+def _open_product(chat, widget, product_id, api):
+    """Send the product card with its photo below; the storefront stays where it was."""
+    product = visible_product(product_id)
+    if product is None:
+        return render(chat, widget, widget.screen, text(chat.language, 'gone'))
+    if send_product(chat, api, product) is None:
+        # Telegram refused the card: fall back to the compact screen inside the storefront.
+        return render(chat, widget, 'p:{}'.format(product_id))
+    return render(chat, widget, widget.screen, text(chat.language, 'card_below'))
 
 
 def _choose_delivery(chat, delivery_type, api):
