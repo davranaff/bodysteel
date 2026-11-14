@@ -40,7 +40,8 @@ def notify_review(message):
 def _send_card(chat_id, html, message):
     try:
         send_widget(chat_id, html, '💬 Новый отзыв на модерации')
-    except StaffWidgetError:
-        logger.warning('Staff review widget refused, sending text', extra={'review_id': message.get('id')})
+    except StaffWidgetError as error:
+        logger.warning('Staff review widget refused (%s), sending text', error.code or 'no code',
+                       extra={'review_id': message.get('id')})
         return False
     return True

@@ -58,7 +58,7 @@ def _open_product(chat, widget, product_id, api):
     product = visible_product(product_id)
     if product is None:
         return render(chat, widget, widget.screen, text(chat.language, 'gone'))
-    if send_product(chat, api, product) is None:
+    if not send_product(chat, api, product):
         # Telegram refused the card: fall back to the compact screen inside the storefront.
         return render(chat, widget, 'p:{}'.format(product_id))
     return render(chat, widget, widget.screen, text(chat.language, 'card_below'))

@@ -70,6 +70,7 @@ TEXT = {
         'unavailable_other': 'проверьте корзину',
         'card_below': 'Карточка товара — ниже ↓', 'cart_below': 'Корзина — ниже ↓',
         'no_orders': 'Заказов пока нет. Выберите товары в каталоге.',
+        'use_site': 'Витрина в Telegram сейчас недоступна. Каталог, корзина и оформление заказа есть на сайте: {}',
     },
     'uz': {
         'added': 'Savatga qo‘shildi ✓', 'limit': 'Ko‘proq qo‘shib bo‘lmaydi: omborda shuncha bor.',
@@ -94,6 +95,7 @@ TEXT = {
         'unavailable_other': 'savatni tekshiring',
         'card_below': 'Mahsulot kartochkasi — pastda ↓', 'cart_below': 'Savat — pastda ↓',
         'no_orders': 'Hozircha buyurtmalar yo‘q. Katalogdan mahsulot tanlang.',
+        'use_site': 'Telegramdagi vitrina hozir ishlamayapti. Katalog, savat va buyurtma berish saytda: {}',
     },
 }
 
