@@ -3,6 +3,8 @@ from decimal import Decimal
 from types import SimpleNamespace
 from unittest.mock import patch
 
+import httpx
+from django.core.cache import cache
 from django.test import TestCase, override_settings
 from django.utils import timezone
 
@@ -11,8 +13,10 @@ from teleg.cards import order_card_html
 from teleg.models import Chat
 from teleg.stats import period_state
 from teleg.utils.notify_message import notify_message
+from teleg.widget_api import StaffWidgetError, send_widget
 from teleg.widget_queries import handle_staff_widget_query
 from telegram_widgets.html import MAXIMUM_COMPRESSED_BYTES, compressed_size
+from telegram_widgets.rollout import PAUSE_KEY, widgets_enabled
 from telegram_widgets.state import fits
 
 
@@ -112,3 +116,50 @@ class StaffRolloutTests(TestCase):
             notify_message(order(), [basket('Креатин', 1, 150_000)])
         self.assertEqual([call.args[0] for call in send_widget.call_args_list], ['1001'])
         self.assertEqual([call.args[0] for call in send_message.call_args_list], ['1002'])
+
+
+def refusing_transport(description='Bad Request: INPUT_MEDIA_WIDGET_NOT_ALLOWED'):
+    calls = []
+
+    def handler(request):
+        calls.append(request.url.path.rsplit('/', 1)[-1])
+        return httpx.Response(400, json={'ok': False, 'error_code': 400, 'description': description})
+    return httpx.MockTransport(handler), calls
+
+
+@override_settings(**STAFF_SETTINGS)
+class StaffWidgetRefusalTests(TestCase):
+    """Telegram stopped accepting widgets from every bot (13 November 2026)."""
+
+    def setUp(self):
+        cache.delete(PAUSE_KEY)
+        self.addCleanup(cache.delete, PAUSE_KEY)
+
+    def test_refusal_keeps_only_the_code_and_pauses_widgets(self):
+        transport, calls = refusing_transport()
+        with self.assertRaises(StaffWidgetError) as raised:
+            send_widget('1001', '<p>x</p>', 'x', client=httpx.Client(transport=transport))
+        self.assertEqual(raised.exception.code, 'INPUT_MEDIA_WIDGET_NOT_ALLOWED')
+        self.assertEqual(calls, ['sendWidget'])
+        self.assertFalse(widgets_enabled('1001'))
+
+    def test_order_alert_asks_telegram_once_then_sends_text_to_everyone(self):
+        Chat.objects.create(chat_id='1001', first_name='Owner')
+        Chat.objects.create(chat_id='1002', first_name='Staff')
+        transport, calls = refusing_transport()
+        real_client = httpx.Client
+        with patch('teleg.widget_api.httpx.Client', side_effect=lambda **options: real_client(transport=transport)), \
+                patch('teleg.utils.notify_message.bot.send_message') as send_message, \
+                self.assertLogs('teleg.utils.notify_message', 'WARNING') as logs:
+            notify_message(order(address_latitude=None, address_longitude=None), [basket('Креатин', 1, 150_000)])
+        self.assertEqual(calls, ['sendWidget'])
+        self.assertEqual([call.args[0] for call in send_message.call_args_list], ['1001', '1002'])
+        self.assertIn('INPUT_MEDIA_WIDGET_NOT_ALLOWED', logs.output[0])
+        self.assertNotIn('Xakberdiyev', ''.join(logs.output))
+
+    def test_other_refusals_are_logged_but_do_not_pause(self):
+        transport, _ = refusing_transport('Bad Request: INPUT_MEDIA_WIDGET_TOO_LARGE')
+        with self.assertRaises(StaffWidgetError) as raised:
+            send_widget('1001', '<p>x</p>', 'x', client=httpx.Client(transport=transport))
+        self.assertEqual(raised.exception.code, 'INPUT_MEDIA_WIDGET_TOO_LARGE')
+        self.assertTrue(widgets_enabled('1001'))

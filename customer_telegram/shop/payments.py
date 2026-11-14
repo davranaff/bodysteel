@@ -5,7 +5,7 @@ to give the customer a notification. Delivery is best effort: the payment is fin
 """
 import logging
 
-from customer_telegram.bot_api import CustomerTelegramApi
+from customer_telegram.bot_api import CustomerTelegramApi, DeliveryStatus
 from customer_telegram.configuration import CustomerTelegramConfigurationError, customer_telegram_enabled
 from customer_telegram.models import CustomerTelegramWidget
 from customer_telegram.shop.labels import text
@@ -38,6 +38,8 @@ def notify_customer_paid(order_id, api=None):
         client.edit_caption(chat.chat_id, widget.message_id, order_caption(chat, state))
         if chat.pk not in notified:
             notified.add(chat.pk)
-            send_card(chat.chat_id, client, {'h': order_caption(chat, state), 't': [text(language, 'paid')]},
-                      order_caption(chat, state), language)
+            card = send_card(chat.chat_id, client, {'h': order_caption(chat, state), 't': [text(language, 'paid')]},
+                             order_caption(chat, state), language)
+            if card.status is DeliveryStatus.FAILED:
+                client.send_message(chat.chat_id, '{}\n{}'.format(order_caption(chat, state), text(language, 'paid')))
     return len(notified)

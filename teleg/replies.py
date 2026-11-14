@@ -23,8 +23,8 @@ def reply(bot, chat_id, text, links=None):
     try:
         send_widget(chat_id, render('card', LABELS, state), clip(lines[0] if lines else '', 200))
         return
-    except (StaffWidgetError, WidgetTooLarge):
-        logger.warning('Staff card refused, sending text')
+    except (StaffWidgetError, WidgetTooLarge) as error:
+        logger.warning('Staff card refused (%s), sending text', getattr(error, 'code', '') or 'no code')
     bot.send_message(chat_id, text)
 
 
@@ -36,8 +36,8 @@ def send_report(bot, chat_id, state):
     try:
         send_widget(chat_id, stats_html(state), clip(state['h'], 200), chat_data=encode(state), allow_queries=True)
         return
-    except (StaffWidgetError, WidgetTooLarge):
-        logger.warning('Staff report widget refused, sending text')
+    except (StaffWidgetError, WidgetTooLarge) as error:
+        logger.warning('Staff report widget refused (%s), sending text', getattr(error, 'code', '') or 'no code')
     bot.send_message(chat_id, _report_text(state))
 
 

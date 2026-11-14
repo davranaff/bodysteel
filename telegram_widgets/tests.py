@@ -1,4 +1,5 @@
-from django.test import SimpleTestCase
+from django.core.cache import cache
+from django.test import SimpleTestCase, override_settings
 
 from customer_telegram.shop.labels import WIDGET
 from teleg.cards import LABELS as STAFF_LABELS
@@ -11,6 +12,7 @@ from telegram_widgets.html import (
     render,
     safe_json,
 )
+from telegram_widgets.rollout import PAUSE_KEY, error_code, note_refusal, widgets_enabled
 from telegram_widgets.state import MAXIMUM_STATE_BYTES, clip, fit_rows, fits, size, valid_request
 
 
@@ -62,3 +64,31 @@ class WidgetStateTests(SimpleTestCase):
         self.assertFalse(valid_request(''))
         self.assertFalse(valid_request('я' * 33))
         self.assertFalse(valid_request(None))
+
+
+class WidgetPauseTests(SimpleTestCase):
+    def setUp(self):
+        cache.delete(PAUSE_KEY)
+        self.addCleanup(cache.delete, PAUSE_KEY)
+
+    def test_only_upper_case_codes_leave_an_error_description(self):
+        self.assertEqual(error_code('Bad Request: INPUT_MEDIA_WIDGET_NOT_ALLOWED'), 'INPUT_MEDIA_WIDGET_NOT_ALLOWED')
+        self.assertEqual(error_code("Bad Request: can't parse entities: Ali VALIYEV"), '')
+        self.assertEqual(error_code(None), '')
+
+    @override_settings(TELEGRAM_WIDGETS_ROLLOUT='all')
+    def test_a_refusal_of_widgets_pauses_them_everywhere_once(self):
+        self.assertTrue(widgets_enabled(1))
+        with self.assertLogs('telegram_widgets.rollout', 'WARNING') as logs:
+            self.assertTrue(note_refusal('INPUT_MEDIA_WIDGET_NOT_ALLOWED'))
+            self.assertTrue(note_refusal('INPUT_MEDIA_WIDGET_NOT_ALLOWED'))
+        self.assertEqual(len(logs.output), 1)
+        self.assertFalse(widgets_enabled(1))
+        cache.delete(PAUSE_KEY)
+        self.assertTrue(widgets_enabled(1))
+
+    @override_settings(TELEGRAM_WIDGETS_ROLLOUT='all')
+    def test_a_problem_with_one_widget_does_not_pause(self):
+        self.assertFalse(note_refusal('INPUT_MEDIA_WIDGET_TOO_LARGE'))
+        self.assertFalse(note_refusal(''))
+        self.assertTrue(widgets_enabled(1))

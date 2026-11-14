@@ -9,13 +9,15 @@ from hashlib import sha256
 
 from django.db import transaction
 
+from customer_telegram.bot_api import DeliveryStatus
 from customer_telegram.configuration import require_configuration
 from customer_telegram.i18n import MESSAGES
 from customer_telegram.keyboards import contact_keyboard, remove_keyboard
 from customer_telegram.models import CustomerTelegramCheckout
 from customer_telegram.shop.labels import text
 from customer_telegram.shop.order_screens import confirm_state, order_caption
-from customer_telegram.shop.sender import send_card, send_order
+from customer_telegram.shop.sender import REFUSED, send_card, send_order
+from customer_telegram.shop.site_link import use_site
 from store.geocoding.bounds import inside_uzbekistan
 from store.utils.format_phone import format_phone_number
 from telegram_widgets.state import clip
@@ -125,7 +127,9 @@ def _confirm(chat, checkout, api):
     checkout.step = checkout.CONFIRM
     checkout.save()
     state = confirm_state(chat, checkout)
-    send_order(chat, api, state, order_caption(chat, state), reply_markup=remove_keyboard())
+    if send_order(chat, api, state, order_caption(chat, state), reply_markup=remove_keyboard()) is REFUSED:
+        # The order is confirmed with a widget button; without it the site takes the order.
+        return use_site(chat, api)
     return 'checkout_confirm'
 
 
@@ -150,7 +154,11 @@ def _menu_labels(language):
 
 def _card(chat, api, body, keyboard):
     language = chat.language or 'ru'
-    send_card(chat.chat_id, api, {'t': [body]}, clip(body, 200), language, keyboard)
+    result = send_card(chat.chat_id, api, {'t': [body]}, clip(body, 200), language, keyboard)
+    if result.status is DeliveryStatus.FAILED:
+        # A refused card goes out as a plain message with the same contact or location keyboard.
+        send_text = getattr(api, 'send_text', api.send_message)
+        send_text(chat.chat_id, body, keyboard)
 
 
 def _coordinate(value):
