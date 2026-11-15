@@ -5,6 +5,7 @@ from enum import Enum
 import httpx
 
 from customer_telegram.configuration import require_configuration
+from telegram_widgets.rollout import error_code
 
 
 API_ORIGIN = 'https://api.telegram.org'
@@ -24,6 +25,8 @@ class TelegramResult:
     status: DeliveryStatus
     message_id: int | None = None
     retry_after: int | None = None
+    # Only the upper-case Telegram code, never the description: it can echo the request.
+    error_code: str = ''
 
 
 @dataclass(frozen=True)
@@ -74,7 +77,8 @@ class CustomerTelegramApi:
         message_id = data.get('result', {}).get('message_id') if result.status is DeliveryStatus.SENT else None
         if result.status is DeliveryStatus.SENT and not isinstance(message_id, int):
             return TelegramResult(DeliveryStatus.UNKNOWN)
-        return TelegramResult(result.status, message_id=message_id, retry_after=result.retry_after)
+        return TelegramResult(result.status, message_id=message_id, retry_after=result.retry_after,
+                              error_code=result.error_code)
 
     def answer_widget_query(self, widget_query_id, data=None):
         payload = {'widget_query_id': widget_query_id}
@@ -142,13 +146,14 @@ class CustomerTelegramApi:
         parameters = data.get('parameters') if isinstance(data.get('parameters'), dict) else {}
         retry_after = parameters.get('retry_after')
         retry_after = retry_after if isinstance(retry_after, int) and 0 < retry_after <= 86_400 else None
+        code = error_code(data.get('description'))
         if response.status_code == 429:
-            return TelegramResult(DeliveryStatus.RATE_LIMITED, retry_after=retry_after), data
+            return TelegramResult(DeliveryStatus.RATE_LIMITED, retry_after=retry_after, error_code=code), data
         if response.status_code == 403:
-            return TelegramResult(DeliveryStatus.BLOCKED), data
+            return TelegramResult(DeliveryStatus.BLOCKED, error_code=code), data
         if 500 <= response.status_code < 600:
-            return TelegramResult(DeliveryStatus.UNKNOWN), data
-        return TelegramResult(DeliveryStatus.FAILED), data
+            return TelegramResult(DeliveryStatus.UNKNOWN, error_code=code), data
+        return TelegramResult(DeliveryStatus.FAILED, error_code=code), data
 
 
 def _bounded_body(response):

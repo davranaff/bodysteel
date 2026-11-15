@@ -5,6 +5,8 @@ import logging
 import httpx
 from django.conf import settings
 
+from telegram_widgets.rollout import error_code, note_refusal
+
 
 logger = logging.getLogger(__name__)
 API_ORIGIN = 'https://api.telegram.org'
@@ -12,7 +14,14 @@ MAXIMUM_RESPONSE_BYTES = 64 * 1024
 
 
 class StaffWidgetError(Exception):
-    """Telegram refused or could not be reached; callers fall back to a text message."""
+    """Telegram refused or could not be reached; callers fall back to a text message.
+
+    ``code`` is Telegram's upper-case error code, if it gave one.
+    """
+
+    def __init__(self, message, code=''):
+        super().__init__(message)
+        self.code = code
 
 
 def send_widget(chat_id, html, caption, chat_data=None, allow_queries=False, client=None):
@@ -21,7 +30,11 @@ def send_widget(chat_id, html, caption, chat_data=None, allow_queries=False, cli
         payload['chat_data'] = chat_data
     if allow_queries:
         payload['allow_queries'] = True
-    result = call('sendWidget', payload, client)
+    try:
+        result = call('sendWidget', payload, client)
+    except StaffWidgetError as error:
+        note_refusal(error.code)
+        raise
     message_id = result.get('message_id') if isinstance(result, dict) else None
     if not isinstance(message_id, int):
         raise StaffWidgetError('sendWidget returned no message')
@@ -58,6 +71,7 @@ def call(method, payload, client=None):
     except (UnicodeDecodeError, json.JSONDecodeError):
         data = None
     if not isinstance(data, dict) or data.get('ok') is not True:
-        # The description can echo request content; never log it.
-        raise StaffWidgetError('{} failed with HTTP {}'.format(method, response.status_code))
+        # The description can echo request content: only its error code is kept.
+        code = error_code(data.get('description')) if isinstance(data, dict) else ''
+        raise StaffWidgetError('{} failed with HTTP {}'.format(method, response.status_code), code)
     return data.get('result')

@@ -72,8 +72,9 @@ def _handle_message(payload, api):
         return _command(chat, 'help', api)
     if text == menu_keys['menu_unlink']:
         return _command(chat, 'unlink', api)
-    if text and search_message(chat, text, api):
-        return 'search'
+    searched = search_message(chat, text, api) if text else None
+    if searched:
+        return searched
     api.send_message(chat.chat_id, message(language, 'unknown'), main_menu(language, chat.chat_id))
     return 'unknown'
 

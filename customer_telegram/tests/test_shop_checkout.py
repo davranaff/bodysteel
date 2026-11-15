@@ -5,6 +5,7 @@ from django.test import TestCase, override_settings
 from customer_telegram.i18n import message
 from customer_telegram.models import CustomerTelegramCart, CustomerTelegramCheckout
 from customer_telegram.orders import orders_page
+from customer_telegram.bot_api import DeliveryStatus
 from customer_telegram.shop.payments import notify_customer_paid
 from customer_telegram.tests.base import TELEGRAM_SETTINGS
 from customer_telegram.tests.shop_base import CHAT_ID, ShopFixtures
@@ -130,3 +131,11 @@ class OnlinePaymentTests(ShopFixtures, TestCase):
         self.assertIn('оплачен', self.api.widgets[-1]['caption'])
         _, state = self.tap(self.order_widget(), 'v')
         self.assertEqual(state['st'], 'ok')
+
+    def test_paid_notice_goes_as_text_when_the_card_is_refused(self):
+        self.place()
+        order = Order.objects.get()
+        Order.objects.filter(pk=order.pk).update(payment_status='paid')
+        self.api.widget_status = DeliveryStatus.FAILED
+        self.assertEqual(notify_customer_paid(order.pk, api=self.api), 1)
+        self.assertIn('Оплата получена', self.api.messages[-1][1])

@@ -25,10 +25,12 @@ TELEGRAM_SETTINGS = {
 
 
 class FakeTelegramApi:
-    def __init__(self, status=DeliveryStatus.SENT, retry_after=None, widget_status=DeliveryStatus.SENT):
+    def __init__(self, status=DeliveryStatus.SENT, retry_after=None, widget_status=DeliveryStatus.SENT, widget_error=''):
         self.status = status
         self.retry_after = retry_after
         self.widget_status = widget_status
+        self.widget_error = widget_error
+        self.widget_attempts = 0
         self.messages = []
         self.callbacks = []
         self.widgets = []
@@ -49,8 +51,9 @@ class FakeTelegramApi:
 
     def send_widget(self, chat_id, html, caption, chat_data=None, reply_markup=None):
         """Recorded in ``messages`` too, as (chat, caption, markup, 'widget', html)."""
+        self.widget_attempts += 1
         if self.widget_status is not DeliveryStatus.SENT:
-            return TelegramResult(self.widget_status)
+            return TelegramResult(self.widget_status, error_code=self.widget_error)
         self.widgets.append({
             'chat_id': chat_id, 'html': html, 'caption': caption, 'reply_markup': reply_markup, 'chat_data': chat_data,
         })

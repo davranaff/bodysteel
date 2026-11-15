@@ -44,6 +44,13 @@ Bot replies are [widgets](https://core.telegram.org/bots/widgets.md): fixed HTML
 previous plain messages and menu, `111,222` limits them to those chat ids for a trial, and `all`
 turns them on for everyone. Changing it needs only a restart, no release.
 
+Telegram can stop accepting widgets from every bot at once, as it did on 13 November 2026. Then
+`sendWidget` answers `INPUT_MEDIA_WIDGET_NOT_ALLOWED` for any HTML. After one such answer both bots
+switch to plain messages for 30 minutes, then try again, so they come back on their own. A refused
+catalog, cart or search tap gets a link to the site and the plain menu instead of silence. Logs
+carry only Telegram's upper-case error code, such as `Telegram refuses widgets
+(INPUT_MEDIA_WIDGET_NOT_ALLOWED)` or `Staff order widget refused (…)`.
+
 After deploying migration `0004`, run `python manage.py set_customer_telegram_webhook` once: the
 webhook must list `widget_query` in `allowed_updates`, or every tap ends in `TIMEOUT`. The staff bot
 needs the same (`python manage.py webhook api.bodysteel.uz`, optional `STAFF_TELEGRAM_WEBHOOK_SECRET`).

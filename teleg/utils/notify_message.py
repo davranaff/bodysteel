@@ -65,8 +65,8 @@ def _send_widget(chat_id, widget, order, recipient_number):
     html, caption = widget
     try:
         send_widget(chat_id, html, caption)
-    except StaffWidgetError:
-        logger.warning('Staff order widget refused, sending text', extra={
+    except StaffWidgetError as error:
+        logger.warning('Staff order widget refused (%s), sending text', error.code or 'no code', extra={
             'order_id': order.pk, 'recipient_number': recipient_number,
         })
         return False
