@@ -50,6 +50,26 @@ class CoursePurchaseFlowTests(TestCase):
         self.assertEqual(history.data['data'][0]['status'], CoursePurchase.PAID)
         self.assertEqual(history.data['data'][0]['access']['status'], CourseAccess.ACTIVE)
 
+    def test_the_same_key_from_two_shoppers_makes_two_purchases(self):
+        other = User.objects.create_user(
+            username='course-user-2', email='course2@example.test', phone='+998901234568', password='password123',
+        )
+        other_client = APIClient()
+        other_client.credentials(HTTP_AUTHORIZATION='Token {}'.format(Token.objects.create(user=other).key))
+        headers = {'HTTP_IDEMPOTENCY_KEY': 'course-shared-key-1234'}
+        first = self.client.post('/api/v1/courses/weight-loss-30/purchases/', {}, format='json', **headers)
+        second = other_client.post('/api/v1/courses/weight-loss-30/purchases/', {}, format='json', **headers)
+        self.assertEqual((first.status_code, second.status_code), (201, 201))
+        self.assertEqual(CoursePurchase.objects.count(), 2)
+
+    def test_an_open_course_is_not_sold_twice(self):
+        CourseAccess.objects.create(user=self.user, course=self.course, source='manual')
+        response = self.client.post(
+            '/api/v1/courses/weight-loss-30/purchases/', {}, format='json', HTTP_IDEMPOTENCY_KEY='course-test-key-5678',
+        )
+        self.assertEqual(response.status_code, 409)
+        self.assertFalse(CoursePurchase.objects.exists())
+
     def test_another_user_cannot_open_personal_course(self):
         response = self.client.get('/api/v1/courses/me/weight-loss-30/')
         self.assertEqual(response.status_code, 403)

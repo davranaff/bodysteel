@@ -1,7 +1,8 @@
-"""Order-payment state transitions driven by Multicard.
+"""Payment state transitions driven by Multicard, for orders and for courses.
 
 Payment: created -> pending -> succeeded | failed (retryable) ; succeeded -> refunded
 Order.payment_status mirrors it: unpaid -> pending -> paid | failed ; paid -> refunded
+A course purchase stays open after a failure; a refund closes the course again.
 
 Every transition locks the payment row, so a callback, a webhook and a status
 poll racing each other converge on one outcome without duplicate side effects.
@@ -11,8 +12,7 @@ from dataclasses import dataclass
 from django.db import IntegrityError, transaction
 
 from payments.models import Payment, PaymentEvent
-from payments.multicard.notifications import notify_paid_order
-from payments.multicard.receipt import order_amount_tiyin
+from payments.multicard import targets
 from payments.services import complete_payment
 
 
@@ -28,8 +28,8 @@ class CallbackOutcome:
 def lock_payment(payment_id):
     return (
         Payment.objects.select_for_update(of=('self',))
-        .select_related('order')
-        .filter(pk=payment_id, provider=PROVIDER, order__isnull=False)
+        .select_related('order', 'course_purchase')
+        .filter(pk=payment_id, provider=PROVIDER)
         .first()
     )
 
@@ -40,7 +40,7 @@ def record_success(payment_id, transaction_uuid, amount_tiyin, event_id, payload
     payment = lock_payment(payment_id)
     if payment is None:
         return CallbackOutcome(False, 'Счёт не найден')
-    if amount_tiyin != order_amount_tiyin(payment.order) or amount_tiyin != payment.amount * 100:
+    if amount_tiyin != targets.amount_tiyin(payment) or amount_tiyin != payment.amount * 100:
         return CallbackOutcome(False, 'Сумма не совпадает с заказом')
     if payment.status == Payment.SUCCEEDED:
         if payment.provider_payment_id == transaction_uuid:
@@ -50,15 +50,15 @@ def record_success(payment_id, transaction_uuid, amount_tiyin, event_id, payload
         return CallbackOutcome(False, 'Заказ уже оплачен')
     if payment.status in {Payment.CANCELLED, Payment.REFUNDED}:
         return CallbackOutcome(False, 'Заказ отменён')
-    if payment.order.fulfillment_status == 'cancelled':
-        return CallbackOutcome(False, 'Заказ отменён')
+    refusal = targets.refusal(payment)
+    if refusal:
+        return CallbackOutcome(False, refusal)
     if Payment.objects.filter(provider_payment_id=transaction_uuid).exclude(pk=payment.pk).exists():
         return CallbackOutcome(False, 'Транзакция уже учтена')
     _record_event(payment, event_id, 'success', payload_hash)
     complete_payment(payment.pk, transaction_uuid)
     # Telegram delivery runs only after the payment row is committed.
-    order_id = payment.order_id
-    transaction.on_commit(lambda: notify_paid_order(order_id))
+    transaction.on_commit(targets.paid_notice(payment))
     return CallbackOutcome(True)
 
 
@@ -73,8 +73,7 @@ def record_failure(payment_id, transaction_uuid, event_id, payload_hash):
     _record_event(payment, event_id, 'error', payload_hash)
     payment.status = Payment.FAILED
     payment.save(update_fields=('status', 'updated_at'))
-    payment.order.payment_status = 'failed'
-    payment.order.save(update_fields=('payment_status',))
+    targets.mark_failed(payment)
 
 
 @transaction.atomic
@@ -87,14 +86,13 @@ def record_refund(payment_id, transaction_uuid, event_id, payload_hash):
     _record_event(payment, event_id, 'revert', payload_hash)
     payment.status = Payment.REFUNDED
     payment.save(update_fields=('status', 'updated_at'))
-    payment.order.payment_status = 'refunded'
-    payment.order.save(update_fields=('payment_status',))
+    targets.mark_refunded(payment)
 
 
 def apply_invoice_state(payment_id, invoice):
     """Reconcile a polled invoice (used when a callback has not arrived yet)."""
     if invoice.payment_status == 'success' and invoice.payment_uuid:
-        payment = Payment.objects.select_related('order').get(pk=payment_id)
+        payment = Payment.objects.get(pk=payment_id)
         record_success(
             payment_id, invoice.payment_uuid, payment.amount * 100,
             'poll:{}'.format(invoice.payment_uuid), '',

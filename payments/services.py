@@ -38,7 +38,7 @@ def _complete_course_purchase(payment):
     expires_at = None
     if purchase.course.access_duration_days:
         expires_at = timezone.now() + timedelta(days=purchase.course.access_duration_days)
-    access, _ = CourseAccess.objects.select_for_update().get_or_create(
+    access, created = CourseAccess.objects.select_for_update().get_or_create(
         user=purchase.user,
         course=purchase.course,
         defaults={
@@ -48,12 +48,14 @@ def _complete_course_purchase(payment):
             'expires_at': expires_at,
         },
     )
-    if access.status != CourseAccess.ACTIVE:
+    # A repeat purchase after access was revoked or ran out opens the course again.
+    if not created and not access.is_active():
         access.status = CourseAccess.ACTIVE
         access.purchase = purchase
+        access.source = 'purchase'
         access.revoked_at = None
         access.revoke_reason = ''
         access.expires_at = expires_at
-        access.save(update_fields=('status', 'purchase', 'revoked_at', 'revoke_reason', 'expires_at'))
+        access.save(update_fields=('status', 'purchase', 'source', 'revoked_at', 'revoke_reason', 'expires_at'))
 
 __all__ = ('complete_payment',)

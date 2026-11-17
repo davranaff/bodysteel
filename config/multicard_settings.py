@@ -32,6 +32,12 @@ MULTICARD_DEFAULT_PACKAGE_CODE = os.getenv('MULTICARD_DEFAULT_PACKAGE_CODE', '')
 MULTICARD_DELIVERY_IKPU = os.getenv('MULTICARD_DELIVERY_IKPU', '').strip()
 MULTICARD_DELIVERY_PACKAGE_CODE = os.getenv('MULTICARD_DELIVERY_PACKAGE_CODE', '').strip()
 MULTICARD_VAT_PERCENT = os.getenv('MULTICARD_VAT_PERCENT', '').strip()
+# Courses are a service, not a product: they have their own receipt codes. Course
+# payment stays unavailable until both codes are set. An empty course VAT falls
+# back to MULTICARD_VAT_PERCENT.
+MULTICARD_COURSE_IKPU = os.getenv('MULTICARD_COURSE_IKPU', '').strip()
+MULTICARD_COURSE_PACKAGE_CODE = os.getenv('MULTICARD_COURSE_PACKAGE_CODE', '').strip()
+MULTICARD_COURSE_VAT_PERCENT = os.getenv('MULTICARD_COURSE_VAT_PERCENT', '').strip()
 MULTICARD_TIN = os.getenv('MULTICARD_TIN', '').strip()
 MULTICARD_INVOICE_TTL_SECONDS = os.getenv('MULTICARD_INVOICE_TTL_SECONDS', '1800').strip()
 MULTICARD_TIMEOUT_SECONDS = os.getenv('MULTICARD_TIMEOUT_SECONDS', '10').strip()

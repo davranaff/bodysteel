@@ -28,6 +28,9 @@ class MulticardConfiguration:
     delivery_ikpu: str
     delivery_package_code: str
     vat_percent: int | None
+    course_ikpu: str
+    course_package_code: str
+    course_vat_percent: int | None
     tin: str
     invoice_ttl_seconds: int
     timeout_seconds: float
@@ -69,10 +72,23 @@ def require_configuration():
         delivery_ikpu=_code(settings.MULTICARD_DELIVERY_IKPU),
         delivery_package_code=_code(settings.MULTICARD_DELIVERY_PACKAGE_CODE),
         vat_percent=_optional_int(settings.MULTICARD_VAT_PERCENT, 0, 100),
+        **_course_receipt_settings(),
         tin=_code(settings.MULTICARD_TIN),
         invoice_ttl_seconds=_bounded_int(settings.MULTICARD_INVOICE_TTL_SECONDS, 300, 86_400),
         timeout_seconds=float(_bounded_int(settings.MULTICARD_TIMEOUT_SECONDS, 2, 30)),
     )
+
+
+def _course_receipt_settings():
+    """Course codes never disable order payments: a bad value only makes course payment unavailable."""
+    try:
+        return {
+            'course_ikpu': _code(getattr(settings, 'MULTICARD_COURSE_IKPU', '')),
+            'course_package_code': _code(getattr(settings, 'MULTICARD_COURSE_PACKAGE_CODE', '')),
+            'course_vat_percent': _optional_int(getattr(settings, 'MULTICARD_COURSE_VAT_PERCENT', ''), 0, 100),
+        }
+    except MulticardNotConfigured:
+        return {'course_ikpu': '', 'course_package_code': '', 'course_vat_percent': None}
 
 
 def _https_origin(value):

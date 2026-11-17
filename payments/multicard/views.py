@@ -96,22 +96,27 @@ class MulticardPaymentStatusAPIView(APIView):
 
     def get(self, request, token):
         payment_id = read_status_token(token)
-        payment = Payment.objects.select_related('order').filter(pk=payment_id, order__isnull=False).first()
+        payment = Payment.objects.filter(pk=payment_id).first() if payment_id else None
         if payment is None:
             return _problem(status.HTTP_404_NOT_FOUND, 'Payment not found', 'not_found')
         if payment.provider == 'multicard' and payment.status == Payment.PENDING:
             _reconcile(payment)
             payment.refresh_from_db()
-            payment.order.refresh_from_db(fields=('payment_status',))
-        return Response({'data': {
+        payment = Payment.objects.select_related('order', 'course_purchase__course').get(pk=payment.pk)
+        body = {
             'payment_id': payment.pk,
-            'order_id': str(payment.order_id),
-            'order_code': payment.order.order_code,
             'amount': payment.amount,
             'currency': payment.currency,
             'status': PUBLIC_STATUS.get(payment.status, 'pending'),
             'paid_at': payment.paid_at.isoformat() if payment.paid_at else None,
-        }}, headers={'Cache-Control': 'no-store'})
+        }
+        if payment.order_id:
+            body.update(order_id=str(payment.order_id), order_code=payment.order.order_code)
+        else:
+            course = payment.course_purchase.course
+            language = 'uz' if request.headers.get('Accept-Language', '').lower().startswith('uz') else 'ru'
+            body.update(kind='course', course_slug=course.slug, course_title=getattr(course, 'title_{}'.format(language)))
+        return Response({'data': body}, headers={'Cache-Control': 'no-store'})
 
 
 def _reconcile(payment):

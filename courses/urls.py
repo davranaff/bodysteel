@@ -10,6 +10,7 @@ from courses.views import (
     DownloadLessonMaterialAPIView,
     MyCoursesAPIView,
 )
+from payments.multicard.course_views import CourseCheckoutAPIView
 
 urlpatterns = [
     path('', CourseViewSet.as_view({'get': 'list'}), name='course-list'),
@@ -21,4 +22,5 @@ urlpatterns = [
     path('purchases/', CoursePurchasesAPIView.as_view(), name='course-purchases'),
     path('<slug:slug>/', CourseViewSet.as_view({'get': 'retrieve'}), name='course-detail'),
     path('<slug:slug>/purchases/', CoursePurchaseAPIView.as_view(), name='course-purchase'),
+    path('<slug:slug>/checkout/', CourseCheckoutAPIView.as_view(), name='course-checkout'),
 ]
