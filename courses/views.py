@@ -23,7 +23,7 @@ from courses.serializers import (
     PublicLessonSerializer,
     language_from_request,
 )
-from courses.services import PurchaseConflict, PurchaseUnavailable, create_purchase
+from courses.services import CourseOwned, PurchaseConflict, PurchaseUnavailable, create_purchase
 from users.orders.errors import InvalidOrderIdempotencyKey
 from users.orders.idempotency import parse_idempotency_key
 
@@ -76,6 +76,8 @@ class CoursePurchaseAPIView(APIView):
             return Response({'detail': 'Course is unavailable'}, status=status.HTTP_409_CONFLICT)
         except PurchaseConflict:
             return Response({'detail': 'Idempotency key conflict'}, status=status.HTTP_409_CONFLICT)
+        except CourseOwned:
+            return Response({'detail': 'Course is already open'}, status=status.HTTP_409_CONFLICT)
         response = Response({'data': CoursePurchaseSerializer(purchase).data}, status=status.HTTP_201_CREATED)
         if replayed:
             response['Idempotency-Replayed'] = 'true'

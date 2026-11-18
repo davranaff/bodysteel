@@ -42,7 +42,21 @@ def build_ofd(order, baskets, configuration):
         ))
     if sum(line.total for line in lines) != order_amount_tiyin(order):
         raise MulticardNotConfigured('receipt total mismatch')
-    return [item for line in lines for item in _items(line, configuration)]
+    return [item for line in lines for item in _items(line, configuration, configuration.vat_percent)]
+
+
+def build_course_ofd(title, amount, configuration):
+    """One receipt line for a course. A course is a service with its own fiscal codes."""
+    if not configuration.course_ikpu or not configuration.course_package_code:
+        raise MulticardNotConfigured('course fiscal code')
+    if int(amount) <= 0:
+        raise MulticardNotConfigured('course amount')
+    vat = configuration.vat_percent if configuration.course_vat_percent is None else configuration.course_vat_percent
+    line = _Line(
+        name=(title or 'Онлайн-курс')[:255], quantity=1, total=int(amount) * TIYIN,
+        ikpu=configuration.course_ikpu, package_code=configuration.course_package_code,
+    )
+    return _items(line, configuration, vat)
 
 
 def _product_line(basket, configuration):
@@ -74,14 +88,14 @@ def _allocate_discount(lines, discount):
     ]
 
 
-def _items(line, configuration):
+def _items(line, configuration, vat_percent):
     """Split a line so each emitted item has an integral unit price."""
     unit, remainder = divmod(line.total, line.quantity)
     parts = [(line.quantity - remainder, unit), (remainder, unit + 1)]
-    return [_item(line, quantity, price, configuration) for quantity, price in parts if quantity]
+    return [_item(line, quantity, price, configuration, vat_percent) for quantity, price in parts if quantity]
 
 
-def _item(line, quantity, price, configuration):
+def _item(line, quantity, price, configuration, vat_percent):
     item = {
         'qty': quantity,
         'price': price,
@@ -90,8 +104,8 @@ def _item(line, quantity, price, configuration):
         'package_code': line.package_code,
         'name': line.name,
     }
-    if configuration.vat_percent is not None:
-        item['vat'] = configuration.vat_percent
+    if vat_percent is not None:
+        item['vat'] = vat_percent
     if configuration.tin:
         item['tin'] = configuration.tin
     return item

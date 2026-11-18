@@ -66,3 +66,38 @@ class FakeClient:
 
     def cancel_invoice(self, invoice_uuid):
         self.cancelled.append(invoice_uuid)
+
+
+COURSE_IKPU = '10305008002000000'
+COURSE_PACKAGE_CODE = '1501110'
+COURSE_SETTINGS = {
+    **MULTICARD_SETTINGS,
+    'MULTICARD_COURSE_IKPU': COURSE_IKPU,
+    'MULTICARD_COURSE_PACKAGE_CODE': COURSE_PACKAGE_CODE,
+    'MULTICARD_COURSE_VAT_PERCENT': '',
+}
+
+
+def make_course(slug='mass-gain-30', price=250_000, **fields):
+    from courses.models import Course
+
+    return Course.objects.create(**{
+        'slug': slug, 'title_ru': 'Набор массы за 30 дней', 'title_uz': '30 kunda massa yig‘ish',
+        'summary_ru': 'Программа', 'summary_uz': 'Dastur', 'price': price, 'status': Course.PUBLISHED,
+        **fields,
+    })
+
+
+def make_customer(username='course-buyer', phone='+998901110001'):
+    from rest_framework.authtoken.models import Token
+    from rest_framework.test import APIClient
+
+    from users.models import User
+
+    user = User.objects.create_user(
+        username=username, email='{}@example.test'.format(username), phone=phone, password='password123',
+        first_name='Азиз', last_name='Каримов',
+    )
+    client = APIClient()
+    client.credentials(HTTP_AUTHORIZATION='Token {}'.format(Token.objects.create(user=user).key))
+    return user, client
