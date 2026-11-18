@@ -1,12 +1,11 @@
 import re
 import unicodedata
-from collections import Counter, defaultdict
+from collections import defaultdict
 from functools import lru_cache
-
-from rapidfuzz.distance import DamerauLevenshtein
 
 from store.catalog.search_candidates import shortlist_products
 from store.catalog.search_compounds import compound_score, has_compound_match
+from store.catalog.search_distance import edit_ratio, fuzzy_threshold, phrase_score, token_ratio
 
 
 _ENGLISH_KEYS = "qwertyuiop[]asdfghjkl;'zxcvbnm,."
@@ -23,6 +22,9 @@ _CYRILLIC_TO_LATIN = str.maketrans({
 })
 _WHITESPACE = re.compile(r'\s+')
 _LATIN_LOOKALIKES = str.maketrans({'a': 'а', 'c': 'с', 'e': 'е', 'o': 'о', 'p': 'р', 'x': 'х', 'y': 'у'})
+# Unstressed Russian "о" sounds like "а", so shoppers write "амега", "креотин", "пратеин".
+_REDUCED_VOWELS = str.maketrans({'о': 'а', 'э': 'е'})
+_CYRILLIC = re.compile(r'[а-яё]')
 
 def smart_product_ids(queryset, query):
     """Return matching product IDs ordered by forgiving search relevance."""
@@ -135,8 +137,8 @@ def _single_token_score(query, candidates):
             best = max(best, max(94, 106 - candidate.index(query)))
         else:
             best = max(best, compound_score(query, candidate))
-    ratio = max((_token_ratio(query, token) for token in tokens), default=0)
-    if ratio >= _fuzzy_threshold(len(query)):
+    ratio = max((token_ratio(query, token) for token in tokens), default=0)
+    if ratio >= fuzzy_threshold(len(query)):
         best = max(best, round(70 + ratio * 30))
     return best
 
@@ -167,6 +169,7 @@ def _search_keys(value, keyboard_variants=False):
             if replacement != word:
                 corrected = ' '.join((*words[:index], replacement, *words[index + 1:]))
                 variants.update((corrected, _transliterate(corrected)))
+    variants.update([variant.translate(_REDUCED_VOWELS) for variant in variants if _CYRILLIC.search(variant)])
     return frozenset(variant for variant in variants if len(variant) >= 2)
 
 
@@ -199,52 +202,17 @@ def _pair_score(query, candidate):
     query_tokens = query.split()
     candidate_tokens = candidate.split()
     token_scores = [
-        max((_token_ratio(token, candidate_token) for candidate_token in candidate_tokens), default=0)
+        max((token_ratio(token, candidate_token) for candidate_token in candidate_tokens), default=0)
         for token in query_tokens
     ]
     if token_scores and all(
-        score >= _fuzzy_threshold(len(token))
+        score >= fuzzy_threshold(len(token))
         for token, score in zip(query_tokens, token_scores)
     ):
         return round(70 + (sum(token_scores) / len(token_scores)) * 30)
+    phrase = phrase_score(query_tokens, candidate_tokens)
+    if phrase:
+        return phrase
 
-    whole_ratio = _edit_ratio(query, candidate)
-    return round(58 + whole_ratio * 30) if whole_ratio >= _fuzzy_threshold(len(query)) else 0
-
-
-def _token_ratio(query, candidate):
-    if query == candidate:
-        return 1
-    if candidate.startswith(query) or query.startswith(candidate):
-        shorter = min(len(query), len(candidate))
-        longer = max(len(query), len(candidate))
-        return max(_edit_ratio(query, candidate), shorter / longer)
-    return _edit_ratio(query, candidate)
-
-
-def _edit_ratio(left, right):
-    """Fast typo similarity with adjacent-letter transposition support."""
-    if left == right:
-        return 1
-    longest = max(len(left), len(right))
-    if not longest:
-        return 1
-
-    maximum_distance = max(1, round(longest * .36))
-    if abs(len(left) - len(right)) > maximum_distance:
-        return 0
-    shared_characters = sum((Counter(left) & Counter(right)).values())
-    if shared_characters < min(len(left), len(right)) - maximum_distance:
-        return 0
-    distance = DamerauLevenshtein.distance(left, right, score_cutoff=maximum_distance)
-    return 0 if distance > maximum_distance else 1 - (distance / longest)
-
-
-def _fuzzy_threshold(length):
-    if length <= 3:
-        return .84
-    if length == 4:
-        return .75
-    if length <= 5:
-        return .76
-    return .68
+    whole_ratio = edit_ratio(query, candidate)
+    return round(58 + whole_ratio * 30) if whole_ratio >= fuzzy_threshold(len(query)) else 0

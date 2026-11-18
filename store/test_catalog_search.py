@@ -57,6 +57,20 @@ class SmartCatalogSearchTests(SimpleTestCase):
         score = smart_search_score('Cпорт', ('Спорт',))
         self.assertGreater(score, 0)
 
+    def test_finds_a_brand_typed_by_ear_when_both_words_line_up(self):
+        self.assertGreater(smart_search_score('кеатн ливрн', ('Кевин Леврон Анаболик Креатин',)), 0)
+        self.assertGreater(smart_search_score('sirius mas', ('Optimum Nutrition Serious Mass',)), 0)
+
+    def test_weak_words_in_the_wrong_order_or_with_other_first_letters_do_not_match(self):
+        self.assertEqual(smart_search_score('ливрн кеатн', ('Кевин Леврон',)), 0)
+        self.assertEqual(smart_search_score('неатн ливрн', ('Кевин Леврон',)), 0)
+
+    def test_unstressed_o_written_as_a_matches_the_real_word_first(self):
+        omega = smart_search_score('амега', ('Рыбий жир Омега-3',))
+        mega = smart_search_score('амега', ('Mega Sport Амино хардкор',))
+        self.assertGreater(omega, mega)
+        self.assertGreaterEqual(smart_search_score('креотин', ('Креатин моногидрат',)), 110)
+
 
 class SmartAdminSearchTests(TestCase):
     def test_product_gate_accepts_words_typed_without_spaces(self):

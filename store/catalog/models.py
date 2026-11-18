@@ -101,6 +101,10 @@ class Product(BaseModel):
         verbose_name='Статус карточки REGOS',
         help_text='Черновики видны на витрине, но недоступны для заказа. Архивированные позиции скрыты.',
     )
+    regos_price = models.PositiveBigIntegerField(
+        null=True, blank=True, editable=False, verbose_name='Цена в REGOS',
+        help_text='Последняя розничная цена из REGOS. Цена на сайте меняется, когда меняется эта цена или карточка в REGOS.',
+    )
     ikpu_code = models.CharField(
         max_length=17,
         blank=True,

@@ -1,3 +1,4 @@
+from django.conf import settings
 from django.contrib import admin
 from django.utils.html import format_html
 
@@ -23,7 +24,7 @@ class ProductAdmin(admin.ModelAdmin):
     prepopulated_fields = {'slug': ('name_ru',)}
     # These fields are populated on the first automatic sync, but admins must
     # be able to make a one-time explicit mapping when product names differ.
-    readonly_fields = ('view_count', 'updated_at')
+    readonly_fields = ('view_count', 'updated_at', 'regos_price')
     inlines = (ProductImageInline, Product360ImageInline)
     actions = ('mark_new', 'publish_regos_drafts')
     fieldsets = (
@@ -43,11 +44,25 @@ class ProductAdmin(admin.ModelAdmin):
             'fields': (
                 ('regos_item_id', 'regos_item_code'),
                 ('regos_item_articul', 'regos_catalog_status'),
+                'regos_price',
                 ('ikpu_code', 'package_code'),
                 ('view_count', 'updated_at'),
             ),
         }),
     )
+
+    def get_fieldsets(self, request, obj=None):
+        fieldsets = super().get_fieldsets(request, obj)
+        if not getattr(settings, 'REGOS_SYNC_PRICES', False):
+            return fieldsets
+        note = (
+            'Цена товара, связанного с REGOS, обновляется, когда в REGOS меняют его цену или карточку. '
+            'Цену меняйте в REGOS. Товары со скидкой на сайте REGOS не трогает.'
+        )
+        return tuple(
+            (name, {**options, 'description': note}) if name == 'Цена и остаток' else (name, options)
+            for name, options in fieldsets
+        )
 
     def get_search_results(self, request, queryset, search_term):
         if not search_term.strip():

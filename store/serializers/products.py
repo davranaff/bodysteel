@@ -47,4 +47,5 @@ class ProductSerializer(SanitizedModelSerializer):
 
     class Meta:
         model = Product
-        fields = '__all__'
+        # regos_price is sync bookkeeping, not part of the storefront card.
+        exclude = ('regos_price',)
