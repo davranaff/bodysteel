@@ -1,11 +1,11 @@
 from django.contrib.auth import get_user_model
 from django.test import RequestFactory
-from django.test import TestCase
+from django.test import TestCase, override_settings
 from django.urls import reverse
 
 from store.admin_catalog import ProductAdmin
 from store.admin_site import bodysteel_admin_site
-from store.models import Order
+from store.models import Order, Product
 
 
 class AdminPanelRenderTests(TestCase):
@@ -90,6 +90,17 @@ class AdminPanelRenderTests(TestCase):
         self.assertNotIn('regos_item_id', readonly_fields)
         self.assertNotIn('regos_item_code', readonly_fields)
         self.assertNotIn('regos_item_articul', readonly_fields)
+
+    def test_price_block_says_regos_owns_prices_only_while_they_follow_regos(self):
+        request = RequestFactory().get('/admin/store/product/add/')
+        admin = ProductAdmin(Product, bodysteel_admin_site)
+
+        def price_block():
+            return dict(admin.get_fieldsets(request))['Цена и остаток']
+
+        self.assertNotIn('description', price_block())
+        with override_settings(REGOS_SYNC_PRICES=True):
+            self.assertIn('Цену меняйте в REGOS', price_block()['description'])
 
     def test_login_uses_body_steel_workspace(self):
         self.client.logout()

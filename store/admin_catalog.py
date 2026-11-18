@@ -1,3 +1,4 @@
+from django.conf import settings
 from django.contrib import admin
 from django.utils.html import format_html
 
@@ -48,6 +49,19 @@ class ProductAdmin(admin.ModelAdmin):
             ),
         }),
     )
+
+    def get_fieldsets(self, request, obj=None):
+        fieldsets = super().get_fieldsets(request, obj)
+        if not getattr(settings, 'REGOS_SYNC_PRICES', False):
+            return fieldsets
+        note = (
+            'Цена товара, связанного с REGOS, обновляется из REGOS раз в минуту. '
+            'Цену меняйте в REGOS. Товары со скидкой на сайте REGOS не трогает.'
+        )
+        return tuple(
+            (name, {**options, 'description': note}) if name == 'Цена и остаток' else (name, options)
+            for name, options in fieldsets
+        )
 
     def get_search_results(self, request, queryset, search_term):
         if not search_term.strip():

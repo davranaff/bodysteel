@@ -9,6 +9,7 @@ from django.db.models import Q
 from django.utils.text import slugify
 
 from integration.regos.config import RegosSyncError, clean, endpoint, normalise, timeout
+from integration.regos.prices import follow_price, parse_price, row_price
 from store.models import Product
 
 
@@ -34,10 +35,16 @@ class SyncResult:
     invalid: int = 0
     created: int = 0
     archived: int = 0
+    repriced: int = 0
 
 
 def sync_from_regos():
     """Read the full selected REGOS inventory and apply it transactionally."""
+    return apply_records(fetch_inventory(), source='REGOS API', follow_prices=True)
+
+
+def fetch_inventory():
+    """Every selected REGOS item as an InventoryRecord (None for an invalid row)."""
     api_endpoint = endpoint()
     api_timeout = timeout()
     offset = 0
@@ -73,7 +80,7 @@ def sync_from_regos():
         if not isinstance(next_offset, int) or next_offset <= offset or (isinstance(total, int) and next_offset >= total):
             break
         offset = next_offset
-    return apply_records(records, source='REGOS API')
+    return records
 
 
 def sync_item_from_regos(item_id, *, create_draft=False):
@@ -111,6 +118,7 @@ def sync_item_from_regos(item_id, *, create_draft=False):
         source='REGOS item event',
         create_drafts=create_draft,
         update_catalog=True,
+        follow_prices=True,
     )
 
 
@@ -157,7 +165,7 @@ def record_from_regos(value):
         articul=item.get('articul'),
         name=item.get('name'),
         quantity=quantity.get('allowed', quantity.get('common')),
-        price=_value(item, 'price', 'sale_price', 'salePrice') or _value(value, 'price', 'sale_price', 'salePrice'),
+        price=row_price(value, item),
     )
 
 
@@ -167,7 +175,7 @@ def records_from_to_server(params):
     return [_record_from_to_server(value) for value in entries]
 
 
-def apply_records(records, source, *, create_drafts=False, update_catalog=False):
+def apply_records(records, source, *, create_drafts=False, update_catalog=False, follow_prices=False):
     result = SyncResult()
     for record in records:
         result.received += 1
@@ -199,26 +207,22 @@ def apply_records(records, source, *, create_drafts=False, update_catalog=False)
             if product.quantity != record.quantity:
                 product.quantity = record.quantity
                 changed.extend(('quantity', 'updated_at'))
-            if update_catalog and product.regos_catalog_status in {
-                Product.REGOS_STATUS_DRAFT,
-                Product.REGOS_STATUS_PUBLISHED,
-            }:
-                if record.price is not None and product.price != record.price:
-                    product.price = record.price
-                    changed.append('price')
-                # Names for published cards are editorial content.  Drafts can
-                # safely follow REGOS until an administrator publishes them.
-                if product.regos_catalog_status == Product.REGOS_STATUS_DRAFT and record.name:
-                    has_name_collision = Product.objects.exclude(pk=product.pk).filter(
-                        Q(name_ru__iexact=record.name) | Q(name_uz__iexact=record.name)
-                    ).exists()
-                    if not has_name_collision:
-                        if product.name_ru != record.name:
-                            product.name_ru = record.name
-                            changed.append('name_ru')
-                        if product.name_uz != record.name:
-                            product.name_uz = record.name
-                            changed.append('name_uz')
+            if follow_prices and follow_price(product, record.price, item_event=update_catalog):
+                changed.append('price')
+                result.repriced += 1
+            # Names for published cards are editorial content.  Drafts can
+            # safely follow REGOS until an administrator publishes them.
+            if update_catalog and product.regos_catalog_status == Product.REGOS_STATUS_DRAFT and record.name:
+                has_name_collision = Product.objects.exclude(pk=product.pk).filter(
+                    Q(name_ru__iexact=record.name) | Q(name_uz__iexact=record.name)
+                ).exists()
+                if not has_name_collision:
+                    if product.name_ru != record.name:
+                        product.name_ru = record.name
+                        changed.append('name_ru')
+                    if product.name_uz != record.name:
+                        product.name_uz = record.name
+                        changed.append('name_uz')
             if changed:
                 if 'updated_at' not in changed:
                     changed.append('updated_at')
@@ -227,8 +231,9 @@ def apply_records(records, source, *, create_drafts=False, update_catalog=False)
             if linked:
                 result.linked += 1
     logger.info(
-        '%s inventory sync finished: received=%s updated=%s created=%s linked=%s unmatched=%s invalid=%s',
-        source, result.received, result.updated, result.created, result.linked, result.unmatched, result.invalid,
+        '%s inventory sync finished: received=%s updated=%s repriced=%s created=%s linked=%s unmatched=%s invalid=%s',
+        source, result.received, result.updated, result.repriced, result.created, result.linked,
+        result.unmatched, result.invalid,
     )
     return result
 
@@ -322,7 +327,7 @@ def _record(item_id, code, articul, name, quantity, price=None):
         articul=clean(articul, 255),
         name=clean(name, 500),
         quantity=int(parsed_quantity),
-        price=_price(price),
+        price=parse_price(price),
     )
 
 
@@ -332,18 +337,6 @@ def _code(value):
     if code.isascii() and code.isdecimal() and len(code) < 6:
         return code.zfill(6)
     return code
-
-
-def _price(value):
-    if value in (None, ''):
-        return None
-    try:
-        parsed = Decimal(str(value))
-        if parsed < 0 or parsed != parsed.to_integral_value():
-            return None
-        return int(parsed)
-    except (InvalidOperation, TypeError, ValueError):
-        return None
 
 
 def _find_entry_lists(value):

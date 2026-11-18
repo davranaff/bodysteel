@@ -283,6 +283,9 @@ REGOS_API_TIMEOUT_SECONDS = int(os.getenv('REGOS_API_TIMEOUT_SECONDS', '15'))
 REGOS_TO_SERVER_USERNAME = os.getenv('REGOS_TO_SERVER_USERNAME', '')
 REGOS_TO_SERVER_PASSWORD = os.getenv('REGOS_TO_SERVER_PASSWORD', '')
 REGOS_CONNECTED_INTEGRATION_ID = os.getenv('REGOS_CONNECTED_INTEGRATION_ID', '')
+# When on, every REGOS-linked card without a site discount takes the REGOS retail price
+# on each sync (integration/regos/prices.py). Off keeps prices as admins set them.
+REGOS_SYNC_PRICES = os.getenv('REGOS_SYNC_PRICES', '').strip().lower() in {'1', 'true', 'yes'}
 PAYMENT_WEBHOOK_SECRET = os.getenv('PAYMENT_WEBHOOK_SECRET', '')
 # Public map geocoding proxy (store/geocoding). Nominatim-compatible base URL;
 # point it at a self-hosted Nominatim to avoid the public instance's usage policy.
