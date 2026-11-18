@@ -24,7 +24,7 @@ class ProductAdmin(admin.ModelAdmin):
     prepopulated_fields = {'slug': ('name_ru',)}
     # These fields are populated on the first automatic sync, but admins must
     # be able to make a one-time explicit mapping when product names differ.
-    readonly_fields = ('view_count', 'updated_at')
+    readonly_fields = ('view_count', 'updated_at', 'regos_price')
     inlines = (ProductImageInline, Product360ImageInline)
     actions = ('mark_new', 'publish_regos_drafts')
     fieldsets = (
@@ -44,6 +44,7 @@ class ProductAdmin(admin.ModelAdmin):
             'fields': (
                 ('regos_item_id', 'regos_item_code'),
                 ('regos_item_articul', 'regos_catalog_status'),
+                'regos_price',
                 ('ikpu_code', 'package_code'),
                 ('view_count', 'updated_at'),
             ),
@@ -55,7 +56,7 @@ class ProductAdmin(admin.ModelAdmin):
         if not getattr(settings, 'REGOS_SYNC_PRICES', False):
             return fieldsets
         note = (
-            'Цена товара, связанного с REGOS, обновляется из REGOS раз в минуту. '
+            'Цена товара, связанного с REGOS, обновляется, когда в REGOS меняют его цену или карточку. '
             'Цену меняйте в REGOS. Товары со скидкой на сайте REGOS не трогает.'
         )
         return tuple(

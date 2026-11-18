@@ -207,6 +207,7 @@ def apply_records(records, source, *, create_drafts=False, update_catalog=False,
             if product.quantity != record.quantity:
                 product.quantity = record.quantity
                 changed.extend(('quantity', 'updated_at'))
+            remembered_price = product.regos_price
             if follow_prices and follow_price(product, record.price, item_event=update_catalog):
                 changed.append('price')
                 result.repriced += 1
@@ -223,11 +224,18 @@ def apply_records(records, source, *, create_drafts=False, update_catalog=False,
                     if product.name_uz != record.name:
                         product.name_uz = record.name
                         changed.append('name_uz')
+            price_seen = product.regos_price != remembered_price
             if changed:
+                if price_seen:
+                    changed.append('regos_price')
                 if 'updated_at' not in changed:
                     changed.append('updated_at')
                 product.save(update_fields=tuple(dict.fromkeys(changed)))
                 result.updated += 1
+            elif price_seen:
+                # Only the remembered REGOS price moved: shoppers see nothing new, so no
+                # save signal, webhook or updated_at bump.
+                Product.objects.filter(pk=product.pk).update(regos_price=product.regos_price)
             if linked:
                 result.linked += 1
     logger.info(
@@ -279,6 +287,7 @@ def _create_draft(record):
         name_ru=name,
         name_uz=name,
         price=record.price or 0,
+        regos_price=record.price,
         quantity=record.quantity,
         slug=_draft_slug(record.item_id, name),
         country_ru='REGOS',

@@ -30,9 +30,9 @@ class Command(BaseCommand):
         self.stdout.write('id\tsite\tregos\tqty\tnote\tname')
         for product, price, note in rows:
             self.stdout.write('{}\t{}\t{}\t{}\t{}\t{}'.format(
-                product.pk, product.price, price or 0, product.quantity, note or 'изменится', product.name_ru,
+                product.pk, product.price, price or 0, product.quantity, note or 'изменится при изменении в REGOS', product.name_ru,
             ))
         changing = sum(1 for _, _, note in rows if not note)
-        self.stdout.write('{} prices differ, {} would change; REGOS_SYNC_PRICES is {}'.format(
+        self.stdout.write('{} prices differ, {} follow REGOS on its next change; REGOS_SYNC_PRICES is {}'.format(
             len(rows), changing, 'on' if prices_follow_regos() else 'off',
         ))

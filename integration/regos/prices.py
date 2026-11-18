@@ -1,15 +1,18 @@
-"""Site prices follow the REGOS retail price.
+"""Site prices follow REGOS when REGOS changes, not on every sync.
 
 REGOS ``Item/GetExt`` returns each item's price for the integration's price type
-(``Розничная цена``, in sum). A card takes that price when:
+(``Розничная цена``, in sum). Every sync remembers it in ``Product.regos_price``.
+The first reading only remembers it, so the prices admins set stay as they are.
+A card takes the REGOS price later, when:
 
-- it is a REGOS draft or published card and the item itself was edited, as before;
-- or ``REGOS_SYNC_PRICES`` is on, for every linked card that is not archived.
+- the remembered REGOS price changes (a price document or a card edit in REGOS);
+- or REGOS reports the item as added or edited (``ItemAdded``/``ItemEdited``).
 
-A card with a site discount keeps its price: the discount is a fixed amount set by
-hand, and some of those sales are already inside the REGOS price, so copying it
-could give the buyer the same sale twice. A zero REGOS price means "no price" and
-never replaces a real one.
+That applies to REGOS draft and published cards always, and to every other linked
+card while ``REGOS_SYNC_PRICES`` is on. A card with a site discount keeps its price:
+the discount is a fixed amount set by hand, and some of those sales are already
+inside the REGOS price, so copying it could give the buyer the same sale twice.
+Archived cards keep theirs, and a zero REGOS price means "no price".
 """
 from decimal import Decimal, InvalidOperation
 import logging
@@ -29,15 +32,20 @@ def prices_follow_regos():
 
 
 def follow_price(product, price, *, item_event=False):
-    """Copy the REGOS price onto ``product`` when it should follow REGOS.
+    """Remember REGOS's price on ``product`` and copy it when it should follow REGOS.
 
-    Returns True when ``product.price`` changed; the caller saves the row.
+    Returns True when ``product.price`` changed; the caller saves the row, and
+    compares ``product.regos_price`` with its old value to store the reading.
     """
-    if not price or product.price == price:
+    if not price:
+        return False
+    previous, product.regos_price = product.regos_price, price
+    changed_in_regos = previous is not None and previous != price
+    if product.price == price or not (changed_in_regos or item_event):
         return False
     if product.discounted_price or product.regos_catalog_status == Product.REGOS_STATUS_ARCHIVED:
         return False
-    if not prices_follow_regos() and not (item_event and product.regos_catalog_status in _CATALOG_MANAGED):
+    if not prices_follow_regos() and product.regos_catalog_status not in _CATALOG_MANAGED:
         return False
     logger.info('REGOS price: product=%s %s -> %s', product.pk, product.price, price)
     product.price = price
@@ -71,10 +79,10 @@ def row_price(row, item):
 
 
 def price_preview(records):
-    """What the next sync would do to linked prices, without writing anything.
+    """Linked cards whose price differs from REGOS, without writing anything.
 
-    Returns ``(product, regos_price, note)`` rows for every linked card whose
-    price differs from REGOS; ``note`` is '' when the price would change.
+    Returns ``(product, regos_price, note)`` rows; ``note`` is '' for a card that
+    takes the REGOS price once REGOS changes that price or the item.
     """
     regos = {record.item_id: record.price for record in records if record and record.item_id}
     rows = []
