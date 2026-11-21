@@ -49,11 +49,12 @@ def format_course_notification(purchase):
     user = purchase.user
     buyer = ' · '.join(value for value in (user.get_full_name().strip() or user.username, user.phone or '') if value)
     return (
-        '✅ <b>ОПЛАЧЕН КУРС</b> · Multicard\n'
-        '<b>Курс:</b> {}\n'
-        '<b>Сумма:</b> {} {}\n'
-        '<b>Покупатель:</b> {}\n'
-        '<b>Покупка:</b> № {}'
+        '🎓 <b>Оплачен курс</b> · Multicard\n'
+        '\n'
+        '📚 <b>{}</b>\n'
+        '💰 <b>{} {}</b>\n'
+        '👤 {}\n'
+        '<i>Покупка № {}</i>'
     ).format(
         escape(purchase.course_title), f'{int(purchase.amount):,}'.replace(',', ' '),
         escape(purchase.currency), escape(buyer), purchase.pk,

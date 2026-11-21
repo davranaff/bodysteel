@@ -6,7 +6,7 @@ from django.test import TestCase
 from django.utils import timezone
 
 from teleg.models import Chat
-from teleg.utils.notify_message import format_order_notification, notify_message
+from teleg.utils.notify_message import format_order_notification, notify_message, order_buttons
 from teleg.widget_api import StaffWidgetError
 
 
@@ -28,14 +28,14 @@ class OrderNotificationFormatTests(TestCase):
 
         text = format_order_notification(order, baskets)
 
-        self.assertIn('🛒 <b>НОВЫЙ ЗАКАЗ</b>', text)
-        self.assertIn('<b>№ 0439278651</b>', text)
-        self.assertIn('Xakim &amp; Co', text)
+        self.assertIn('🛒 <b>Новый заказ № 0439278651</b>', text)
+        self.assertIn('💵 <b>Оплата при получении</b>', text)
+        self.assertIn('👤 <b>Xakim &amp; Co</b>', text)
         self.assertIn('📞 +998946833883\n', text)
         self.assertNotIn('<code>+998946833883</code>', text)
-        self.assertIn('Dymatize &lt;ISO100&gt;', text)
-        self.assertIn('2 шт. × 185 000 = 370 000 UZS', text)
-        self.assertIn('💰 <b>ИТОГО: 1 520 000 UZS</b>', text)
+        self.assertIn('<blockquote>1. <b>Dymatize &lt;ISO100&gt;</b>', text)
+        self.assertIn('2 шт. × 185 000 = 370 000 UZS</blockquote>', text)
+        self.assertIn('💰 <b>Итого: 1 520 000 UZS</b>', text)
         self.assertLessEqual(len(text), 3900)
 
     @patch('teleg.utils.notify_message.logger.exception')
@@ -58,13 +58,16 @@ class OrderNotificationFormatTests(TestCase):
 
         self.assertIn('📍 Zebiniso 13\n', text)
         self.assertIn('🏷 Ляби-Хауз &lt;центр&gt;\n', text)
-        self.assertIn('<a href="https://maps.google.com/?q=39.774723,64.419841">Открыть на карте</a>', text)
-        self.assertIn('<a href="https://yandex.uz/maps/?pt=64.419841,39.774723&amp;z=17&amp;l=map">', text)
+        buttons = order_buttons(order).to_dict()['inline_keyboard']
+        self.assertEqual(buttons[0][0]['url'], 'https://maps.google.com/?q=39.774723,64.419841')
+        self.assertEqual(buttons[0][1]['url'], 'https://yandex.uz/maps/?pt=64.419841,39.774723&z=17&l=map')
 
     def test_order_without_location_has_no_map_links(self):
         text = format_order_notification(self.order(), [self.basket('Product', 1, 100_000)])
 
-        self.assertNotIn('Открыть на карте', text)
+        buttons = order_buttons(self.order())
+        titles = [button['text'] for row in (buttons.to_dict()['inline_keyboard'] if buttons else []) for button in row]
+        self.assertFalse([title for title in titles if '🗺' in title])
         self.assertNotIn('🏷', text)
 
     @patch('teleg.utils.notify_message.bot.send_venue')
@@ -134,3 +137,24 @@ class OrderNotificationFormatTests(TestCase):
             quantity=quantity,
             price=price,
         )
+
+
+class StaffTextMessageTests(TestCase):
+    def test_report_text_quotes_products_with_names_in_bold(self):
+        from teleg.replies import report_text
+        text = report_text({'h': '📊 Продажи <день>', 't': [
+            '~20.11.2026 — 21.11.2026', '!Позиций: 1 · Сумма: 300 000 UZS', '-', 'Whey <Gold> · 2 шт. · 300 000 UZS',
+        ]})
+        self.assertTrue(text.startswith('<b>📊 Продажи &lt;день&gt;</b>\n<i>20.11.2026 — 21.11.2026</i>'))
+        self.assertIn('<blockquote><b>Whey &lt;Gold&gt;</b>\n2 шт. · 300 000 UZS</blockquote>', text)
+
+    def test_review_alert_escapes_customer_text_and_quotes_the_comment(self):
+        from teleg.utils.notify_review import format_review_notification
+        text = format_review_notification({
+            'id': 7, 'first_name': 'Ali', 'last_name': '<b>', 'phone': '+998901234567',
+            'comment': 'Отлично <script>', 'product': 'Whey & Co',
+        })
+        self.assertIn('💬 <b>Новый отзыв на модерации</b>', text)
+        self.assertIn('📦 <b>Whey &amp; Co</b>', text)
+        self.assertIn('👤 Ali &lt;b&gt; · +998901234567', text)
+        self.assertIn('<blockquote>Отлично &lt;script&gt;</blockquote>', text)

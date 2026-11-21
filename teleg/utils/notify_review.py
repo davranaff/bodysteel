@@ -1,6 +1,9 @@
 import logging
+from html import escape
 
-from teleg.cards import review_card_html
+from telebot import types
+
+from teleg.cards import admin_link, review_card_html
 from teleg.models import Chat as ChatModel
 from teleg.views import bot
 from teleg.widget_api import StaffWidgetError, send_widget
@@ -9,20 +12,13 @@ from telegram_widgets.rollout import widgets_enabled
 
 
 logger = logging.getLogger(__name__)
+COMMENT_LIMIT = 1500
 
 
 def notify_review(message):
     """Tell staff about a new review awaiting moderation; delivery is best-effort."""
-    text = (
-        f"Новый отзыв ожидает модерации.\n"
-        f"id этой комментарий: {message.get('id')} \n"
-        f"Никнейм: #{message.get('username')} \n"
-        f"Полное Имя: {message.get('first_name')} {message.get('last_name')} \n"
-        f"Телефон номер: {message.get('phone')} \n"
-        f"Комментарие: {message.get('comment')} \n"
-        f"Продукт: {message.get('product')} \n"
-        f"Опубликуйте или отклоните его в админке: Магазин → Отзывы."
-    )
+    text = format_review_notification(message)
+    buttons = _review_buttons()
     try:
         html = review_card_html(message)
     except WidgetTooLarge:
@@ -31,10 +27,34 @@ def notify_review(message):
         if html and widgets_enabled(chat.chat_id) and _send_card(chat.chat_id, html, message):
             continue
         try:
-            bot.send_message(chat.chat_id, text=text)
+            bot.send_message(chat.chat_id, text=text, parse_mode='HTML', reply_markup=buttons)
         except Exception:
             # A Telegram outage must not fail the customer's review submission.
             logger.exception('Telegram review notification failed', extra={'review_id': message.get('id')})
+
+
+def format_review_notification(message):
+    name = ' '.join(str(message.get(key) or '').strip() for key in ('first_name', 'last_name')).strip()
+    who = ' · '.join(escape(value) for value in (name, str(message.get('phone') or '').strip()) if value)
+    comment = ' '.join(str(message.get('comment') or '').split())[:COMMENT_LIMIT] or '—'
+    return '\n'.join((
+        '💬 <b>Новый отзыв на модерации</b>',
+        '<i>Отзыв № {}</i>'.format(escape(str(message.get('id') or '—'))),
+        '',
+        '📦 <b>{}</b>'.format(escape(str(message.get('product') or 'Товар'))),
+        '👤 {}'.format(who or '—'),
+        '<blockquote>{}</blockquote>'.format(escape(comment)),
+        'Опубликуйте или отклоните его в админке: Магазин → Отзывы.',
+    ))
+
+
+def _review_buttons():
+    admin = admin_link('store_review_changelist')
+    if not admin:
+        return None
+    markup = types.InlineKeyboardMarkup()
+    markup.row(types.InlineKeyboardButton('Открыть отзывы', url=admin))
+    return markup
 
 
 def _send_card(chat_id, html, message):

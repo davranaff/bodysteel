@@ -4,7 +4,7 @@ from django.db import transaction
 from django.utils import timezone
 
 from customer_telegram.bot_api import CustomerTelegramApi
-from customer_telegram.i18n import message
+from customer_telegram.i18n import help_text, message
 from customer_telegram.keyboards import (
     contact_keyboard,
     language_keyboard,
@@ -21,6 +21,7 @@ from customer_telegram.security import valid_telegram_id
 from customer_telegram.shop.messenger import WidgetMessenger
 from customer_telegram.shop.queries import handle_widget_query
 from customer_telegram.shop.routing import open_catalog, search_message, shop_message
+from telegram_widgets.rollout import widgets_enabled
 
 
 COMMAND = re.compile(r'^/([a-z]+)(?:@[A-Za-z0-9_]+)?(?:\s+(.+))?$')
@@ -97,11 +98,7 @@ def _start(sender_id, chat_id, start_parameter, payload, api):
     if not chat.language:
         api.send_message(chat_id, message('ru', 'choose_language'), language_keyboard())
         return 'language'
-    api.send_message(
-        chat_id,
-        '{}\n{}'.format(message(chat.language, 'welcome'), message(chat.language, 'help')),
-        main_menu(chat.language, chat_id),
-    )
+    api.send_message(chat_id, _welcome(chat.language, chat_id), main_menu(chat.language, chat_id))
     open_catalog(chat, api)
     return 'started'
 
@@ -146,7 +143,9 @@ def _command(chat, command, api):
         api.send_message(chat.chat_id, message(language, 'unlink_confirm'), unlink_keyboard(language))
         return 'unlink_confirm'
     if command == 'help':
-        api.send_message(chat.chat_id, message(language, 'help'), main_menu(language, chat.chat_id))
+        api.send_message(
+            chat.chat_id, help_text(language, widgets_enabled(chat.chat_id)), main_menu(language, chat.chat_id),
+        )
         return 'help'
     api.send_message(chat.chat_id, message(language, 'unknown'), main_menu(language, chat.chat_id))
     return 'unknown'
@@ -185,7 +184,7 @@ def _dispatch_callback(chat, data, api):
     if data.startswith('lang:'):
         chat.language = data[-2:]
         chat.save(update_fields=('language', 'updated_at'))
-        api.send_message(chat.chat_id, message(chat.language, 'welcome'), main_menu(chat.language, chat.chat_id))
+        api.send_message(chat.chat_id, _welcome(chat.language, chat.chat_id), main_menu(chat.language, chat.chat_id))
         open_catalog(chat, api)
         return 'language'
     if data.startswith('notify:'):
@@ -204,6 +203,10 @@ def _dispatch_callback(chat, data, api):
     detail = order_detail(chat, int(data.split(':')[1]))
     api.send_message(chat.chat_id, detail.text, detail.reply_markup)
     return 'order'
+
+
+def _welcome(language, chat_id):
+    return '{}\n\n{}'.format(message(language, 'welcome'), help_text(language, widgets_enabled(chat_id)))
 
 
 def _notifications(chat, api):

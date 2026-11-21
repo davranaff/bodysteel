@@ -18,7 +18,8 @@ class CustomerTelegramHandlerTests(TestCase):
         self.assertEqual(result, 'language')
         chat = CustomerTelegramChat.objects.get(chat_id=5001)
         self.assertEqual(chat.language, '')
-        self.assertEqual(api.messages[0][1], message('ru', 'choose_language'))
+        # Widgets are on here: the card caption is the message's bold first line.
+        self.assertEqual(api.messages[0][1], '🌐 Выберите язык · Tilni tanlang')
 
         result = handle_update(self.callback('lang:uz'), api)
         self.assertEqual(result, 'language')
@@ -88,7 +89,7 @@ class CustomerTelegramHandlerTests(TestCase):
         token = parse_qs(urlsplit(receipt.telegram_url).query)['start'][0]
         api = FakeTelegramApi()
         self.assertEqual(handle_update(self.message('/start {}'.format(token)), api), 'contact_requested')
-        self.assertEqual(api.messages[0][1], message('uz', 'request_contact'))
+        self.assertEqual(api.messages[0][1], '📱 Raqamingizni tasdiqlang')
 
     @staticmethod
     def message(text, language_code='ru'):

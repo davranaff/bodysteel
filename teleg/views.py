@@ -1,6 +1,7 @@
 import datetime
 import hmac
 import json
+from html import escape
 
 import telebot
 from django.conf import settings
@@ -14,12 +15,17 @@ from teleg.widget_queries import handle_staff_widget_query
 
 bot = telebot.TeleBot(settings.BOT_TOKEN)
 
-VERIFY_PROMPT = 'Для доступа к командам необходимо пройти верификацию. Введите ключевую фразу в формате key:phrase'
-HELP_TEXT = (
-    'Доступные команды:\n/day — статистика за последний день\n/week — за последнюю неделю\n'
-    '/month — за последний месяц\n/year — за последний год\n/filter — фильтр по датам\n'
-    'Новые заказы и отзывы приходят сюда сами.'
+VERIFY_PROMPT = (
+    '🔐 <b>Нужна верификация</b>\n'
+    'Отправьте ключ от администратора в формате <code>key:фраза</code>.'
 )
+HELP_TEXT = (
+    '📊 <b>Продажи</b>\n'
+    '/day — за последний день\n/week — за неделю\n/month — за месяц\n/year — за год\n'
+    '/filter — за выбранные даты\n\n'
+    '🔔 Новые заказы, оплаты и отзывы приходят сюда сами.'
+)
+GREETING = '👋 <b>BodySteel · бот сотрудников</b>\n'
 PERIOD_COMMANDS = {'day': 'd', 'week': 'w', 'month': 'm', 'year': 'y'}
 
 
@@ -51,7 +57,11 @@ def index(request):
 @bot.message_handler(commands=['filter'])
 @check_chat_registered
 def filter_by_dates(message: telebot.types.Message):
-    msg = bot.send_message(message.chat.id, 'Введите даты в формате "YYYY-MM-DD YYYY-MM-DD" для фильтрации.')
+    msg = bot.send_message(
+        message.chat.id,
+        '📅 <b>Отчёт за период</b>\nОтправьте две даты через пробел: <code>2026-11-01 2026-11-21</code>',
+        parse_mode='HTML',
+    )
     bot.register_next_step_handler(msg, process_date_filter)
 
 
@@ -65,10 +75,10 @@ def process_date_filter(message: telebot.types.Message):
         end_date = datetime.datetime.strptime(end_date_str, '%Y-%m-%d') + datetime.timedelta(
             days=1) - datetime.timedelta(seconds=1)
     except ValueError:
-        reply(bot, message.chat.id, 'Некорректный формат даты. Пожалуйста, используйте формат "YYYY-MM-DD YYYY-MM-DD".')
+        reply(bot, message.chat.id, 'Не понял даты. Отправьте их так: <code>2026-11-01 2026-11-21</code>, или /filter заново.')
         return
     if start_date > end_date:
-        reply(bot, message.chat.id, 'Начальная дата должна быть меньше или равна конечной дате.')
+        reply(bot, message.chat.id, 'Первая дата должна быть не позже второй. Отправьте /filter заново.')
         return
     start, end = timezone.make_aware(start_date), timezone.make_aware(end_date)
     title = 'с {} по {}'.format(start_date.date(), end_date.date())
@@ -78,9 +88,9 @@ def process_date_filter(message: telebot.types.Message):
 @bot.message_handler(commands=['start'])
 def start(message: telebot.types.Message):
     if ChatModel.objects.filter(chat_id=message.chat.id).exists():
-        text = 'Добро пожаловать! Вы верифицированы и имеете доступ ко всем командам.\n' + HELP_TEXT
+        text = GREETING + '\n' + HELP_TEXT
     else:
-        text = 'Добро пожаловать! ' + VERIFY_PROMPT
+        text = GREETING + '\n' + VERIFY_PROMPT
     reply(bot, message.chat.id, text, links=[['Открыть веб-приложение', 'https://t.me/test_teleg_app_bot/bodysteel']])
 
 
@@ -103,10 +113,10 @@ def echo_message(message: telebot.types.Message):
     if text.startswith('key:'):
         phrase = text.split(':', 1)[1].strip()
         if not SecretPhrase.objects.filter(phrase=phrase, expired_date__gte=timezone.now()).exists():
-            reply(bot, message.chat.id, 'Неверный ключ или срок его действия истек.')
+            reply(bot, message.chat.id, '❌ Ключ неверный или его срок истёк. Запросите новый у администратора.')
             return
         if ChatModel.objects.filter(chat_id=message.chat.id).exists():
-            reply(bot, message.chat.id, 'Вы уже верифицированы.\n' + HELP_TEXT)
+            reply(bot, message.chat.id, '✅ Вы уже верифицированы.\n\n' + HELP_TEXT)
             return
         ChatModel.objects.create(
             chat_id=message.chat.id,
@@ -114,8 +124,9 @@ def echo_message(message: telebot.types.Message):
             last_name=message.chat.last_name,
             username=message.chat.username,
         )
-        reply(bot, message.chat.id, '✅ Верификация успешна! Добро пожаловать, {}!\n{}'.format(
-            message.chat.first_name or '', HELP_TEXT))
+        name = escape(message.chat.first_name or '')
+        reply(bot, message.chat.id, '✅ <b>Готово{}!</b> Теперь заказы и отчёты приходят сюда.\n\n{}'.format(
+            ', ' + name if name else '', HELP_TEXT))
     elif not ChatModel.objects.filter(chat_id=message.chat.id).exists():
         reply(bot, message.chat.id, VERIFY_PROMPT)
 
