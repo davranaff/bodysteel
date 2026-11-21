@@ -41,5 +41,5 @@ def notify_customer_paid(order_id, api=None):
             card = send_card(chat.chat_id, client, {'h': order_caption(chat, state), 't': [text(language, 'paid')]},
                              order_caption(chat, state), language)
             if card.status is DeliveryStatus.FAILED:
-                client.send_message(chat.chat_id, '{}\n{}'.format(order_caption(chat, state), text(language, 'paid')))
+                client.send_message(chat.chat_id, '<b>{}</b>\n{}'.format(order_caption(chat, state), text(language, 'paid')))
     return len(notified)

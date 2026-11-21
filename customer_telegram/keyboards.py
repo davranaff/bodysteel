@@ -53,7 +53,7 @@ def unlink_keyboard(language):
 
 def orders_keyboard(language, page, has_previous, has_next, orders):
     rows = [[{
-        'text': '{} #{}'.format(message(language, 'details'), order_code),
+        'text': '📦 {} № {}'.format(message(language, 'details'), order_code),
         'callback_data': 'order:{}'.format(order_id),
     }] for order_id, order_code in orders]
     navigation = []

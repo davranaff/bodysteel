@@ -134,7 +134,7 @@ class CourseNotificationTests(TestCase):
             idempotency_digest='d' * 64,
         )
         text = format_course_notification(purchase)
-        self.assertIn('ОПЛАЧЕН КУРС', text)
+        self.assertIn('🎓 <b>Оплачен курс</b>', text)
         self.assertIn('Курс &lt;b&gt;X&lt;/b&gt;', text)
         self.assertIn('1 250 000 UZS', text)
         self.assertIn('Азиз Каримов · +998901110001', text)

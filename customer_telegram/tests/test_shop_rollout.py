@@ -2,7 +2,7 @@ from django.core.cache import cache
 from django.test import TestCase, override_settings
 
 from customer_telegram.bot_api import DeliveryStatus
-from customer_telegram.i18n import message
+from customer_telegram.i18n import help_text, message
 from customer_telegram.shop.checkout import _card
 from customer_telegram.tests.base import TELEGRAM_SETTINGS, FakeTelegramApi
 from customer_telegram.tests.shop_base import CHAT_ID, ShopFixtures
@@ -15,13 +15,15 @@ class WidgetsOffTests(ShopFixtures, TestCase):
         self.assertEqual(self.send('/help'), 'help')
         self.assertEqual(self.api.widgets, [])
         chat_id, text, markup, _ = self.api.messages[-1]
-        self.assertEqual(text, message('ru', 'help'))
+        self.assertEqual(text, help_text('ru'))
+        self.assertIn(message('ru', 'menu_store'), text)
         self.assertIn([{'text': message('ru', 'menu_language')}, {'text': message('ru', 'menu_store')}], markup['keyboard'])
 
-    def test_store_button_links_to_the_site_and_text_is_not_a_search(self):
+    def test_store_button_links_to_the_site_and_short_text_is_not_a_search(self):
         self.assertEqual(self.send(message('ru', 'menu_store')), 'store')
+        self.assertEqual(self.api.messages[-1][1], message('ru', 'store_card'))
         self.assertEqual(self.api.messages[-1][2]['inline_keyboard'][0][0]['url'], 'https://bodysteel.uz')
-        self.assertEqual(self.send('креатин'), 'unknown')
+        self.assertEqual(self.send('x'), 'unknown')
         self.assertEqual(self.api.widgets, [])
 
 
@@ -86,3 +88,26 @@ class WidgetsRefusedByTelegramTests(ShopFixtures, TestCase):
         keyboard = {'keyboard': [[{'text': 'x', 'request_contact': True}]]}
         _card(self.chat, self.api, 'Шаг 1 из 3', keyboard)
         self.assertEqual(self.api.messages[-1][:3], (CHAT_ID, 'Шаг 1 из 3', keyboard))
+
+
+@override_settings(**{**TELEGRAM_SETTINGS, 'TELEGRAM_WIDGETS_ROLLOUT': ''})
+class PlainSearchTests(ShopFixtures, TestCase):
+    """Without widgets a product name gets a text answer with prices and links."""
+
+    def test_a_product_name_lists_matches_with_price_stock_and_links(self):
+        self.assertEqual(self.send('креатин'), 'search')
+        _, body, markup, _ = self.api.messages[-1]
+        self.assertTrue(body.startswith('🔎 <b>Нашёл по запросу «креатин»</b>'))
+        self.assertIn('href="https://bodysteel.uz/product/', body)
+        self.assertIn(' сум</b>', body)
+        self.assertEqual(
+            markup['inline_keyboard'][0][0]['url'],
+            'https://bodysteel.uz/search/%D0%BA%D1%80%D0%B5%D0%B0%D1%82%D0%B8%D0%BD',
+        )
+        self.assertEqual(self.api.widgets, [])
+
+    def test_nothing_found_says_so_and_offers_the_site(self):
+        self.assertEqual(self.send('zzqqxx'), 'search')
+        _, body, markup, _ = self.api.messages[-1]
+        self.assertIn('ничего не нашлось', body)
+        self.assertEqual(markup['inline_keyboard'][0][0]['url'], 'https://bodysteel.uz')

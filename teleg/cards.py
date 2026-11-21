@@ -43,7 +43,7 @@ def review_card_html(review):
         '~Опубликуйте или отклоните отзыв в админке: Магазин → Отзывы.',
     ]
     state = {'h': '💬 Новый отзыв на модерации', 't': lines}
-    admin = _admin_url('store_review_changelist')
+    admin = admin_link('store_review_changelist')
     if admin:
         state['u'] = [['Открыть отзывы', admin]]
     return render('card', LABELS, state)
@@ -86,14 +86,15 @@ def _order_card(order, baskets, coupon, paid, cash_on_delivery, shown):
              'c': [['📞 Скопировать телефон', order.phone]] if order.phone else []}
     links = order_map_links(order)
     urls = [['🗺 Google Maps', links.google], ['🗺 Яндекс Карты', links.yandex]] if links else []
-    admin = _admin_url('store_order_change', order.pk)
+    admin = admin_link('store_order_change', order.pk)
     if admin:
         urls.append(['Открыть в админке', admin])
     state['u'] = [[title, url] for title, url in urls if url and len(url) <= 256]
     return state
 
 
-def _admin_url(name, *args):
+def admin_link(name, *args):
+    """An absolute admin URL for a button, or '' when the public origin is not configured."""
     origin = (getattr(settings, 'CUSTOMER_TELEGRAM_PUBLIC_ORIGIN', '') or '').rstrip('/')
     if not origin.startswith('https://'):
         return ''

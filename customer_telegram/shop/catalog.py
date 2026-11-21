@@ -34,11 +34,16 @@ def category_screen(chat, category_id, page):
     return _list_screen(chat, _name(category, chat.language), 'c:{}'.format(category.pk), products, page)
 
 
-def search_screen(chat, query, page):
+def search_products(query, limit=SEARCH_LIMIT):
+    """Visible products for ``query``, best match first."""
     visible = Product.objects.visible_on_storefront()
-    ids = smart_product_ids(visible, query)[:SEARCH_LIMIT] if query else []
+    ids = smart_product_ids(visible, query)[:limit] if query else []
     order = Case(*[When(pk=pk, then=Value(index)) for index, pk in enumerate(ids)], output_field=IntegerField())
-    products = visible.filter(pk__in=ids).order_by(order) if ids else visible.none()
+    return visible.filter(pk__in=ids).order_by(order) if ids else visible.none()
+
+
+def search_screen(chat, query, page):
+    products = search_products(query)
     title = text(chat.language, 'search').format(clip(query, 40))
     return _list_screen(chat, title, 's', products, page)
 

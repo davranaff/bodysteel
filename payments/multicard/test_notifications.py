@@ -7,7 +7,7 @@ from payments.models import Payment
 from payments.multicard.fixtures import MULTICARD_SETTINGS, make_order
 from payments.multicard.test_callbacks import CALLBACK_URL, callback_body
 from store.models import Product
-from teleg.utils.notify_message import CASH_LINE, PAID_LINE, format_order_notification
+from teleg.utils.notify_message import CASH_LINE, PAID_LINE, PENDING_LINE, format_order_notification
 
 
 ORDER_BODY = {
@@ -112,4 +112,6 @@ class PaidOrderNotificationTests(TestCase):
     def test_cash_alert_is_marked_in_the_message(self):
         baskets = list(self.order.baskets.select_related('product'))
         self.assertIn(CASH_LINE, format_order_notification(self.order, baskets, cash_on_delivery=True))
+        self.order.payment_status = 'pending'
         self.assertNotIn(CASH_LINE, format_order_notification(self.order, baskets))
+        self.assertIn(PENDING_LINE, format_order_notification(self.order, baskets))

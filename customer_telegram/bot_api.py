@@ -46,7 +46,11 @@ class CustomerTelegramApi:
         )
 
     def send_message(self, chat_id, text, reply_markup=None, parse_mode='HTML'):
-        payload = {'chat_id': chat_id, 'text': text, 'parse_mode': parse_mode}
+        # Lists carry several links; a preview card of the first one would only add noise.
+        payload = {
+            'chat_id': chat_id, 'text': text, 'parse_mode': parse_mode,
+            'link_preview_options': {'is_disabled': True},
+        }
         if reply_markup:
             payload['reply_markup'] = reply_markup
         result, data = self._call('sendMessage', payload)

@@ -7,6 +7,7 @@ from customer_telegram.shop.cart_screens import cart_screen
 from customer_telegram.shop.catalog import home_screen, search_screen
 from customer_telegram.shop.sender import REFUSED, send_storefront
 from customer_telegram.shop.site_link import use_site
+from customer_telegram.shop.text_search import text_search
 from telegram_widgets.rollout import widgets_enabled
 
 
@@ -35,11 +36,11 @@ def shop_message(chat, payload, message_text, api):
 
 
 def search_message(chat, message_text, api):
-    if not widgets_enabled(chat.chat_id):
-        return None
     query = ' '.join(message_text.split())[:MAXIMUM_SEARCH]
     if len(query) < MINIMUM_SEARCH or query.startswith('/'):
         return None
+    if not widgets_enabled(chat.chat_id):
+        return text_search(chat, query, api)
     state = search_screen(chat, query, 0)
     if send_storefront(chat, api, state, screen='s:0', search_query=query) is REFUSED:
         return use_site(chat, api)
@@ -63,5 +64,5 @@ def _previous_store_button(chat, message_text, api):
     language = chat.language or 'ru'
     if message_text not in {message(language, key) for key in ('menu_store', 'menu_catalog', 'menu_cart')}:
         return None
-    api.send_message(chat.chat_id, message(language, 'open_store'), store_keyboard(language))
+    api.send_message(chat.chat_id, message(language, 'store_card'), store_keyboard(language))
     return 'store'

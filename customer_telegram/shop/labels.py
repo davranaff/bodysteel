@@ -70,7 +70,7 @@ TEXT = {
         'unavailable_other': 'проверьте корзину',
         'card_below': 'Карточка товара — ниже ↓', 'cart_below': 'Корзина — ниже ↓',
         'no_orders': 'Заказов пока нет. Выберите товары в каталоге.',
-        'use_site': 'Витрина в Telegram сейчас недоступна. Каталог, корзина и оформление заказа есть на сайте: {}',
+        'use_site': '🛍 <b>Каталог BodySteel</b>\nВитрина в Telegram сейчас недоступна. Каталог, корзина и оформление заказа — <a href="{0}">на сайте</a>.\n\n🔎 Или напишите сюда название товара — пришлю, что есть в наличии.',
     },
     'uz': {
         'added': 'Savatga qo‘shildi ✓', 'limit': 'Ko‘proq qo‘shib bo‘lmaydi: omborda shuncha bor.',
@@ -95,7 +95,7 @@ TEXT = {
         'unavailable_other': 'savatni tekshiring',
         'card_below': 'Mahsulot kartochkasi — pastda ↓', 'cart_below': 'Savat — pastda ↓',
         'no_orders': 'Hozircha buyurtmalar yo‘q. Katalogdan mahsulot tanlang.',
-        'use_site': 'Telegramdagi vitrina hozir ishlamayapti. Katalog, savat va buyurtma berish saytda: {}',
+        'use_site': '🛍 <b>BodySteel katalogi</b>\nTelegramdagi vitrina hozir ishlamayapti. Katalog, savat va buyurtma berish — <a href="{0}">saytda</a>.\n\n🔎 Yoki mahsulot nomini shu yerga yozing — mavjudlarini yuboraman.',
     },
 }
 

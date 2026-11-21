@@ -11,6 +11,13 @@ from store.models import Order
 
 # Four orders keep the card under a widget's 600 px height.
 PAGE_SIZE = 4
+# Telegram allows 4096 characters; long orders end with "and N more".
+DETAIL_LIMIT = 3600
+PAYMENT_ICONS = {'unpaid': '💵', 'pending': '⏳', 'paid': '💳', 'failed': '⚠️', 'refunded': '↩️'}
+FULFILLMENT_ICONS = {
+    'new': '🆕', 'confirmed': '✔️', 'preparing': '📦', 'ready': '🏬',
+    'delivering': '🚚', 'delivered': '✅', 'cancelled': '✖️',
+}
 
 
 @dataclass(frozen=True)
@@ -46,13 +53,9 @@ def orders_page(chat, page):
         created = timezone.localtime(order.created_at).strftime('%d.%m.%Y')
         lines.extend((
             '',
-            '<b>#{} · {}</b>'.format(escape(order.order_code), created),
-            '{}: {} UZS'.format(message(language, 'order_total'), _money(order.total_price)),
-            '{}: {}'.format(message(language, 'order_payment'), _status(language, 'payment', order.payment_status)),
-            '{}: {}'.format(
-                message(language, 'order_fulfillment'),
-                _status(language, 'fulfillment', order.fulfillment_status),
-            ),
+            '<b>№ {}</b> · {}'.format(escape(order.order_code), created),
+            '{} · {}'.format(_fulfillment(language, order), _status(language, 'payment', order.payment_status)),
+            '<b>{}</b>'.format(_sum(language, order.total_price)),
         ))
     keyboard = orders_keyboard(
         language, page, page > 0, has_next,
@@ -71,32 +74,47 @@ def order_detail(chat, order_id):
     if not order:
         return OrdersMessage(message(language, 'callback_denied'))
     created = timezone.localtime(order.created_at).strftime('%d.%m.%Y · %H:%M')
-    lines = [
-        '📦 <b>{} #{}</b>'.format(message(language, 'order'), escape(order.order_code)),
-        created,
-        '{}: {} UZS'.format(message(language, 'order_total'), _money(order.total_price)),
-        '{}: {}'.format(message(language, 'order_payment'), _status(language, 'payment', order.payment_status)),
-        '{}: {}'.format(
-            message(language, 'order_fulfillment'),
-            _status(language, 'fulfillment', order.fulfillment_status),
-        ),
-        '{}: {}'.format(message(language, 'order_delivery'), _delivery(language, order.type)),
+    head = '\n'.join((
+        '📦 <b>{} № {}</b>'.format(message(language, 'order'), escape(order.order_code)),
+        '<i>{}</i>'.format(created),
+        '',
+        _fulfillment(language, order),
+        '{} {}'.format(PAYMENT_ICONS.get(order.payment_status, '•'), _status(language, 'payment', order.payment_status)),
+        '📍 {}'.format(_delivery(language, order.type)),
         '',
         '<b>{}</b>'.format(message(language, 'order_items')),
-    ]
-    for index, basket in enumerate(order.baskets.all(), start=1):
-        name = _product_name(basket, language)
-        quantity = int(basket.quantity)
-        line_total = int(basket.price)
-        unit_price = int(basket.unit_price) if int(basket.unit_price) > 0 else (
-            line_total // quantity if quantity else line_total
-        )
-        lines.extend((
-            '',
-            '{}. <b>{}</b>'.format(index, escape(name)),
-            '{} × {} = {} UZS'.format(quantity, _money(unit_price), _money(line_total)),
-        ))
-    return OrdersMessage('\n'.join(lines))
+    ))
+    total = '<b>{}: {}</b>'.format(message(language, 'order_total'), _sum(language, order.total_price))
+    baskets = list(order.baskets.all())
+    items = []
+    for index, basket in enumerate(baskets, start=1):
+        block = _item(index, basket, language)
+        if len(head) + len(total) + sum(len(item) + 2 for item in items) + len(block) > DETAIL_LIMIT:
+            items.append('… +{}'.format(len(baskets) - index + 1))
+            break
+        items.append(block)
+    quote = '<blockquote>{}</blockquote>'.format('\n\n'.join(items)) if items else ''
+    return OrdersMessage('\n'.join(part for part in (head, quote, total) if part))
+
+
+def _item(index, basket, language):
+    quantity = int(basket.quantity)
+    line_total = int(basket.price)
+    unit_price = int(basket.unit_price) if int(basket.unit_price) > 0 else (
+        line_total // quantity if quantity else line_total
+    )
+    return '{}. <b>{}</b>\n{} × {} = {}'.format(
+        index, escape(_product_name(basket, language)), quantity, _money(unit_price), _sum(language, line_total),
+    )
+
+
+def _fulfillment(language, order):
+    icon = FULFILLMENT_ICONS.get(order.fulfillment_status, '•')
+    return '{} {}'.format(icon, _status(language, 'fulfillment', order.fulfillment_status))
+
+
+def _sum(language, value):
+    return '{} {}'.format(_money(value), message(language, 'currency'))
 
 
 def _product_name(basket, language):
