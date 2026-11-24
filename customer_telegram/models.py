@@ -41,6 +41,10 @@ class CustomerTelegramChat(models.Model):
         blank=True,
         verbose_name='Следующую рассылку можно отправить после',
     )
+    # Topics in the private chat (CUSTOMER_TELEGRAM_TOPICS): Telegram's message_thread_id of each.
+    shop_topic_id = models.PositiveIntegerField(null=True, blank=True, editable=False, verbose_name='Тема «Магазин»')
+    orders_topic_id = models.PositiveIntegerField(null=True, blank=True, editable=False, verbose_name='Тема «Заказы»')
+    promo_topic_id = models.PositiveIntegerField(null=True, blank=True, editable=False, verbose_name='Тема «Акции»')
     created_at = models.DateTimeField(auto_now_add=True, verbose_name='Дата создания')
     updated_at = models.DateTimeField(auto_now=True, verbose_name='Дата обновления')
 

@@ -105,6 +105,18 @@ class CustomerTelegramApi:
             'chat_id': chat_id, 'message_id': message_id, 'caption': caption, 'parse_mode': 'HTML',
         })[0]
 
+    def create_forum_topic(self, chat_id, name, icon_color):
+        """A topic in the private chat; its thread id, or None when Telegram refuses."""
+        result, data = self._call('createForumTopic', {'chat_id': chat_id, 'name': name[:128], 'icon_color': icon_color})
+        thread = data.get('result', {}).get('message_thread_id') if result.status is DeliveryStatus.SENT else None
+        return thread if isinstance(thread, int) and thread > 0 else None
+
+    def edit_forum_topic(self, chat_id, thread_id, name):
+        return self._call('editForumTopic', {'chat_id': chat_id, 'message_thread_id': thread_id, 'name': name[:128]})[0]
+
+    def set_my_settings(self, **settings):
+        return self._call('setMySettings', settings)[0]
+
     def set_webhook(self):
         configuration = require_configuration()
         return self._call('setWebhook', {
@@ -136,6 +148,22 @@ class CustomerTelegramApi:
         )
 
     def _call(self, method, payload):
+        # Imported here: topics reads the chat model, which imports this module's callers.
+        from customer_telegram.topics import forget_thread, reply_thread
+        thread = reply_thread(payload.get('chat_id')) if method.startswith('send') else None
+        if thread and 'message_thread_id' not in payload:
+            result, data = self._post(method, {**payload, 'message_thread_id': thread})
+            if result.status is not DeliveryStatus.FAILED:
+                return result, data
+            # Telegram words a missing topic in prose, without a code: retry in the plain chat, and
+            # when that works the topic was the problem, so it is created again next time.
+            plain = self._post(method, payload)
+            if plain[0].status is DeliveryStatus.SENT:
+                forget_thread(payload.get('chat_id'), thread)
+            return plain
+        return self._post(method, payload)
+
+    def _post(self, method, payload):
         url = '{}/bot{}/{}'.format(API_ORIGIN, self._token, method)
         try:
             with self._client.stream('POST', url, json=payload) as response:

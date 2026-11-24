@@ -6,12 +6,7 @@ from django.utils import timezone
 from customer_telegram.bot_api import CustomerTelegramApi
 from customer_telegram.i18n import help_text, message
 from customer_telegram.keyboards import (
-    contact_keyboard,
-    language_keyboard,
-    main_menu,
-    notification_keyboard,
-    remove_keyboard,
-    unlink_keyboard,
+    contact_keyboard, language_keyboard, main_menu, notification_keyboard, remove_keyboard, unlink_keyboard,
 )
 from customer_telegram.links import get_or_create_chat, open_link, unlink_chat
 from customer_telegram.models import CustomerTelegramChat, CustomerTelegramLink
@@ -21,6 +16,7 @@ from customer_telegram.security import valid_telegram_id
 from customer_telegram.shop.messenger import WidgetMessenger
 from customer_telegram.shop.queries import handle_widget_query
 from customer_telegram.shop.routing import open_catalog, search_message, shop_message
+from customer_telegram.topics import ensure_topics, rename_topics, replying_to
 from telegram_widgets.rollout import widgets_enabled
 
 
@@ -31,9 +27,11 @@ CALLBACK = re.compile(r'^(lang:(?:ru|uz)|notify:(?:on|off)|unlink:(?:yes|no)|ord
 def handle_update(update, api=None):
     client = WidgetMessenger(api or CustomerTelegramApi())
     if 'message' in update:
-        return _handle_message(update['message'], client)
+        with replying_to(update['message']):
+            return _handle_message(update['message'], client)
     if 'callback_query' in update:
-        return _handle_callback(update['callback_query'], client)
+        with replying_to(update['callback_query']):
+            return _handle_callback(update['callback_query'], client)
     if 'widget_query' in update:
         return handle_widget_query(update['widget_query'], client, lambda chat, data: _card_tap(chat, data, client))
     return 'ignored'
@@ -98,6 +96,7 @@ def _start(sender_id, chat_id, start_parameter, payload, api):
     if not chat.language:
         api.send_message(chat_id, message('ru', 'choose_language'), language_keyboard())
         return 'language'
+    ensure_topics(chat, api)
     api.send_message(chat_id, _welcome(chat.language, chat_id), main_menu(chat.language, chat_id))
     open_catalog(chat, api)
     return 'started'
@@ -184,6 +183,8 @@ def _dispatch_callback(chat, data, api):
     if data.startswith('lang:'):
         chat.language = data[-2:]
         chat.save(update_fields=('language', 'updated_at'))
+        rename_topics(chat, api)
+        ensure_topics(chat, api)
         api.send_message(chat.chat_id, _welcome(chat.language, chat.chat_id), main_menu(chat.language, chat.chat_id))
         open_catalog(chat, api)
         return 'language'
