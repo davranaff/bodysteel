@@ -205,6 +205,12 @@ DEFAULT_FROM_EMAIL = os.getenv('DEFAULT_FROM_EMAIL', 'no-reply@bodysteel.uz')
 BOT_TOKEN = os.getenv('BOT_TOKEN', '')
 # Optional: when set, the staff webhook accepts only Telegram calls carrying it.
 STAFF_TELEGRAM_WEBHOOK_SECRET = os.getenv('STAFF_TELEGRAM_WEBHOOK_SECRET', '').strip()
+# Order alerts as rich messages (a table of items); off sends the plain HTML message.
+STAFF_TELEGRAM_RICH_ORDERS = os.getenv('STAFF_TELEGRAM_RICH_ORDERS', 'true').strip().lower() in {'1', 'true', 'yes'}
+# Optional: Telegram user ids of the staff bot owner; an invite from anyone else is ignored.
+STAFF_TELEGRAM_OWNER_IDS = frozenset(
+    int(value) for value in os.getenv('STAFF_TELEGRAM_OWNER_IDS', '').replace(' ', '').split(',') if value.isdigit()
+)
 # Bot API widgets for both bots: '' (off, plain messages), 'all', or chat ids '111,222' for a trial.
 TELEGRAM_WIDGETS_ROLLOUT = os.getenv('TELEGRAM_WIDGETS_ROLLOUT', '').strip()
 TELEGRAM_API_URL = f'https://api.telegram.org/bot{BOT_TOKEN}'
@@ -216,6 +222,8 @@ CUSTOMER_TELEGRAM_ENABLED = os.getenv(
 CUSTOMER_TELEGRAM_CAMPAIGNS_ENABLED = os.getenv(
     'CUSTOMER_TELEGRAM_CAMPAIGNS_ENABLED', '',
 ).strip().lower() in {'1', 'true', 'yes'}
+# Topics in private chats with the customer bot; switch the bot itself with `customer_telegram_topics --on`.
+CUSTOMER_TELEGRAM_TOPICS = os.getenv('CUSTOMER_TELEGRAM_TOPICS', '').strip().lower() in {'1', 'true', 'yes'}
 CUSTOMER_TELEGRAM_BOT_TOKEN = os.getenv('CUSTOMER_TELEGRAM_BOT_TOKEN', '')
 CUSTOMER_TELEGRAM_BOT_USERNAME = os.getenv('CUSTOMER_TELEGRAM_BOT_USERNAME', '')
 CUSTOMER_TELEGRAM_WEBHOOK_SECRET = os.getenv('CUSTOMER_TELEGRAM_WEBHOOK_SECRET', '')

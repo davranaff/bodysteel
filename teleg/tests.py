@@ -17,6 +17,9 @@ class OrderNotificationFormatTests(TestCase):
         patcher = patch('teleg.utils.notify_message.send_widget', side_effect=StaffWidgetError('refused'))
         self.send_widget = patcher.start()
         self.addCleanup(patcher.stop)
+        rich = patch('teleg.utils.notify_message.send_rich_order', return_value=None)
+        rich.start()
+        self.addCleanup(rich.stop)
 
     def test_formats_readable_html_and_escapes_customer_content(self):
         order = self.order()

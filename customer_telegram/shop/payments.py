@@ -11,6 +11,7 @@ from customer_telegram.models import CustomerTelegramWidget
 from customer_telegram.shop.labels import text
 from customer_telegram.shop.order_screens import PAID, order_caption, order_state
 from customer_telegram.shop.sender import send_card, update_state
+from customer_telegram.topics import ORDERS, replying_in, topic_thread
 
 
 logger = logging.getLogger(__name__)
@@ -38,8 +39,10 @@ def notify_customer_paid(order_id, api=None):
         client.edit_caption(chat.chat_id, widget.message_id, order_caption(chat, state))
         if chat.pk not in notified:
             notified.add(chat.pk)
-            card = send_card(chat.chat_id, client, {'h': order_caption(chat, state), 't': [text(language, 'paid')]},
-                             order_caption(chat, state), language)
-            if card.status is DeliveryStatus.FAILED:
-                client.send_message(chat.chat_id, '<b>{}</b>\n{}'.format(order_caption(chat, state), text(language, 'paid')))
+            # The confirmation goes to the shopper's orders topic, when topics are on.
+            with replying_in(chat.chat_id, topic_thread(chat, ORDERS, client)):
+                card = send_card(chat.chat_id, client, {'h': order_caption(chat, state), 't': [text(language, 'paid')]},
+                                 order_caption(chat, state), language)
+                if card.status is DeliveryStatus.FAILED:
+                    client.send_message(chat.chat_id, '<b>{}</b>\n{}'.format(order_caption(chat, state), text(language, 'paid')))
     return len(notified)

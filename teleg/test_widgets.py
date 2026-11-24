@@ -13,6 +13,7 @@ from teleg.cards import order_card_html
 from teleg.models import Chat
 from teleg.stats import period_state
 from teleg.utils.notify_message import notify_message
+from teleg.utils.order_rich import PAUSE_KEY as RICH_PAUSE_KEY
 from teleg.widget_api import StaffWidgetError, send_widget
 from teleg.widget_queries import handle_staff_widget_query
 from telegram_widgets.html import MAXIMUM_COMPRESSED_BYTES, compressed_size
@@ -134,6 +135,8 @@ class StaffWidgetRefusalTests(TestCase):
     def setUp(self):
         cache.delete(PAUSE_KEY)
         self.addCleanup(cache.delete, PAUSE_KEY)
+        cache.delete(RICH_PAUSE_KEY)
+        self.addCleanup(cache.delete, RICH_PAUSE_KEY)
 
     def test_refusal_keeps_only_the_code_and_pauses_widgets(self):
         transport, calls = refusing_transport()
@@ -152,7 +155,8 @@ class StaffWidgetRefusalTests(TestCase):
                 patch('teleg.utils.notify_message.bot.send_message') as send_message, \
                 self.assertLogs('teleg.utils.notify_message', 'WARNING') as logs:
             notify_message(order(address_latitude=None, address_longitude=None), [basket('Креатин', 1, 150_000)])
-        self.assertEqual(calls, ['sendWidget'])
+        # One refused widget and one refused rich message pause both: the second chat gets text at once.
+        self.assertEqual(calls, ['sendWidget', 'sendRichMessage'])
         self.assertEqual([call.args[0] for call in send_message.call_args_list], ['1001', '1002'])
         self.assertIn('INPUT_MEDIA_WIDGET_NOT_ALLOWED', logs.output[0])
         self.assertNotIn('Xakberdiyev', ''.join(logs.output))

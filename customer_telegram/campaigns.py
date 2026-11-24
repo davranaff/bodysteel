@@ -15,6 +15,7 @@ from customer_telegram.models import (
     CustomerTelegramCampaignRecipient,
     CustomerTelegramChat,
 )
+from customer_telegram.topics import PROMO, replying_in, topic_thread
 
 
 RETRY_DELAYS = (60, 300, 1_800, 7_200, 21_600)
@@ -111,11 +112,9 @@ def send_test_campaign(campaign, chat, api=None):
         return False
     language = chat.language if chat.language in {'ru', 'uz'} else 'ru'
     recipient = _recipient(campaign, chat, language, timezone.now())
-    result = (api or CustomerTelegramApi()).send_message(
-        chat.chat_id,
-        _message_text(recipient),
-        _button_markup(recipient),
-    )
+    client = api or CustomerTelegramApi()
+    with replying_in(chat.chat_id, topic_thread(chat, PROMO, client)):
+        result = client.send_message(chat.chat_id, _message_text(recipient), _button_markup(recipient))
     return result.status is DeliveryStatus.SENT
 
 
@@ -157,7 +156,9 @@ def _deliver_recipient(recipient, api, now):
     if slot.status == 'wait':
         _retry(recipient, slot.retry_at, 'chat_throttled')
         return 'retried'
-    result = api.send_message(chat.chat_id, _message_text(recipient), _button_markup(recipient))
+    # Promotions get their own topic, so they never bury the shopper's orders.
+    with replying_in(chat.chat_id, topic_thread(chat, PROMO, api)):
+        result = api.send_message(chat.chat_id, _message_text(recipient), _button_markup(recipient))
     if result.status is DeliveryStatus.SENT:
         _finish(recipient, CustomerTelegramCampaignRecipient.DELIVERED, now, '', result.message_id)
         return 'delivered'

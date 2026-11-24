@@ -8,6 +8,7 @@ from store.geocoding.map_links import order_map_links
 from store.models import Order
 from teleg.cards import admin_link, order_card_html
 from teleg.models import Chat as ChatModel
+from teleg.utils.order_rich import rich_order_html, send_rich_order
 from teleg.views import bot
 from teleg.widget_api import StaffWidgetError, send_widget
 from telegram_widgets.html import WidgetTooLarge
@@ -27,6 +28,11 @@ def notify_message(order, baskets, coupon=None, paid=False, cash_on_delivery=Fal
     text = format_order_notification(order, baskets, coupon, paid=paid, cash_on_delivery=cash_on_delivery)
     buttons = order_buttons(order)
     widget = _order_widget(order, baskets, coupon, paid, cash_on_delivery)
+    rich = rich_order_html(
+        header_lines(order, paid, cash_on_delivery),
+        [(name, quantity, total) for name, quantity, _unit, total in map(basket_values, baskets)],
+        footer_lines(order, coupon),
+    )
     chat_ids = ChatModel.objects.values_list('chat_id', flat=True).distinct()
     delivered = 0
     failed = 0
@@ -34,6 +40,11 @@ def notify_message(order, baskets, coupon=None, paid=False, cash_on_delivery=Fal
     for recipient_number, chat_id in enumerate(chat_ids, start=1):
         if widget and widgets_enabled(chat_id) and _send_widget(chat_id, widget, order, recipient_number):
             delivered += 1
+            continue
+        message_id = send_rich_order(chat_id, rich, buttons, order.pk, recipient_number)
+        if message_id:
+            delivered += 1
+            _send_delivery_venue(chat_id, order, message_id, recipient_number)
             continue
         try:
             message = bot.send_message(chat_id, text=text, parse_mode='HTML', reply_markup=buttons)
@@ -48,7 +59,7 @@ def notify_message(order, baskets, coupon=None, paid=False, cash_on_delivery=Fal
                 },
             )
             continue
-        _send_delivery_venue(chat_id, order, message, recipient_number)
+        _send_delivery_venue(chat_id, order, getattr(message, 'message_id', None), recipient_number)
 
     if failed and not delivered:
         raise RuntimeError('Telegram order notification failed for every recipient')
@@ -60,7 +71,7 @@ def _order_widget(order, baskets, coupon, paid, cash_on_delivery):
     except WidgetTooLarge:
         return None
     caption = '{} № {} · {} UZS'.format('✅ Оплачен заказ' if paid else '🛒 Новый заказ',
-                                       escape(str(order.order_code)), _money(order.total_price))
+                                       escape(str(order.order_code)), money(order.total_price))
     return html, caption
 
 
@@ -80,23 +91,8 @@ def _send_widget(chat_id, widget, order, recipient_number):
 def format_order_notification(order, baskets, coupon=None, paid=False, cash_on_delivery=False):
     """The order as an HTML message: who, where, what, how much. Items go in a quote."""
     baskets = list(baskets)
-    delivery = dict(Order.DELIVERY_CHOICES).get(order.type, order.type or '—')
-    created_at = timezone.localtime(order.created_at).strftime('%d.%m.%Y · %H:%M')
-    header = '\n'.join(line for line in (
-        '🛒 <b>Новый заказ № {}</b>'.format(escape(str(order.order_code))),
-        '<i>{}</i>'.format(created_at),
-        '',
-        _payment_line(order, paid, cash_on_delivery),
-        '',
-        '👤 <b>{}</b>'.format(escape(order.full_name or '—')),
-        '📞 {}'.format(escape(order.phone or '—')),
-        '',
-        '🚚 <b>{}</b>'.format(escape(str(delivery))),
-        *_place_lines(order),
-        '',
-        '📦 <b>Товары · {}</b>'.format(len(baskets)),
-    ) if line is not None) + '\n'
-    footer = _footer(order, coupon)
+    header = '\n'.join(header_lines(order, paid, cash_on_delivery) + ['', items_title(baskets)]) + '\n'
+    footer = '\n'.join(footer_lines(order, coupon))
 
     item_blocks = []
     hidden_items = 0
@@ -111,6 +107,28 @@ def format_order_notification(order, baskets, coupon=None, paid=False, cash_on_d
     if hidden_items:
         items += '\n<i>… ещё {} поз. — полный список в админке</i>'.format(hidden_items)
     return header + items + footer
+
+
+def header_lines(order, paid=False, cash_on_delivery=False):
+    """Who, how paid and where, as HTML lines; an empty string separates groups."""
+    delivery = dict(Order.DELIVERY_CHOICES).get(order.type, order.type or '—')
+    created_at = timezone.localtime(order.created_at).strftime('%d.%m.%Y · %H:%M')
+    return [
+        '🛒 <b>Новый заказ № {}</b>'.format(escape(str(order.order_code))),
+        '<i>{}</i>'.format(created_at),
+        '',
+        _payment_line(order, paid, cash_on_delivery),
+        '',
+        '👤 <b>{}</b>'.format(escape(order.full_name or '—')),
+        '📞 {}'.format(escape(order.phone or '—')),
+        '',
+        '🚚 <b>{}</b>'.format(escape(str(delivery))),
+        *_place_lines(order),
+    ]
+
+
+def items_title(baskets):
+    return '📦 <b>Товары · {}</b>'.format(len(baskets))
 
 
 def order_buttons(order):
@@ -161,30 +179,31 @@ def _slot(order):
     return ' · '.join(value for value in (day.strftime('%d.%m.%Y') if day else '', label) if value)
 
 
-def _footer(order, coupon):
+def footer_lines(order, coupon):
+    """Note, discounts and the total as HTML lines; an empty string separates groups."""
     lines = []
     note = ' '.join((getattr(order, 'customer_note', '') or '').split())
     if note:
         lines += ['', '📝 <i>{}</i>'.format(escape(note[:NOTE_LIMIT]))]
     lines.append('')
     discount = int(getattr(order, 'discount_price', 0) or 0)
-    parts = ['−{} UZS'.format(_money(discount))] if discount else []
+    parts = ['−{} UZS'.format(money(discount))] if discount else []
     if coupon:
         parts.append('купон <code>{}</code> −{}%'.format(escape(coupon.code), coupon.discount_percent))
     if parts:
         lines.append('🏷 Скидка: {}'.format(' · '.join(parts)))
     fee = int(getattr(order, 'delivery_fee', 0) or 0)
     if fee:
-        lines.append('Доставка: {} UZS'.format(_money(fee)))
-    lines.append('💰 <b>Итого: {} UZS</b>'.format(_money(order.total_price)))
-    return '\n'.join(lines)
+        lines.append('Доставка: {} UZS'.format(money(fee)))
+    lines.append('💰 <b>Итого: {} UZS</b>'.format(money(order.total_price)))
+    return lines
 
 
-def _send_delivery_venue(chat_id, order, message, recipient_number):
+def _send_delivery_venue(chat_id, order, message_id, recipient_number):
     """Pin the delivery point under the order message; never fails the order."""
     latitude = getattr(order, 'address_latitude', None)
     longitude = getattr(order, 'address_longitude', None)
-    if latitude is None or longitude is None:
+    if latitude is None or longitude is None or not message_id:
         return
     try:
         bot.send_venue(
@@ -193,7 +212,7 @@ def _send_delivery_venue(chat_id, order, message, recipient_number):
             float(longitude),
             title=getattr(order, 'address_label', '') or 'Адрес доставки',
             address=order.address or '',
-            reply_to_message_id=message.message_id,
+            reply_to_message_id=message_id,
         )
     except Exception:
         logger.exception(
@@ -202,15 +221,20 @@ def _send_delivery_venue(chat_id, order, message, recipient_number):
         )
 
 
-def _basket_block(index, basket):
+def basket_values(basket):
+    """(name, quantity, unit price, line total) of one order line."""
     product_name = getattr(basket.product, 'name_ru', None) or 'Товар удалён'
     quantity = int(basket.quantity)
     line_total = int(basket.price)
-    unit_price = line_total // quantity if quantity else line_total
+    return product_name, quantity, line_total // quantity if quantity else line_total, line_total
+
+
+def _basket_block(index, basket):
+    product_name, quantity, unit_price, line_total = basket_values(basket)
     return '{}. <b>{}</b>\n{} шт. × {} = {} UZS'.format(
-        index, escape(product_name), quantity, _money(unit_price), _money(line_total),
+        index, escape(product_name), quantity, money(unit_price), money(line_total),
     )
 
 
-def _money(value):
+def money(value):
     return f'{int(value):,}'.replace(',', ' ')

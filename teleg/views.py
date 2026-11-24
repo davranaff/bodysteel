@@ -8,6 +8,7 @@ from django.conf import settings
 from django.http import HttpResponse
 from django.utils import timezone
 
+from teleg.invites import invited_greeting, owner_invite, register_invited
 from teleg.models import SecretPhrase, Chat as ChatModel
 from teleg.replies import reply, send_report
 from teleg.stats import period_state, report_state
@@ -17,7 +18,8 @@ bot = telebot.TeleBot(settings.BOT_TOKEN)
 
 VERIFY_PROMPT = (
     '🔐 <b>Нужна верификация</b>\n'
-    'Отправьте ключ от администратора в формате <code>key:фраза</code>.'
+    'Отправьте ключ от администратора в формате <code>key:фраза</code> '
+    'или попросите владельца бота пригласить вас.'
 )
 HELP_TEXT = (
     '📊 <b>Продажи</b>\n'
@@ -47,6 +49,11 @@ def index(request):
         payload = _json(body)
         if isinstance(payload, dict) and 'widget_query' in payload:
             handle_staff_widget_query(payload['widget_query'])
+            return HttpResponse(status=200)
+        invited = owner_invite(payload.get('message')) if isinstance(payload, dict) else None
+        if invited:
+            if register_invited(invited):
+                reply(bot, invited['id'], invited_greeting(invited, HELP_TEXT))
             return HttpResponse(status=200)
         update = telebot.types.Update.de_json(body)
         bot.process_new_updates([update])
